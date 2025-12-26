@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockTracker Mockup</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .animate-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Prosty komponent Ikony wykorzystujący Lucide
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => {
+                lucide.createIcons();
+            }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [showAddModal, setShowAddModal] = useState(false);
+
+            const portfolioSummary = {
+                totalValue: "124,500.00",
+                totalPL: "+12,340.50",
+                totalPLPercent: "10.98%",
+                cash: "15,200.00"
+            };
+
+            const assets = [
+                { ticker: 'AAPL', name: 'Apple Inc.', price: '185.92', avgPrice: '165.00', pl: '+12.4%', value: '45,200', amount: '243' },
+                { ticker: 'MSFT', name: 'Microsoft Corp.', price: '402.56', avgPrice: '372.00', pl: '+8.2%', value: '32,100', amount: '80' },
+                { ticker: 'TSLA', name: 'Tesla, Inc.', price: '175.40', avgPrice: '183.00', pl: '-4.5%', value: '18,400', amount: '105' },
+                { ticker: 'NVDA', name: 'NVIDIA Corp.', price: '875.20', avgPrice: '450.00', pl: '+94.5%', value: '13,600', amount: '15' },
+            ];
+
+            const transactions = [
+                { date: '2023-12-15', type: 'Kupno', ticker: 'AAPL', amount: '10', price: '180.00', total: '1,800.00' },
+                { date: '2023-11-20', type: 'Sprzedaż', ticker: 'TSLA', amount: '5', price: '210.00', total: '1,050.00' },
+                { date: '2023-10-05', type: 'Depozyt', ticker: 'CASH', amount: '-', price: '-', total: '5,000.00' },
+            ];
+
+            const SidebarItem = ({ id, icon, label }) => (
+                <button
+                    onClick={() => setActiveTab(id)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        activeTab === id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    }`}
+                >
+                    <Icon name={icon} size={20} />
+                    <span className="font-medium text-sm">{label}</span>
+                </button>
+            );
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'dashboard':
+                        return (
+                            <div className="space-y-8 animate-in">
+                                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                                        <p className="text-slate-400 text-sm mb-1">Całkowita wartość</p>
+                                        <h2 className="text-3xl font-bold">{portfolioSummary.totalValue} <span className="text-lg font-normal text-slate-500">PLN</span></h2>
+                                        <div className="flex items-center mt-2 text-emerald-400 text-sm">
+                                            <Icon name="trending-up" size={16} className="mr-1" />
+                                            <span>{portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                                        <p className="text-slate-400 text-sm mb-1">Wolna gotówka</p>
+                                        <h2 className="text-3xl font-bold">{portfolioSummary.cash} <span className="text-lg font-normal text-slate-500">PLN</span></h2>
+                                        <p className="text-slate-500 text-sm mt-2">Dostępne do zainwestowania</p>
+                                    </div>
+                                    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex flex-col justify-center items-center border-dashed border-slate-700">
+                                        <Icon name="plus-circle" size={32} className="text-slate-600 mb-2" />
+                                        <p className="text-slate-400 text-sm">Wpłać / Wypłać gotówkę</p>
+                                    </div>
+                                </section>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                                        <h3 className="text-lg font-semibold mb-6">Wzrost portfela</h3>
+                                        <div className="h-64 flex items-end space-x-2">
+                                            {[40, 45, 30, 50, 65, 80, 75, 90, 100, 85, 95, 110].map((h, i) => (
+                                                <div key={i} className="flex-1 bg-blue-600 opacity-20 rounded-t-sm hover:opacity-100 transition-opacity" style={{ height: `${h}%` }}></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                                        <h3 className="text-lg font-semibold mb-4">Top Aktywa</h3>
+                                        <div className="space-y-4">
+                                            {assets.slice(0, 3).map(asset => (
+                                                <div key={asset.ticker} className="flex items-center justify-between p-3 hover:bg-slate-800 rounded-xl transition-colors">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="w-8 h-8 bg-blue-600/20 rounded flex items-center justify-center font-bold text-blue-400 text-xs">{asset.ticker[0]}</div>
+                                                        <div><p className="text-sm font-bold">{asset.ticker}</p></div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-medium">{asset.value} PLN</p>
+                                                        <p className={`text-xs ${asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>{asset.pl}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    case 'portfolio':
+                        return (
+                            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden animate-in">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider">
+                                        <tr>
+                                            <th className="px-6 py-4">Ticker</th>
+                                            <th className="px-6 py-4 text-right">Ilość</th>
+                                            <th className="px-6 py-4 text-right">Śr. Cena</th>
+                                            <th className="px-6 py-4 text-right">Zysk/Strata</th>
+                                            <th className="px-6 py-4 text-right">Wartość</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800">
+                                        {assets.map(asset => (
+                                            <tr key={asset.ticker} className="hover:bg-slate-800/50">
+                                                <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
+                                                <td className="px-6 py-4 text-right">{asset.amount}</td>
+                                                <td className="px-6 py-4 text-right">{asset.avgPrice}</td>
+                                                <td className={`px-6 py-4 text-right font-medium ${asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>{asset.pl}</td>
+                                                <td className="px-6 py-4 text-right font-bold">{asset.value} PLN</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        );
+                    case 'ai':
+                        return (
+                            <div className="h-96 flex flex-col bg-slate-900 rounded-2xl border border-slate-800 animate-in p-6">
+                                <div className="flex-1 space-y-4">
+                                    <div className="max-w-[80%] bg-slate-800 p-4 rounded-2xl">
+                                        <p className="text-sm">Analiza portfela: Twoja ekspozycja na spółki technologiczne (AAPL, MSFT, NVDA) wynosi ponad 70%. Rozważ dywersyfikację.</p>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-800">
+                                    <input type="text" placeholder="Zadaj pytanie AI..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" />
+                                </div>
+                            </div>
+                        );
+                    default: return <div className="p-20 text-center text-slate-500 italic">Sekcja w budowie...</div>;
+                }
+            };
+
+            return (
+                <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
+                    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col p-4 shrink-0">
+                        <div className="flex items-center space-x-2 px-4 mb-10">
+                            <div className="bg-blue-600 p-1.5 rounded-lg"><Icon name="trending-up" className="text-white" /></div>
+                            <span className="text-xl font-bold tracking-tight">StockTracker</span>
+                        </div>
+                        <nav className="flex-1 space-y-1">
+                            <SidebarItem id="dashboard" icon="layout-dashboard" label="Dashboard" />
+                            <SidebarItem id="portfolio" icon="briefcase" label="Portfel" />
+                            <SidebarItem id="ai" icon="message-square" label="Asystent AI" />
+                            <SidebarItem id="settings" icon="settings" label="Ustawienia" />
+                        </nav>
+                    </aside>
+                    <main className="flex-1 overflow-y-auto p-8 flex flex-col">
+                        <header className="flex justify-between items-center mb-10">
+                            <div>
+                                <h1 className="text-3xl font-extrabold tracking-tight">
+                                    {activeTab === 'dashboard' ? "Witaj ponownie" : activeTab === 'portfolio' ? "Twój Portfel" : activeTab === 'ai' ? "Analiza AI" : "Ustawienia"}
+                                </h1>
+                            </div>
+                            <button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20">
+                                + Nowa Operacja
+                            </button>
+                        </header>
+                        <div className="flex-1">{renderContent()}</div>
+
+                        {showAddModal && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                                <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in">
+                                    <h2 className="text-2xl font-bold mb-6">Nowa Transakcja</h2>
+                                    <div className="space-y-4">
+                                        <input type="text" placeholder="Ticker (np. NVDA)" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600" />
+                                        <input type="number" placeholder="Ilość" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" />
+                                        <input type="number" placeholder="Cena (PLN)" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" />
+                                        <div className="flex space-x-4 pt-4">
+                                            <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-400 font-bold">Anuluj</button>
+                                            <button className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Dodaj</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
