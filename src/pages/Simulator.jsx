@@ -68,6 +68,19 @@ export const Simulator = () => {
 
         if (isNaN(numAmount) || isNaN(numPrice)) return;
 
+        if (numAmount <= 0) {
+            alert("Ilość musi być większa od zera");
+            return;
+        }
+        if (!Number.isInteger(numAmount)) {
+            alert("Ilość musi być liczbą całkowitą");
+            return;
+        }
+        if (numPrice < 0) {
+            alert("Cena nie może być ujemna");
+            return;
+        }
+
         const currentAsset = assets.find(a => a.ticker === selectedTicker);
         const currentQty = currentAsset ? currentAsset.amount : 0;
         const currentAvg = currentAsset ? currentAsset.avgPrice : 0;
@@ -168,6 +181,8 @@ export const Simulator = () => {
                                 <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">Ilość</label>
                                 <input
                                     type="number"
+                                    min="1"
+                                    step="1"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
                                     placeholder="0"
@@ -181,6 +196,7 @@ export const Simulator = () => {
                                 <div className="relative">
                                     <input
                                         type="number"
+                                        min="0"
                                         value={price}
                                         onChange={(e) => setPrice(e.target.value)}
                                         placeholder="0.00"

@@ -43,6 +43,30 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         if (type !== 'Depozyt' && (!ticker || !amount || !price)) return;
         if (type === 'Depozyt' && !price) return;
 
+        if (type !== 'Depozyt') {
+            const valAmount = parseFloat(amount);
+            const valPrice = parseFloat(price);
+
+            if (valAmount <= 0) {
+                alert("Ilość musi być większa od zera");
+                return;
+            }
+            if (!Number.isInteger(valAmount)) {
+                alert("Ilość musi być liczbą całkowitą");
+                return;
+            }
+            if (valPrice < 0) {
+                alert("Cena nie może być ujemna");
+                return;
+            }
+        } else {
+            // Type == 'Depozyt'
+            if (parseFloat(price) === 0) {
+                alert("Kwota nie może być zerem");
+                return;
+            }
+        }
+
         try {
             const txTicker = type === 'Depozyt' ? 'CASH' : ticker.toUpperCase();
             const txAmount = type === 'Depozyt' ? 1 : parseFloat(amount);
@@ -224,6 +248,8 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ilość</label>
                                 <input
                                     type="number"
+                                    min="1"
+                                    step="1"
                                     value={amount}
                                     onChange={e => setAmount(e.target.value)}
                                     placeholder="0"
@@ -251,6 +277,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Depozyt' ? 'Kwota' : 'Cena za sztukę'}</label>
                             <input
                                 type="number"
+                                min={type === 'Depozyt' ? undefined : "0"}
                                 value={price}
                                 onChange={e => setPrice(e.target.value)}
                                 placeholder="0.00"
