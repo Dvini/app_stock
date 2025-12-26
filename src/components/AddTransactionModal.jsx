@@ -13,6 +13,16 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const [type, setType] = useState('Kupno'); // Kupno, Sprzedaż, Depozyt
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [ownedAssets, setOwnedAssets] = useState([]); // [NEW] Store owned assets
+
+    // [NEW] Fetch owned assets
+    useEffect(() => {
+        const fetchAssets = async () => {
+            const assets = await db.assets.toArray();
+            setOwnedAssets(assets);
+        };
+        fetchAssets();
+    }, []);
 
     // Fetch Rate on Currency Change
     useEffect(() => {
@@ -41,6 +51,20 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
 
     const handleSubmit = async () => {
         if (type !== 'Depozyt' && (!ticker || !amount || !price)) return;
+
+        // [NEW] Validation: Cannot sell what you don't own
+        if (type === 'Sprzedaż') {
+            const asset = ownedAssets.find(a => a.ticker === ticker.toUpperCase());
+            if (!asset) {
+                alert(`Nie posiadasz akcji ${ticker}, aby je sprzedać.`);
+                return;
+            }
+            if (asset.amount < parseFloat(amount)) {
+                alert(`Nie masz wystarczającej liczby akcji ${ticker} (Posiadasz: ${asset.amount})`);
+                return;
+            }
+        }
+
         if (type === 'Depozyt' && !price) return;
 
         if (type !== 'Depozyt') {
@@ -158,6 +182,19 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         // else default PLN
     };
 
+    // [NEW] Handle selection from dropdown
+    const handleAssetSelect = (e) => {
+        const selectedTicker = e.target.value;
+        setTicker(selectedTicker);
+
+        if (selectedTicker) {
+            const asset = ownedAssets.find(a => a.ticker === selectedTicker);
+            if (asset && asset.currency) {
+                setCurrency(asset.currency);
+            }
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
@@ -204,39 +241,63 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     {type !== 'Depozyt' && (
                         <div className="relative">
                             <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ticker</label>
-                            <input
-                                type="text"
-                                value={ticker}
-                                onChange={e => {
-                                    setTicker(e.target.value.toUpperCase());
-                                    setShowSuggestions(true);
-                                }}
-                                onFocus={() => setShowSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                placeholder="np. NVDA"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors uppercase font-bold placeholder:font-normal"
-                            />
 
-                            {showSuggestions && ticker.length > 0 && (
-                                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto left-0">
-                                    {searchTickers(ticker).map((t) => (
-                                        <div
-                                            key={t.symbol}
-                                            onClick={() => handleTickerSelect(t)}
-                                            className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
-                                        >
-                                            <div className="flex justify-between items-center w-full">
-                                                <div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="font-bold text-white">{t.symbol}</span>
-                                                        <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">{t.region}</span>
-                                                    </div>
-                                                    <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">{t.name}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                            {type === 'Sprzedaż' ? (
+                                // [NEW] Dropdown for Sales
+                                <div className="relative">
+                                    <select
+                                        value={ticker}
+                                        onChange={handleAssetSelect}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold appearance-none"
+                                    >
+                                        <option value="">-- Wybierz aktywo --</option>
+                                        {ownedAssets.map(asset => (
+                                            <option key={asset.id} value={asset.ticker}>
+                                                {asset.ticker} ({asset.amount} szt.)
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {ownedAssets.length === 0 && (
+                                        <p className="text-xs text-red-400 mt-1 ml-1">Brak posiadanych aktywów do sprzedaży.</p>
+                                    )}
                                 </div>
+                            ) : (
+                                // Existing Logic for Buying
+                                <>
+                                    <input
+                                        type="text"
+                                        value={ticker}
+                                        onChange={e => {
+                                            setTicker(e.target.value.toUpperCase());
+                                            setShowSuggestions(true);
+                                        }}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                        placeholder="np. NVDA"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors uppercase font-bold placeholder:font-normal"
+                                    />
+                                    {showSuggestions && ticker.length > 0 && (
+                                        <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto left-0">
+                                            {searchTickers(ticker).map((t) => (
+                                                <div
+                                                    key={t.symbol}
+                                                    onClick={() => handleTickerSelect(t)}
+                                                    className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
+                                                >
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="font-bold text-white">{t.symbol}</span>
+                                                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">{t.region}</span>
+                                                            </div>
+                                                            <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">{t.name}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
