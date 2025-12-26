@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+const MODEL_ID = "Qwen3-1.7B-q4f16_1-MLC";
 const REPO_URL = `https://huggingface.co/mlc-ai/${MODEL_ID}/resolve/main/`;
 const OUTPUT_DIR = path.join(__dirname, '../public/models', MODEL_ID);
 

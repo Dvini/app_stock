@@ -9,7 +9,7 @@ export const AIProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [initProgress, setInitProgress] = useState('');
     const [isModelLoaded, setIsModelLoaded] = useState(false);
-    const [currentModel, setCurrentModel] = useState(localStorage.getItem('selected_llm_model') || "Qwen2.5-1.5B-Instruct-q4f16_1-MLC");
+    const [currentModel, setCurrentModel] = useState(localStorage.getItem('selected_llm_model') || "Qwen3-1.7B-q4f16_1-MLC");
     const engine = useRef(null);
 
     // We access portfolio data here so the AI *always* has the latest state 

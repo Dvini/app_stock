@@ -78,11 +78,11 @@ export const Settings = () => {
     ];
 
     const getModelLabel = (id) => {
-        if (id.includes('Qwen2.5-1.5B')) return 'Qwen 2.5 (1.5B) - Default';
+        if (id.includes('Qwen2.5-1.5B')) return 'Qwen 2.5 (1.5B) - Lightweight';
         if (id.includes('Qwen2.5-3B')) return 'Qwen 2.5 (3B)';
         if (id.includes('Qwen2.5-7B')) return 'Qwen 2.5 (7B) - High Performance';
         if (id.includes('Qwen3-0.6B')) return 'Qwen 3 (0.6B) - High Speed';
-        if (id.includes('Qwen3-1.7B')) return 'Qwen 3 (1.7B) - Balanced Mobile';
+        if (id.includes('Qwen3-1.7B')) return 'Qwen 3 (1.7B) - Default (Balanced)';
         if (id.includes('Qwen3-4B')) return 'Qwen 3 (4B) - Strong Instruct';
         if (id.includes('Qwen3-8B')) return 'Qwen 3 (8B) - Maximum Power';
         if (id.includes('gemma-3-1b')) return 'Gemma 3 (1B) - Mobile';
