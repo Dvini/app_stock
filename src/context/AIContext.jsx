@@ -96,9 +96,18 @@ export const AIProvider = ({ children }) => {
                 ? transactions.map(t => `${t.date}: ${t.type} ${t.ticker} x${t.amount} @ ${t.price} ${t.currency}`).join('\n      ')
                 : 'Brak';
 
-            const assetsStr = assets?.length
-                ? assets.map(a => `- **${a.ticker}**: ${a.amount} szt., Śr.Cena: ${a.avgPrice.toFixed(2)}, Obecnie: ${a.price} ${a.currency} (Zysk/Strata: ${a.pl})`).join('\n      ')
-                : 'Brak aktywów';
+            let assetsListText = assets?.length
+                ? assets.map(a => {
+                    const val = a.valueBase ? a.valueBase.toFixed(2) : '0.00';
+                    return `- ASSET: ${a.ticker} | QTY: ${a.amount} | VAL_PLN: **${val}**`;
+                }).join('\n      ')
+                : 'Brak akcji/ETF.';
+
+            // Append Cash
+            const cashVal = portfolioSummary?.cash ? parseFloat(portfolioSummary.cash.replace(/\s/g, '').replace(',', '.')) : 0;
+            if (cashVal > 0.01) {
+                assetsListText += `\n      - ASSET: GOTÓWKA | QTY: 1 | VAL_PLN: **${cashVal.toFixed(2)}**`;
+            }
 
             const systemPrompt = `Jesteś profesjonalnym, ale przystępnym doradcą inwestycyjnym w aplikacji StockTracker.
       Twoim językiem operacyjnym jest POLSKI. Odpowiadaj zawsze po polsku.
@@ -110,17 +119,14 @@ export const AIProvider = ({ children }) => {
       ===================================================
       💰 Waluta Bazowa: ${currency}
       📈 Wartość Całkowita: ${portfolioSummary?.totalValue || '0'} ${currency}
-      💵 Dostępna Gotówka: ${portfolioSummary?.cash || '0'} ${currency}
       
       ===================================================
       SEKCJA 1: POSIADANE AKTYWA (PORTFEL)
-      (To są akcje, które użytkownik FAKTYCZNIE POSIADA)
       ===================================================
-      ${assetsStr}
+      ${assetsListText}
       
       ===================================================
       SEKCJA 2: OBSERWOWANE (WATCHLIST)
-      (To są akcje, które użytkownik TYLKO OBSERWUJE - NIE POSIADA ICH)
       ===================================================
       ${watchlistStr}
       
@@ -131,18 +137,48 @@ export const AIProvider = ({ children }) => {
       ===================================================
       
       TWOJE ZASADY:
-      1. Bądź konkretny. Nie lej wody. Używaj Markdown do formatowania.
-      2. ODRÓŻNIAJ "Posiadane" od "Obserwowanych". Jeśli akcja jest w sekcji OBSERWOWANE, to znaczy, że użytkownik jej nie ma.
-      3. Jeśli portfel jest pusty, zachęć do dodania pierwszej transakcji.
-      4. Analizuj ryzyko i dywersyfikację na podstawie sekcji POSIADANE.
-      5. Jeśli użytkownik pyta o spółkę spoza listy, użyj swojej wiedzy ogólnej.
+      1. Bądź konkretny. Nie lej wody.
+      2. Korzystaj WYŁĄCZNIE z danych z SEKCJI 1 (POSIADANE) dla analizy portfela.
+
+      SPECJALNA UMIEJĘTNOŚĆ - RYSOWANIE WYKRESÓW:
+      Jeśli użytkownik poprosi o wykres, wygeneruj JSON:
+
+      |||CHART_START|||
+      {
+        "type": "pie", 
+        "title": "Tytuł Wykresu",
+        "data": [
+          { "label": "PRZYKLAD_A", "value": 100 }, 
+          { "label": "PRZYKLAD_B", "value": 200 }
+        ],
+        "currency": "PLN"
+      }
+      |||CHART_END|||
+
+      WAZNE ZASADY DLA WYKRESOW:
+      1.  PROSZĘ SKOPIOWAĆ DANE TYLKO Z "SEKCJA 1". NIE UŻYWAJ DANYCH Z PRZYKŁADU (PRZYKLAD_A).
+      2.  Format linii w SEKCJI 1 to: "ASSET: [Nazwa] | ... | VAL_PLN: **[Wartość]**".
+      3.  Dla wykresu 'pie' (dywersyfikacja):
+          - Przejdź przez KAŻDY element w SEKCJI 1 (włącznie z GOTÓWKA).
+          - label = [Nazwa]
+          - value = [Wartość] (liczba z pola VAL_PLN).
+      4.  ZNACZNIKI: |||CHART_START||| i |||CHART_END|||.
       
-      Pytanie użytkownika:`;
+      Pytanie użytkownika: `;
+
+            // 0. Truncate History to save context window (Keep last 20 messages)
+            const MAX_HISTORY = 20;
+            const recentMessages = newMessages.length > MAX_HISTORY
+                ? newMessages.slice(newMessages.length - MAX_HISTORY)
+                : newMessages;
+
+            // Debugging: Log what the AI sees
+            console.log("AI System Prompt Assets:", assetsListText);
 
             const chunks = await engine.current.chat.completions.create({
-                messages: [{ role: 'system', content: systemPrompt }, ...newMessages],
+                messages: [{ role: 'system', content: systemPrompt }, ...recentMessages],
                 temperature: 0.7,
-                stream: false, // For simplicity in this demo
+                stream: false,
             });
 
             const reply = chunks.choices[0].message.content;

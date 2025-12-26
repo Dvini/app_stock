@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
 import { useAI } from '../context/AIContext';
 import { cn } from '../lib/utils';
+import { PieChart } from '../components/PieChart';
+import { WebGPUChart } from '../components/WebGPUChart';
 
 export const AI = () => {
     const { messages, sendMessage, isLoading, initProgress, isModelLoaded, clearChat, currentModel } = useAI();
@@ -76,7 +78,7 @@ export const AI = () => {
                             </div>
                             <div className={cn("max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed",
                                 msg.role === 'user' ? "bg-blue-600/20 text-blue-100 rounded-tr-sm" : "bg-slate-800 text-slate-200 rounded-tl-sm")}>
-                                {msg.content}
+                                <MessageContent content={msg.content} />
                             </div>
                         </div>
                     ))}
@@ -120,6 +122,87 @@ export const AI = () => {
                     </p>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const MessageContent = ({ content }) => {
+    // 1. Try splitting by custom delimiters
+    let parts = content.split(/(\|\|\|CHART_START\|\|\|[\s\S]*?\|\|\|CHART_END\|\|\|)/g);
+
+    // 2. If no custom delimiters found, try to find Markdown JSON blocks that look like charts
+    if (parts.length === 1 && (content.includes('```json') || content.includes('```')) && (content.includes('"type": "pie"') || content.includes('"type": "area"'))) {
+        // Fallback: Extract JSON from code blocks
+        const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
+        const newParts = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = markdownRegex.exec(content)) !== null) {
+            // Add text before block
+            if (match.index > lastIndex) {
+                newParts.push(content.substring(lastIndex, match.index));
+            }
+            // Add the content as a "chart block" wrapper for consistency
+            newParts.push(`|||CHART_START|||${match[1]}|||CHART_END|||`);
+            lastIndex = markdownRegex.lastIndex;
+        }
+        // Add remaining text
+        if (lastIndex < content.length) {
+            newParts.push(content.substring(lastIndex));
+        }
+
+        if (newParts.length > 0) {
+            parts = newParts;
+        }
+    }
+
+    return (
+        <div className="space-y-4">
+            {parts.map((part, index) => {
+                if (part.startsWith('|||CHART_START|||')) {
+                    try {
+                        let jsonStr = part.replace('|||CHART_START|||', '').replace('|||CHART_END|||', '').trim();
+
+                        // Strip Comments (single line //)
+                        jsonStr = jsonStr.replace(/\/\/.*$/gm, '');
+
+                        const chartData = JSON.parse(jsonStr);
+
+                        if (chartData.type === 'pie') {
+                            return (
+                                <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
+                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    <div className="h-64 w-full">
+                                        <PieChart data={chartData.data} />
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        if (chartData.type === 'area') {
+                            return (
+                                <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
+                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    <div className="h-64 w-full">
+                                        <WebGPUChart data={chartData.data} currency={chartData.currency || 'PLN'} />
+                                    </div>
+                                </div>
+                            );
+                        }
+                    } catch (e) {
+                        console.error("Chart Render Error", e);
+                        return <div key={index} className="text-red-400 text-xs p-2 border border-red-900 bg-red-900/10 rounded">Błąd renderowania wykresu</div>;
+                    }
+                }
+                // Regular text (render newlines)
+                if (!part.trim()) return null;
+                return (
+                    <div key={index} className="whitespace-pre-wrap">
+                        {part}
+                    </div>
+                );
+            })}
         </div>
     );
 };
