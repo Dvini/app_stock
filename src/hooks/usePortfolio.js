@@ -77,43 +77,45 @@ export const usePortfolio = () => {
     }, [assets.length, watchlist.length, baseCurrency]); // Add baseCurrency dependency
 
     // Calculate details
-    const processedAssets = assets.map(asset => {
-        const liveData = livePrices[asset.ticker];
-        const currentPrice = liveData ? liveData.price : asset.avgPrice;
-        const currency = liveData ? liveData.currency : (asset.currency || 'PLN');
+    const processedAssets = assets
+        .filter(asset => asset.amount > 0) // [FIX] Filter out sold assets
+        .map(asset => {
+            const liveData = livePrices[asset.ticker];
+            const currentPrice = liveData ? liveData.price : asset.avgPrice;
+            const currency = liveData ? liveData.currency : (asset.currency || 'PLN');
 
-        // Native Value
-        const valueNative = asset.amount * currentPrice;
+            // Native Value
+            const valueNative = asset.amount * currentPrice;
 
-        // Value in Base Currency
-        let rate = 1;
-        if (currency !== baseCurrency) {
-            rate = exchangeRates[currency] || 0; // 0 if loading or failed
-            if (rate === 0 && currency === 'PLN' && baseCurrency === 'USD') rate = 0.25; // Fallback approx? No, better show 0.
-            // Actually, if rate is missing, fallback to 1 is dangerous if currencies differ.
-            // Let's rely on fetch. If missing, maybe keep native? No, we need total.
-            // For Safety: if rate is missing and currencies differ, total might be wrong.
-        }
-        const valueBase = valueNative * rate;
+            // Value in Base Currency
+            let rate = 1;
+            if (currency !== baseCurrency) {
+                rate = exchangeRates[currency] || 0; // 0 if loading or failed
+                if (rate === 0 && currency === 'PLN' && baseCurrency === 'USD') rate = 0.25; // Fallback approx? No, better show 0.
+                // Actually, if rate is missing, fallback to 1 is dangerous if currencies differ.
+                // Let's rely on fetch. If missing, maybe keep native? No, we need total.
+                // For Safety: if rate is missing and currencies differ, total might be wrong.
+            }
+            const valueBase = valueNative * rate;
 
-        const costBasisNative = asset.amount * asset.avgPrice;
-        const plValueNative = valueNative - costBasisNative;
-        const plPercent = costBasisNative > 0 ? (plValueNative / costBasisNative) * 100 : 0;
+            const costBasisNative = asset.amount * asset.avgPrice;
+            const plValueNative = valueNative - costBasisNative;
+            const plPercent = costBasisNative > 0 ? (plValueNative / costBasisNative) * 100 : 0;
 
-        const isRealData = !!liveData;
+            const isRealData = !!liveData;
 
-        return {
-            ...asset,
-            price: currentPrice.toFixed(2),
-            currency,
-            value: valueNative.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            valueBase: valueBase,
-            rate: rate,
-            pl: `${plValueNative > 0 ? '+' : ''}${plValueNative.toFixed(2)} ${currency} (${plPercent.toFixed(2)}%)`,
-            plValue: plValueNative,
-            isRealData
-        };
-    });
+            return {
+                ...asset,
+                price: currentPrice.toFixed(2),
+                currency,
+                value: valueNative.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                valueBase: valueBase,
+                rate: rate,
+                pl: `${plValueNative > 0 ? '+' : ''}${plValueNative.toFixed(2)} ${currency} (${plPercent.toFixed(2)}%)`,
+                plValue: plValueNative,
+                isRealData
+            };
+        });
 
     // Process Watchlist
     const processedWatchlist = watchlist.map(item => {
