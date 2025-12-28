@@ -8,6 +8,7 @@ import { WebGPUChart } from '../components/WebGPUChart'; // Reusing Line Chart
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { formatNumber } from '../utils/formatters';
 
 export const Portfolio = () => {
     const { assets, portfolioSummary } = usePortfolio();
@@ -223,18 +224,18 @@ export const Portfolio = () => {
                             assets.map(asset => (
                                 <tr key={asset.ticker} className="hover:bg-slate-800/50 transition-colors">
                                     <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
-                                    <td className="px-6 py-4 text-right">{asset.amount}</td>
+                                    <td className="px-6 py-4 text-right">{formatNumber(asset.amount)}</td>
                                     <td className="px-6 py-4 text-right font-medium text-slate-300">
-                                        {asset.price} <span className="text-xs text-slate-500">{asset.currency}</span>
+                                        {formatNumber(asset.price)} <span className="text-xs text-slate-500">{asset.currency}</span>
                                         {asset.isRealData && <span className="text-[10px] text-emerald-500 ml-1">●</span>}
                                     </td>
                                     <td className="px-6 py-4 text-right text-slate-500">
-                                        {asset.avgPrice.toFixed(2)} <span className="text-xs">{asset.currency}</span>
+                                        {formatNumber(asset.avgPrice)} <span className="text-xs">{asset.currency}</span>
                                     </td>
                                     <td className={cn("px-6 py-4 text-right font-medium", asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400')}>
                                         {asset.pl}
                                         <div className="text-[10px] text-slate-500 font-normal">
-                                            {(asset.plValue * asset.rate).toFixed(2)} {portfolioSummary.baseCurrency}
+                                            {formatNumber(asset.plValue * asset.rate)} {portfolioSummary.baseCurrency}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">

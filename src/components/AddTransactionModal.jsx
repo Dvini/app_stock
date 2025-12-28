@@ -3,6 +3,7 @@ import { X, Check, Calendar } from 'lucide-react';
 import { db } from '../db/db';
 import { searchTickers } from '../lib/tickers';
 import { fetchCurrentPrice } from '../lib/api';
+import { formatNumber } from '../utils/formatters';
 
 export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const [ticker, setTicker] = useState('');
@@ -407,12 +408,12 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         <div className={`p-4 rounded-xl border ${isInsufficientFunds ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800/50 border-slate-700'}`}>
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-slate-400 text-sm">Szacowany koszt:</span>
-                                <span className="text-white font-bold font-mono">{totalCostPLN.toFixed(2)} PLN</span>
+                                <span className="text-white font-bold font-mono">{formatNumber(totalCostPLN)} PLN</span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
                                 <span className="text-slate-500">Dostępne środki:</span>
                                 <span className={isInsufficientFunds ? 'text-red-400 font-bold' : 'text-slate-400'}>
-                                    {availableCash.toFixed(2)} PLN
+                                    {formatNumber(availableCash)} PLN
                                 </span>
                             </div>
                             {isInsufficientFunds && (

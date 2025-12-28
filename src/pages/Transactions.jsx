@@ -2,6 +2,7 @@ import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { cn } from '../lib/utils';
+import { formatNumber } from '../utils/formatters';
 
 export const Transactions = () => {
     const transactions = useLiveQuery(() => db.transactions.reverse().toArray()) || [];
@@ -44,12 +45,12 @@ export const Transactions = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 font-bold text-blue-400">{tx.ticker}</td>
-                                    <td className="px-6 py-4 text-right">{tx.amount}</td>
+                                    <td className="px-6 py-4 text-right">{formatNumber(tx.amount)}</td>
                                     <td className="px-6 py-4 text-right">
-                                        {tx.price.toFixed(2)} <span className="text-xs text-slate-500">{tx.currency || 'PLN'}</span>
+                                        {formatNumber(tx.price)} <span className="text-xs text-slate-500">{tx.currency || 'PLN'}</span>
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">
-                                        {tx.total.toFixed(2)} <span className="text-xs font-normal text-slate-500">{tx.currency || 'PLN'}</span>
+                                        {formatNumber(tx.total)} <span className="text-xs font-normal text-slate-500">{tx.currency || 'PLN'}</span>
                                     </td>
                                 </tr>
                             ))

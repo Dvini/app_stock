@@ -8,6 +8,7 @@ import { WebGPUChart } from '../components/WebGPUChart';
 import { fetchHistory, getCachedPrice, fetchCurrentPrice } from '../lib/api';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { formatNumber } from '../utils/formatters';
 
 export const Dashboard = () => {
     const { assets, portfolioSummary } = usePortfolio();
@@ -240,7 +241,7 @@ export const Dashboard = () => {
                                         </span>
                                         {chartStats && (
                                             <span className={cn("px-2 py-1 rounded text-sm font-bold", chartStats.change >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-                                                {chartStats.change > 0 && '+'}{chartStats.change.toFixed(2)} {chartCurrency} ({chartStats.percent.toFixed(2)}%)
+                                                {chartStats.change > 0 && '+'}{formatNumber(chartStats.change)} {chartCurrency} ({formatNumber(chartStats.percent)}%)
                                             </span>
                                         )}
                                     </div>
@@ -330,7 +331,7 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
         </div>
         <div className="text-right">
             <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
-                {new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(parseFloat(price) || 0)} <span className="text-[10px] opacity-70">{currency}</span>
+                {formatNumber(price)} <span className="text-[10px] opacity-70">{currency}</span>
             </p>
             {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-200" : "text-emerald-400") : (selected ? "text-rose-200" : "text-rose-400"))}>{pl}</p>}
         </div>

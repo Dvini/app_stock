@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { db } from '../db/db';
 import { fetchCurrentPrice, getCachedPrice, fetchExchangeRates } from '../lib/api';
 import { useCurrency } from '../context/CurrencyContext';
+import { formatNumber } from '../utils/formatters';
 
 export const usePortfolio = () => {
     const { baseCurrency } = useCurrency(); // 'PLN', 'USD', 'EUR'
@@ -105,14 +106,22 @@ export const usePortfolio = () => {
 
                 const isRealData = !!liveData;
 
+                // ... existing imports ...
+
+                // Inside hook...
+
                 return {
                     ...asset,
-                    price: currentPrice.toFixed(2),
+                    price: formatNumber(currentPrice), // Keep price as raw string for now or format? User sees this in list. Let's format but check usages. 
+                    // processedAssets are used in UI. So yes, format.
+                    // Wait, .price might be used for calculations? No, usage seems UI focused. But let's be careful.
+                    // Actually line 110: price: currentPrice.toFixed(2) -> formatNumber(currentPrice)
+                    price: formatNumber(currentPrice),
                     currency,
-                    value: valueNative.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    value: formatNumber(valueNative),
                     valueBase: valueBase,
                     rate: rate,
-                    pl: `${plValueNative > 0 ? '+' : ''}${plValueNative.toFixed(2)} ${currency} (${plPercent.toFixed(2)}%)`,
+                    pl: `${plValueNative > 0 ? '+' : ''}${formatNumber(plValueNative)} ${currency} (${formatNumber(plPercent)}%)`,
                     plValue: plValueNative,
                     isRealData
                 };
@@ -131,19 +140,13 @@ export const usePortfolio = () => {
         });
     }, [watchlist, livePrices]);
 
-    // Cash Handling - simplistic assumption for now: Cash is in PLN.
-    // Ideally Loop through all cash entries.
-    // We utilize useMemo for the final summary construction too
     const portfolioSummary = useMemo(() => {
         let cashInBase = 0;
-        // We only query 'PLN' cash above. TODO: Query all cash?
-        // For now:
         let cashRate = 1;
         if (baseCurrency !== 'PLN') {
             cashRate = exchangeRates['PLN'] || 0;
         }
         cashInBase = currentCash * cashRate;
-
 
         const totalAssetsValueBase = processedAssets.reduce((acc, curr) => acc + curr.valueBase, 0);
         const totalValueBase = totalAssetsValueBase + cashInBase;
@@ -153,15 +156,10 @@ export const usePortfolio = () => {
         if (baseCurrency === 'PLN') {
             totalValuePLN = totalValueBase;
         } else {
-            // If baseCurrency is not PLN, we need the rate from baseCurrency to PLN.
-            // Our exchangeRates map stores rates from other currencies TO baseCurrency.
-            // So, if exchangeRates['PLN'] exists, it means 1 PLN = X baseCurrency.
-            // Therefore, 1 baseCurrency = 1/X PLN.
-            const plnToBaseRate = exchangeRates['PLN']; // e.g., if baseCurrency is USD, this is PLN_to_USD rate
+            const plnToBaseRate = exchangeRates['PLN'];
             if (plnToBaseRate && plnToBaseRate !== 0) {
                 totalValuePLN = totalValueBase / plnToBaseRate;
             } else {
-                // Fallback if rate is missing or zero, cannot convert to PLN reliably
                 totalValuePLN = 0;
             }
         }
@@ -174,11 +172,11 @@ export const usePortfolio = () => {
         const totalPLPercent = totalCostBase > 0 ? (totalPL_Base / totalCostBase) * 100 : 0;
 
         return {
-            totalValue: totalValueBase.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            totalValuePLN: totalValuePLN.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            totalPL: `${totalPL_Base > 0 ? '+' : ''}${totalPL_Base.toFixed(2)} ${baseCurrency}`,
-            totalPLPercent: `${totalPLPercent.toFixed(2)}%`,
-            cash: cashInBase.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            totalValue: formatNumber(totalValueBase),
+            totalValuePLN: formatNumber(totalValuePLN),
+            totalPL: `${totalPL_Base > 0 ? '+' : ''}${formatNumber(totalPL_Base)} ${baseCurrency}`,
+            totalPLPercent: `${formatNumber(totalPLPercent)}%`,
+            cash: formatNumber(cashInBase),
             baseCurrency, // Export for UI
             isLoadingPrices
         };

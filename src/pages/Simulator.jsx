@@ -3,6 +3,7 @@ import { usePortfolio } from '../hooks/usePortfolio';
 import { POPULAR_TICKERS as tickers } from '../lib/tickers';
 import { fetchExchangeRates } from '../lib/api';
 import { Calculator, ArrowRight, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { formatNumber } from '../utils/formatters';
 
 export const Simulator = () => {
     const { assets, portfolioSummary } = usePortfolio();
@@ -244,18 +245,18 @@ export const Simulator = () => {
                                         <div>
                                             {Math.abs(result.diff) > 0.001 && (
                                                 <>
-                                                    <span className="text-2xl font-mono text-slate-500 line-through mr-2">{result.oldAvg.toFixed(2)}</span>
+                                                    <span className="text-2xl font-mono text-slate-500 line-through mr-2">{formatNumber(result.oldAvg)}</span>
                                                     <ArrowRight className="inline w-4 h-4 text-slate-600 mx-2" />
                                                 </>
                                             )}
                                             <span className={`text-3xl font-mono font-bold ${Math.abs(result.diff) < 0.001 ? 'text-white' : (result.diff < 0 ? 'text-emerald-400' : 'text-rose-400')}`}>
-                                                {result.newAvg.toFixed(2)}
+                                                {formatNumber(result.newAvg)}
                                             </span>
                                         </div>
                                         {mode === 'BUY' && Math.abs(result.diff) > 0.001 && (
                                             <div className={`text-sm ${result.diff < 0 ? 'text-emerald-500' : 'text-rose-500'} flex items-center font-bold`}>
                                                 {result.diff < 0 ? <TrendingDown className="w-4 h-4 mr-1" /> : <TrendingUp className="w-4 h-4 mr-1" />}
-                                                {Math.abs(result.diff).toFixed(2)} zmiana
+                                                {formatNumber(Math.abs(result.diff))} zmiana
                                             </div>
                                         )}
                                     </div>
@@ -278,12 +279,12 @@ export const Simulator = () => {
                                     <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
                                         <div className="text-slate-400 text-xs uppercase mb-1">Wpływ na Gotówkę</div>
                                         <div className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                            {result.cashChange > 0 ? '+' : ''}{result.cashChange.toFixed(2)}
+                                            {result.cashChange > 0 ? '+' : ''}{formatNumber(result.cashChange)}
                                             <span className="text-sm font-normal text-slate-500 ml-1">{result.currency}</span>
                                         </div>
                                         {result.currency !== 'PLN' && plnRate && Math.abs(result.cashChange) > 0 && (
                                             <div className="text-xs text-slate-500 mt-1">
-                                                ≈ {(result.cashChange * plnRate).toFixed(2)} PLN
+                                                ≈ {formatNumber(result.cashChange * plnRate)} PLN
                                             </div>
                                         )}
                                     </div>
@@ -292,7 +293,7 @@ export const Simulator = () => {
                                 <div className="mt-auto bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
                                     <div className="text-blue-300 text-xs uppercase mb-1">Nowa Wartość Pozycji (Estymacja)</div>
                                     <div className="text-2xl font-bold text-white font-mono">
-                                        {result.projectedValue.toFixed(2)}
+                                        {formatNumber(result.projectedValue)}
                                         <span className="text-sm font-normal text-blue-400 ml-1">{result.currency}</span>
                                     </div>
                                 </div>
