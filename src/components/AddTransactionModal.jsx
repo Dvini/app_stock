@@ -378,7 +378,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     {/* PRICE & EXCHANGE RATE */}
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Depozyt' ? 'Kwota' : 'Cena za sztukę'}</label>
+                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Depozyt' ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
                             <input
                                 type="number"
                                 min={type === 'Depozyt' ? undefined : "0"}
