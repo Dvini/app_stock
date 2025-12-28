@@ -145,7 +145,7 @@ export const fetchExchangeRates = async (currencies, targetCurrency = 'PLN') => 
 
 // Fetch history for charts
 export const fetchHistory = async (ticker, range = '1mo', interval = '1d') => {
-    const CACHE_KEY = `history_${ticker}_${range}`;
+    const CACHE_KEY = `history_${ticker}_${range}_${interval}`;
 
     // 1. Check Cache
     try {

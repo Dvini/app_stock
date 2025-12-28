@@ -16,7 +16,6 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
     const themeRgb = isNegative ? '244, 63, 94' : '16, 185, 129';
 
     useEffect(() => {
-        const dpr = window.devicePixelRatio || 1;
         const canvas = canvasRef.current;
         const container = containerRef.current;
         if (!canvas || !container || points.length === 0) return;
@@ -24,9 +23,12 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
         const ctx = canvas.getContext('2d');
 
         const render = () => {
+            const dpr = window.devicePixelRatio || 1;
             const rect = container.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
+            canvas.width = Math.floor(rect.width * dpr);
+            canvas.height = Math.floor(rect.height * dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
             ctx.scale(dpr, dpr);
 
             const w = rect.width;
@@ -185,8 +187,12 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
         render();
         const observer = new ResizeObserver(render);
         observer.observe(container);
+        window.addEventListener('resize', render);
 
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', render);
+        };
     }, [data, color]);
 
     // Custom Interaction Handler for React implementation of Tooltip Overlay
