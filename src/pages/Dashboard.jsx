@@ -51,7 +51,7 @@ export const Dashboard = () => {
             if (chartRange === '1d') interval = '5m';
             if (chartRange === '5d') interval = '15m';
             if (chartRange === '1mo') interval = '1d';
-            if (chartRange === '1y') interval = '1wk';
+            if (chartRange === '1y') interval = '1d';
             if (chartRange === '5y') interval = '1wk';
             if (chartRange === 'max') interval = '1mo';
 
