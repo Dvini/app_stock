@@ -14,14 +14,18 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [ownedAssets, setOwnedAssets] = useState([]); // [NEW] Store owned assets
+    const [availableCash, setAvailableCash] = useState(0); // [NEW] Available Cash
 
-    // [NEW] Fetch owned assets
+    // [NEW] Fetch owned assets and Cash
     useEffect(() => {
-        const fetchAssets = async () => {
+        const fetchData = async () => {
             const assets = await db.assets.toArray();
             setOwnedAssets(assets);
+
+            const cashEntry = await db.cash.get('PLN');
+            setAvailableCash(cashEntry ? cashEntry.amount : 0);
         };
-        fetchAssets();
+        fetchData();
     }, []);
 
     // Fetch Rate on Currency Change
@@ -49,8 +53,20 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         fetchRate();
     }, [currency]);
 
+    // Derived values for validation and display
+    const numAmount = parseFloat(amount) || 0;
+    const numPrice = parseFloat(price) || 0;
+    const numRate = parseFloat(exchangeRate) || 1.0;
+    const totalCostPLN = numAmount * numPrice * numRate;
+    const isInsufficientFunds = type === 'Kupno' && totalCostPLN > availableCash;
+
     const handleSubmit = async () => {
         if (type !== 'Depozyt' && (!ticker || !amount || !price)) return;
+
+        // Block submit if insufficient funds
+        if (isInsufficientFunds) {
+            return;
+        }
 
         // [NEW] Validation: Cannot sell what you don't own
         if (type === 'Sprzedaż') {
@@ -330,8 +346,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         </div>
                     </div>
 
-                    {/* PRICE */}
-
                     {/* PRICE & EXCHANGE RATE */}
                     <div className="flex gap-4">
                         <div className="flex-1">
@@ -359,10 +373,38 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         )}
                     </div>
 
+                    {/* COST SUMMARY */}
+                    {type === 'Kupno' && amount && price && (
+                        <div className={`p-4 rounded-xl border ${isInsufficientFunds ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800/50 border-slate-700'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-slate-400 text-sm">Szacowany koszt:</span>
+                                <span className="text-white font-bold font-mono">{totalCostPLN.toFixed(2)} PLN</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500">Dostępne środki:</span>
+                                <span className={isInsufficientFunds ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                                    {availableCash.toFixed(2)} PLN
+                                </span>
+                            </div>
+                            {isInsufficientFunds && (
+                                <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
+                                    <X size={12} /> Brak wystarczających środków
+                                </div>
+                            )}
+                        </div>
+                    )}
+
 
                     <div className="pt-4 flex space-x-3">
                         <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-colors">Anuluj</button>
-                        <button onClick={handleSubmit} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isInsufficientFunds}
+                            className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${isInsufficientFunds
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40'
+                                }`}
+                        >
                             Zapisz
                         </button>
                     </div>
