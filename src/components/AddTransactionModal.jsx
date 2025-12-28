@@ -248,7 +248,13 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             {['Kupno', 'Sprzedaż', 'Depozyt'].map(t => (
                                 <button
                                     key={t}
-                                    onClick={() => setType(t)}
+                                    onClick={() => {
+                                        setType(t);
+                                        if (t === 'Depozyt') {
+                                            setCurrency('PLN');
+                                            setExchangeRate('1.0');
+                                        }
+                                    }}
                                     className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${type === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
                                         }`}
                                 >
@@ -354,16 +360,19 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                                 />
                             </div>
                         )}
-                        <div className="w-1/3">
-                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Waluta</label>
-                            <select
-                                value={currency}
-                                onChange={(e) => setCurrency(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold text-center appearance-none"
-                            >
-                                {commonCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
+
+                        {type !== 'Depozyt' && (
+                            <div className="w-1/3">
+                                <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Waluta</label>
+                                <select
+                                    value={currency}
+                                    onChange={(e) => setCurrency(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold text-center appearance-none"
+                                >
+                                    {commonCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* PRICE & EXCHANGE RATE */}
