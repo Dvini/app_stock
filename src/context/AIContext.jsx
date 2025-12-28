@@ -195,85 +195,103 @@ export const AIProvider = ({ children }) => {
 
         try {
             // Prepare system prompt with REAL-TIME context in POLISH
+            // Prepare system prompt with REAL-TIME context in POLISH
             const currency = portfolioSummary?.baseCurrency || 'PLN';
 
-            const watchlistStr = watchlist?.length
-                ? watchlist.map(w => `- ${w.ticker} (${w.price} ${w.currency})`).join('\n      ')
-                : 'Brak';
+            // Construct Rich Context JSON
+            const contextData = {
+                meta: {
+                    userCurrency: currency,
+                    timestamp: new Date().toISOString()
+                },
+                portfolio: {
+                    totalValue: portfolioSummary?.totalValue || '0',
+                    totalPL: portfolioSummary?.totalPL || '0',
+                    totalPLPercent: portfolioSummary?.totalPLPercent || '0%',
+                    cash: portfolioSummary?.cash || '0'
+                },
+                assets: assets?.map(a => ({
+                    ticker: a.ticker,
+                    amount: a.amount,
+                    avgPrice: a.avgPrice.toFixed(2),
+                    currentPrice: a.price, // comes from formatted string or number? Check usePortfolio. using .price from processedAssets is string usually.
+                    value: a.valueBase,
+                    pl: a.pl,
+                    currency: a.currency
+                })) || [],
+                watchlist: watchlist?.map(w => ({
+                    ticker: w.ticker,
+                    price: w.price,
+                    currency: w.currency
+                })) || [],
+                lastTransactions: transactions?.slice(0, 5).map(t => ({
+                    date: t.date,
+                    type: t.type,
+                    ticker: t.ticker,
+                    amount: t.amount,
+                    price: t.price,
+                    total: t.total
+                })) || []
+            };
 
-            const transactionsStr = transactions?.length
-                ? transactions.map(t => `${t.date}: ${t.type} ${t.ticker} x${t.amount} @ ${t.price} ${t.currency}`).join('\n      ')
-                : 'Brak';
+            const systemPrompt = `
+Jesteś "StockBot" - zaawansowanym, inteligentnym asystentem finansowym w aplikacji StockTracker.
+Twoim celem jest pomoc użytkownikowi w analizie portfela i edukacja finansowa.
 
-            let assetsListText = assets?.length
-                ? assets.map(a => {
-                    const val = a.valueBase ? a.valueBase.toFixed(2) : '0.00';
-                    return `- ASSET: ${a.ticker} | QTY: ${a.amount} | VAL_PLN: **${val}**`;
-                }).join('\n      ')
-                : 'Brak akcji/ETF.';
+Twoja Osobowość:
+- Profesjonalny, analityczny, ale pomocny.
+- Używasz języka polskiego.
+- Jesteś "Read-Only" (Tylko do odczytu).
 
-            // Append Cash
-            const cashVal = portfolioSummary?.cash ? parseFloat(portfolioSummary.cash.replace(/\s/g, '').replace(',', '.')) : 0;
-            if (cashVal > 0.01) {
-                assetsListText += `\n      - ASSET: GOTÓWKA | QTY: 1 | VAL_PLN: **${cashVal.toFixed(2)}**`;
-            }
+===================================================
+TWOJE UPRAWNIENIA I LIMITY
+===================================================
+1. [READ-ONLY]: Masz dostęp do bazy danych TYLKO DO ODCZYTU.
+2. [NO TRADING]: NIE możesz wykonywać transakcji (kupno/sprzedaż). Jeśli użytkownik o to prosi, napisz: "Nie mogę wykonywać operacji. Użyj przycisku 'Nowa Operacja' w menu."
+3. [DATA TRUTH]: Poniższy JSON "CONTEXT_DATA" to jedyne źródło prawdy o stanie posiadania użytkownika. Nie zmyślaj transakcji.
 
-            const systemPrompt = `Jesteś profesjonalnym, ale przystępnym doradcą inwestycyjnym w aplikacji StockTracker.
-      Twoim językiem operacyjnym jest POLSKI. Odpowiadaj zawsze po polsku.
-      
-      Twoim jedynym źródłem prawdy są poniższe dane. NIE wymyślaj aktywów, których tu nie ma.
-      
-      ===================================================
-      KONTEKST FINANSOWY
-      ===================================================
-      💰 Waluta Bazowa: ${currency}
-      📈 Wartość Całkowita: ${portfolioSummary?.totalValue || '0'} ${currency}
-      
-      ===================================================
-      SEKCJA 1: POSIADANE AKTYWA (PORTFEL)
-      ===================================================
-      ${assetsListText}
-      
-      ===================================================
-      SEKCJA 2: OBSERWOWANE (WATCHLIST)
-      ===================================================
-      ${watchlistStr}
-      
-      ===================================================
-      SEKCJA 3: OSTATNIE TRANSAKCJE
-      ===================================================
-      ${transactionsStr}
-      ===================================================
-      
-      TWOJE ZASADY:
-      1. Bądź konkretny. Nie lej wody.
-      2. Korzystaj WYŁĄCZNIE z danych z SEKCJI 1 (POSIADANE) dla analizy portfela.
+===================================================
+KONTEKST DANYCH (CONTEXT_DATA)
+===================================================
+${JSON.stringify(contextData, null, 2)}
+===================================================
 
-      SPECJALNA UMIEJĘTNOŚĆ - RYSOWANIE WYKRESÓW:
-      Jeśli użytkownik poprosi o wykres, wygeneruj JSON:
+TWOJE ZADANIA:
+1. Analiza Portfela: Oceniaj dywersyfikację i wyniki na podstawie sekcji 'assets'.
+2. Wyjaśnianie: Tłumacz terminy giełdowe (P/E, Dywidenda) prostym językiem.
+3. Obliczenia: Jeśli użytkownik pyta "ile mam w USD", a masz dane w PLN, spróbuj oszacować lub podaj wartość z pola 'portfolio'.
 
-      |||CHART_START|||
-      {
-        "type": "pie", 
-        "title": "Tytuł Wykresu",
-        "data": [
-          { "label": "PRZYKLAD_A", "value": 100 }, 
-          { "label": "PRZYKLAD_B", "value": 200 }
-        ],
-        "currency": "PLN"
-      }
-      |||CHART_END|||
+FORMATOWANIE ODPOWIEDZI:
+- Używaj **pogrubień** dla kwot i nazw tickerów (np. **AAPL**).
+- Listuj aktywa w punktach.
+- Bądź zwięzły.
 
-      WAZNE ZASADY DLA WYKRESOW:
-      1.  PROSZĘ SKOPIOWAĆ DANE TYLKO Z "SEKCJA 1". NIE UŻYWAJ DANYCH Z PRZYKŁADU (PRZYKLAD_A).
-      2.  Format linii w SEKCJI 1 to: "ASSET: [Nazwa] | ... | VAL_PLN: **[Wartość]**".
-      3.  Dla wykresu 'pie' (dywersyfikacja):
-          - Przejdź przez KAŻDY element w SEKCJI 1 (włącznie z GOTÓWKA).
-          - label = [Nazwa]
-          - value = [Wartość] (liczba z pola VAL_PLN).
-      4.  ZNACZNIKI: |||CHART_START||| i |||CHART_END|||.
-      
-      Pytanie użytkownika: `;
+SPECJALNE KOMENDY (WYKRESY):
+Jeśli użytkownik prosi o wizualizację/wykres (np. "narysuj wykres", "pokaż dywersyfikację"), WYGENERUJ JSON w formacie:
+
+|||CHART_START|||
+{
+  "type": "pie",
+  "title": "Tytuł Wykresu",
+  "data": [
+    { "label": "PRZYKLAD_A", "value": 100 },
+    { "label": "PRZYKLAD_B", "value": 200 }
+  ],
+  "currency": "${currency}"
+}
+|||CHART_END|||
+
+WAŻNE ZASADY GENEROWANIA WYKRESÓW:
+1. Użyj danych z sekcji 'assets' w CONTEXT_DATA.
+2. Nie zmyślaj danych. Skopiuj je dokładnie.
+3. Dla wykresu portfela ('pie'):
+   - Przejdź przez każdy element tablicy 'assets'.
+   - "label" to pole 'ticker'.
+   - "value" to pole 'value' (jako liczba, bez waluty).
+   - Jeśli jest "cash" > 0 w 'portfolio', dodaj to jako osobny element: { "label": "GOTÓWKA", "value": ... }.
+4. ZAWSZE otaczaj JSON znacznikami |||CHART_START||| oraz |||CHART_END|||.
+
+Pytanie użytkownika: `;
 
             // 0. Truncate History to save context window (Keep last 20 messages)
             const MAX_HISTORY = 20;
@@ -282,7 +300,7 @@ export const AIProvider = ({ children }) => {
                 : newMessages;
 
             // Debugging: Log what the AI sees
-            console.log("AI System Prompt Assets:", assetsListText);
+            console.log("AI System Prompt JSON:", JSON.stringify(contextData, null, 2));
 
             const chunks = await engine.current.chat.completions.create({
                 messages: [{ role: 'system', content: systemPrompt }, ...recentMessages],
