@@ -16,6 +16,14 @@ export const AIProvider = ({ children }) => {
     // without needing to pass it from the UI components.
     const { portfolioSummary, assets, watchlist, transactions } = usePortfolio();
 
+    // [NEW] Use Ref to hold latest data for AI access without stale closures
+    const portfolioDataRef = useRef({ portfolioSummary, assets, watchlist, transactions });
+
+    // Keep Ref updated
+    useEffect(() => {
+        portfolioDataRef.current = { portfolioSummary, assets, watchlist, transactions };
+    }, [portfolioSummary, assets, watchlist, transactions]);
+
     const loadModel = async (modelId) => {
         try {
             if (engine.current) {
@@ -195,7 +203,8 @@ export const AIProvider = ({ children }) => {
 
         try {
             // Prepare system prompt with REAL-TIME context in POLISH
-            // Prepare system prompt with REAL-TIME context in POLISH
+            // [FIX] Use Data From Ref to avoid Stale Closures
+            const { portfolioSummary, assets, watchlist, transactions } = portfolioDataRef.current;
             const currency = portfolioSummary?.baseCurrency || 'PLN';
 
             // Construct Rich Context JSON
