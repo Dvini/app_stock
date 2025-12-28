@@ -188,7 +188,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const commonCurrencies = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
 
     // Auto-detect currency based on region?
-    const handleTickerSelect = (t) => {
+    const handleTickerSelect = async (t) => {
         setTicker(t.symbol);
         setShowSuggestions(false);
         // Simple heuristic
@@ -196,10 +196,20 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         if (t.region === 'EU' || t.exchange?.includes('Paris')) setCurrency('EUR');
         if (t.region === 'WA' || t.symbol.endsWith('.WA')) setCurrency('PLN');
         // else default PLN
+
+        // [NEW] Auto-fetch price
+        try {
+            const priceData = await fetchCurrentPrice(t.symbol);
+            if (priceData && priceData.price) {
+                setPrice(priceData.price);
+            }
+        } catch (e) {
+            console.error("Failed to fetch price for ticker", t.symbol, e);
+        }
     };
 
     // [NEW] Handle selection from dropdown
-    const handleAssetSelect = (e) => {
+    const handleAssetSelect = async (e) => {
         const selectedTicker = e.target.value;
         setTicker(selectedTicker);
 
@@ -207,6 +217,16 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
             const asset = ownedAssets.find(a => a.ticker === selectedTicker);
             if (asset && asset.currency) {
                 setCurrency(asset.currency);
+            }
+
+            // [NEW] Auto-fetch price
+            try {
+                const priceData = await fetchCurrentPrice(selectedTicker);
+                if (priceData && priceData.price) {
+                    setPrice(priceData.price);
+                }
+            } catch (e) {
+                console.error("Failed to fetch price for asset", selectedTicker, e);
             }
         }
     };
@@ -401,8 +421,8 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             onClick={handleSubmit}
                             disabled={isInsufficientFunds}
                             className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${isInsufficientFunds
-                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
-                                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40'
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40'
                                 }`}
                         >
                             Zapisz
