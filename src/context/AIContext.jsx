@@ -305,8 +305,19 @@ export const AIProvider = ({ children }) => {
         setMessages([]);
     };
 
+    const value = React.useMemo(() => ({
+        messages,
+        sendMessage,
+        isLoading,
+        initProgress,
+        isModelLoaded,
+        clearChat,
+        currentModel,
+        changeModel
+    }), [messages, isLoading, initProgress, isModelLoaded, currentModel]);
+
     return (
-        <AIContext.Provider value={{ messages, sendMessage, isLoading, initProgress, isModelLoaded, clearChat, currentModel, changeModel }}>
+        <AIContext.Provider value={value}>
             {children}
         </AIContext.Provider>
     );
