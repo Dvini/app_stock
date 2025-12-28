@@ -23,7 +23,7 @@ export const AIProvider = ({ children }) => {
                 // WebLLM CreateMLCEngine usually creates a new one. 
                 // We should ideally unload the old one to free memory if possible, 
                 // but the library manages caching.
-                // engine.current.unload(); // If available in API
+                await engine.current.unload(); // [NEW] Explicitly unload old model
                 setInitProgress('Reloading Engine...');
             } else {
                 setInitProgress('Initializing Engine...');
@@ -170,6 +170,13 @@ export const AIProvider = ({ children }) => {
 
     useEffect(() => {
         loadModel(currentModel);
+
+        // [NEW] Cleanup on unmount
+        return () => {
+            if (engine.current) {
+                engine.current.unload();
+            }
+        };
     }, []); // On mount
 
     const changeModel = async (newModelId) => {
