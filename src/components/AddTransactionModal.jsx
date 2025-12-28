@@ -203,6 +203,10 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
             const priceData = await fetchCurrentPrice(t.symbol);
             if (priceData && priceData.price) {
                 setPrice(priceData.price);
+                // [NEW] Authoritative Currency override from API
+                if (priceData.currency) {
+                    setCurrency(priceData.currency);
+                }
             }
         } catch (e) {
             console.error("Failed to fetch price for ticker", t.symbol, e);
