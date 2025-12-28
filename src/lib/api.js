@@ -76,24 +76,35 @@ export const fetchCurrentPrice = async (ticker) => {
 export const fetchExchangeRates = async (currencies, targetCurrency = 'PLN') => {
     // Currencies is array e.g. ['USD', 'EUR']
     // We need pairs like USDPLN=X, or if target is USD: EURUSD=X
-    const pairs = currencies
-        .filter(c => c && c !== targetCurrency)
-        .map(c => {
-            // Special Case: if currency is PLN and target is USD, Yahoo ticker is PL=X? No, usually USDPLN=X and we invert.
-            // Yahoo usually has MajorMinor=X.
-            // Let's stick to simple logic: Try `CurrTarget=X`
-            return `${c}${targetCurrency}=X`;
-        });
-
-    if (pairs.length === 0) return {};
+    const uniqueCurrencies = currencies.filter(c => c && c !== targetCurrency);
+    if (uniqueCurrencies.length === 0) return {};
 
     const rates = {};
+    const missingPairs = [];
 
-    // Check cache for rates? For now, fetch live.
-    // Optimization: Add caching later if needed.
+    // 1. Check Cache
+    uniqueCurrencies.forEach(c => {
+        const pair = `${c}${targetCurrency}=X`;
+        try {
+            const cacheRaw = localStorage.getItem(`rate_cache_${pair}`);
+            if (cacheRaw) {
+                const cache = JSON.parse(cacheRaw);
+                if (Date.now() - cache.timestamp < CACHE_DURATION_MS && cache.rate) {
+                    rates[c] = cache.rate;
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn(`Rate cache parse error ${pair}`, e);
+        }
+        missingPairs.push(pair);
+    });
 
+    if (missingPairs.length === 0) return rates;
+
+    // 2. Fetch Missing
     try {
-        const promises = pairs.map(async pair => {
+        const promises = missingPairs.map(async pair => {
             const targetUrl = `${YAHOO_BASE_URL}${pair}?range=1d&interval=1d`;
             try {
                 const response = await fetch(`${PROXY_URL}${encodeURIComponent(targetUrl)}`);
@@ -102,8 +113,11 @@ export const fetchExchangeRates = async (currencies, targetCurrency = 'PLN') => 
                 const result = data.chart.result[0];
                 const rate = result.meta.regularMarketPrice;
                 // Extract base currency from pair e.g. USD from USDPLN=X
+                // Assumption: Pair is always 3 chars Base + 3 chars Target + =X. 
+                // We constructed it as `${c}${targetCurrency}=X`.
+                // So cache key matches what we need.
                 const base = pair.substring(0, 3);
-                return { currency: base, rate };
+                return { currency: base, rate, pair };
             } catch (e) {
                 console.warn(`Failed to fetch rate for ${pair}`, e);
                 return null;
@@ -112,7 +126,14 @@ export const fetchExchangeRates = async (currencies, targetCurrency = 'PLN') => 
 
         const results = await Promise.all(promises);
         results.forEach(r => {
-            if (r) rates[r.currency] = r.rate;
+            if (r && r.rate) {
+                rates[r.currency] = r.rate;
+                // 3. Save to Cache
+                localStorage.setItem(`rate_cache_${r.pair}`, JSON.stringify({
+                    timestamp: Date.now(),
+                    rate: r.rate
+                }));
+            }
         });
 
     } catch (e) {
