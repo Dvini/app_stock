@@ -9,7 +9,10 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
     let startDate = new Date();
 
     if (range === 'max') {
-        if (sortedTx.length > 0) {
+        const firstInvestTx = sortedTx.find(t => ['Kupno', 'Sprzedaż'].includes(t.type));
+        if (firstInvestTx) {
+            startDate = new Date(firstInvestTx.date);
+        } else if (sortedTx.length > 0) {
             startDate = new Date(sortedTx[0].date);
         } else {
             startDate.setMonth(now.getMonth() - 1); // Fallback
