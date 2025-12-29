@@ -8,7 +8,7 @@ import { WebGPUChart } from '../components/WebGPUChart';
 import { fetchHistory, getCachedPrice, fetchCurrentPrice } from '../lib/api';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { formatNumber } from '../utils/formatters';
+import { formatNumber, formatQuantity } from '../utils/formatters';
 
 export const Dashboard = () => {
     const { assets, portfolioSummary } = usePortfolio();
@@ -341,7 +341,7 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
             </div>
             <div>
                 <p className={cn("font-bold text-sm", selected ? "text-white" : "text-slate-200")}>{ticker}</p>
-                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-100" : "text-slate-500")}>{amount} szt.</p>}
+                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-100" : "text-slate-500")}>{formatQuantity(amount)} szt.</p>}
                 {isWatchlist && <p className={cn("text-[10px] uppercase tracking-wider", selected ? "text-blue-100" : "text-slate-600")}>Obs.</p>}
             </div>
         </div>
