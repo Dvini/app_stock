@@ -80,7 +80,7 @@ export const usePortfolio = () => {
     // Calculate details
     const processedAssets = useMemo(() => {
         return assets
-            .filter(asset => asset.amount > 0) // [FIX] Filter out sold assets
+            .filter(asset => asset.amount > 0.000001) // [FIX] Filter out sold assets (epsilon for float errors)
             .map(asset => {
                 const liveData = livePrices[asset.ticker];
 
