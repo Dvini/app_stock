@@ -379,7 +379,7 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
                     className={cn(
                         "p-2 rounded-lg transition-all z-20",
                         selected
-                            ? "text-blue-200 hover:bg-white/20 hover:text-white"
+                            ? "text-blue-200 hover:bg-white/20 hover:text-rose-400"
                             : "text-slate-500 hover:text-rose-400 hover:bg-slate-700"
                     )}
                     title="Usuń z obserwowanych"
