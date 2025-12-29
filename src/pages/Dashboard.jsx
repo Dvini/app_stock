@@ -349,21 +349,21 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
         className={cn(
             "relative p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center group border",
             selected
-                ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-900/20"
+                ? "bg-blue-500/10 border-blue-500/50 shadow-lg shadow-blue-900/10"
                 : "bg-transparent border-transparent hover:bg-slate-800 hover:border-slate-700"
         )}
     >
         <div className="flex items-center gap-3">
             <div className={cn(
                 "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm",
-                selected ? "bg-white/20 text-white" : "bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200"
+                selected ? "bg-blue-600 text-white shadow-md shadow-blue-500/20" : "bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200"
             )}>
                 {ticker[0]}
             </div>
             <div>
                 <p className={cn("font-bold text-sm", selected ? "text-white" : "text-slate-200")}>{ticker}</p>
-                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-100" : "text-slate-500")}>{formatQuantity(amount)} szt.</p>}
-                {isWatchlist && <p className={cn("text-[10px] uppercase tracking-wider", selected ? "text-blue-100" : "text-slate-600")}>Obs.</p>}
+                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-200" : "text-slate-500")}>{formatQuantity(amount)} szt.</p>}
+                {isWatchlist && <p className={cn("text-[10px] uppercase tracking-wider", selected ? "text-blue-200" : "text-slate-600")}>Obs.</p>}
             </div>
         </div>
         <div className="flex items-center gap-3">
@@ -371,7 +371,7 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
                 <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
                     {price !== null && price !== '...' ? formatNumber(price) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
                 </p>
-                {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-200" : "text-emerald-400") : (selected ? "text-rose-200" : "text-rose-400"))}>{pl}</p>}
+                {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-400" : "text-emerald-400") : (selected ? "text-rose-400" : "text-rose-400"))}>{pl}</p>}
             </div>
             {isWatchlist && (
                 <button
