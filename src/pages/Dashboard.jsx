@@ -279,6 +279,7 @@ export const Dashboard = () => {
                                         <WebGPUChart
                                             data={chartData}
                                             currency={chartCurrency}
+                                            range={chartRange}
                                             color={currentAssetInfo.pl && currentAssetInfo.pl.startsWith('-') ? [0.9, 0.3, 0.3, 1.0] : [0.2, 0.8, 0.4, 1.0]}
                                         />
                                     ) : (

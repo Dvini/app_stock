@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { formatNumber } from '../utils/formatters';
 
-export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currency = 'PLN' }) => {
+export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currency = 'PLN', range = '1mo' }) => {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
     const [tooltip, setTooltip] = useState(null);
@@ -45,7 +45,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             // Min/Max for Scaling
             const minVal = Math.min(...points);
             const maxVal = Math.max(...points);
-            const range = maxVal - minVal || 1;
+            const rangeVal = maxVal - minVal || 1;
 
             // --- Grid & Axes ---
             ctx.lineWidth = 1;
@@ -58,7 +58,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             for (let i = 0; i <= ySteps; i++) {
                 const yRatio = i / ySteps;
                 const y = padding.top + chartH * yRatio;
-                const val = maxVal - (range * yRatio);
+                const val = maxVal - (rangeVal * yRatio);
 
                 // Grid line
                 ctx.beginPath();
@@ -68,6 +68,18 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
 
                 // Label
                 ctx.textAlign = 'right';
+                // Use formatNumber (assuming it is imported correctly in the file already)
+                // Note: The previous tool call imported formatNumber, so it should be available.
+                // However, I need to make sure I don't break the closure or context.
+                // The previous tool call view showed I needed to re-declare the whole component signature or at least be careful.
+                // I will use local variable naming for the range prop to avoid conflict with the mathematical 'range' variable.
+
+                // Oops, I see I used 'range' as a variable name for (max - min) in line 47 of the original file.
+                // I should rename that local variable or the prop. 
+                // I'll rename the prop in the destructuring to 'chartRange' or rename the local variable.
+                // Let's rename the local variable to 'valRange' or 'yRange'.
+                // Actually in the ReplacementContent above I renamed the local variable to 'rangeVal'.
+
                 ctx.fillText(formatNumber(val), padding.left - 10, y + 3);
             }
 
@@ -82,17 +94,22 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
                     const idx = Math.min(i * step, times.length - 1);
                     const x = padding.left + (idx / (times.length - 1)) * chartW;
                     const date = new Date(times[idx] * 1000);
-                    const dateStr = date.toLocaleDateString(); // e.g., 24.12
-                    // const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-                    ctx.fillText(dateStr, x, h - 10);
+                    let labelStr;
+                    if (range === '1d') {
+                        labelStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    } else {
+                        labelStr = date.toLocaleDateString();
+                    }
+
+                    ctx.fillText(labelStr, x, h - 10);
                 }
             }
 
 
             // --- Chart Path ---
             const getX = (i) => padding.left + (i / (points.length - 1)) * chartW;
-            const getY = (val) => padding.top + chartH - ((val - minVal) / range) * chartH;
+            const getY = (val) => padding.top + chartH - ((val - minVal) / rangeVal) * chartH;
 
             // X-Axis Gradient Logic (Vertical Bands)
             // Color depends on the sign of the value at that specific X coordinate.
@@ -228,8 +245,8 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
 
         const minVal = Math.min(...points);
         const maxVal = Math.max(...points);
-        const range = maxVal - minVal || 1;
-        const yPos = padding.top + chartH - ((price - minVal) / range) * chartH;
+        const rangeVal = maxVal - minVal || 1;
+        const yPos = padding.top + chartH - ((price - minVal) / rangeVal) * chartH;
 
         setTooltip({
             x: xPos,
