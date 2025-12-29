@@ -138,12 +138,33 @@ export const Dashboard = () => {
         <div className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500">
             {/* Header / Portfolio Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
+                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Portfela</p>
                     <div className="flex items-baseline gap-2 mt-1">
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
                         <span className="text-sm text-slate-500">{portfolioSummary.baseCurrency || 'PLN'}</span>
                     </div>
+                    {/* Tooltip */}
+                    {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
+                            <div className="space-y-2">
+                                {portfolioSummary.breakdown.map(b => (
+                                    <div key={b.currency} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-300 font-medium">{formatNumber(b.value)} <span className="text-xs text-slate-500">{b.currency}</span></span>
+                                        </div>
+                                        {/* Show PL if value > 0 and PL exists */}
+                                        {b.pl !== 0 && (
+                                            <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
+                                                {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className={cn("text-xs mt-1 flex items-center", portfolioSummary.totalPL.includes('-') ? "text-rose-400" : "text-emerald-400")}>
                         {portfolioSummary.totalPL.includes('-') ? <TrendingDown size={12} className="mr-1" /> : <TrendingUp size={12} className="mr-1" />}
                         {portfolioSummary.totalPL}

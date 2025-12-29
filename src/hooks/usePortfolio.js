@@ -140,28 +140,35 @@ export const usePortfolio = () => {
 
     const portfolioSummary = useMemo(() => {
         // [NEW] Currency Breakdown
-        const breakdown = {};
+        const breakdown = {}; // { PLN: { value: 0, pl: 0 }, USD: { value: 0, pl: 0 } }
 
-        // 1. Add Cash
+        // 1. Add Cash (PL is 0 for cash in this model)
         allCash.forEach(c => {
-            breakdown[c.currency] = (breakdown[c.currency] || 0) + c.amount;
+            if (!breakdown[c.currency]) breakdown[c.currency] = { value: 0, pl: 0 };
+            breakdown[c.currency].value += c.amount;
         });
 
         // 2. Add Assets
         processedAssets.forEach(a => {
             const currency = a.currency || 'PLN';
-            // Use valuationPrice for total value calculation (price or avgPrice fallback)
-            // But we need total native value.
-            // In processedAssets map: const valueNative = asset.amount * valuationPrice;
-            // Let's re-calculate or grab it if exposed (not exposed in return currently, only formatted 'value')
-            // Re-calc:
+            if (!breakdown[currency]) breakdown[currency] = { value: 0, pl: 0 };
+
+            // Value
             const valNative = a.amount * a.valuationPrice;
-            breakdown[currency] = (breakdown[currency] || 0) + valNative;
+            breakdown[currency].value += valNative;
+
+            // PL (Native)
+            // a.plValue is Native PL value
+            breakdown[currency].pl += a.plValue;
         });
 
         const breakdownEntries = Object.entries(breakdown)
-            .filter(([_, val]) => val > 0.01) // Filter small residuals
-            .map(([curr, val]) => ({ currency: curr, value: val }));
+            .filter(([_, data]) => data.value > 0.01) // Filter small residuals
+            .map(([curr, data]) => ({
+                currency: curr,
+                value: data.value,
+                pl: data.pl
+            }));
 
         // Existing Logic
         let cashInBase = 0;

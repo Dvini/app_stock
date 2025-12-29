@@ -99,13 +99,19 @@ export const Portfolio = () => {
                     </div>
                     {/* Tooltip */}
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
-                        <div className="absolute top-full left-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 {portfolioSummary.breakdown.map(b => (
-                                    <div key={b.currency} className="flex justify-between text-sm">
-                                        <span className="text-slate-300 font-medium">{formatNumber(b.value)}</span>
-                                        <span className="text-slate-500">{b.currency}</span>
+                                    <div key={b.currency} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-300 font-medium">{formatNumber(b.value)} <span className="text-xs text-slate-500">{b.currency}</span></span>
+                                        </div>
+                                        {b.pl !== 0 && (
+                                            <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
+                                                {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
+                                            </span>
+                                        )}
                                     </div>
                                 ))}
                             </div>
