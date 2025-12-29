@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { formatNumber } from '../utils/formatters';
 
 export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currency = 'PLN' }) => {
     const canvasRef = useRef(null);
@@ -67,7 +68,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
 
                 // Label
                 ctx.textAlign = 'right';
-                ctx.fillText(val.toFixed(2), padding.left - 10, y + 3);
+                ctx.fillText(formatNumber(val), padding.left - 10, y + 3);
             }
 
             // X-Axis
@@ -233,7 +234,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
         setTooltip({
             x: xPos,
             y: yPos,
-            price: price.toFixed(2),
+            price: formatNumber(price),
             date: time ? new Date(time * 1000).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '',
             index
         });
