@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { AddTransactionModal } from '../components/AddTransactionModal';
@@ -100,6 +100,17 @@ export const Dashboard = () => {
             }
         });
     }, [watchlist.length]);
+
+    const removeFromWatchlist = async (ticker) => {
+        try {
+            await db.watchlist.where('ticker').equals(ticker).delete();
+            if (selectedTicker === ticker) {
+                setSelectedTicker(null);
+            }
+        } catch (error) {
+            console.error("Failed to remove from watchlist", error);
+        }
+    };
 
     const ranges = [
         { label: '1D', val: '1d' },
@@ -210,6 +221,10 @@ export const Dashboard = () => {
                                             isWatchlist
                                             selected={selectedTicker === w.ticker}
                                             onClick={() => setSelectedTicker(w.ticker)}
+                                            onRemove={(e) => {
+                                                e.stopPropagation();
+                                                removeFromWatchlist(w.ticker);
+                                            }}
                                         />
                                     );
                                 })}
@@ -307,11 +322,11 @@ export const Dashboard = () => {
     );
 };
 
-const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist }) => (
+const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
     <div
         onClick={onClick}
         className={cn(
-            "p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center group border",
+            "relative p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center group border",
             selected
                 ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-900/20"
                 : "bg-transparent border-transparent hover:bg-slate-800 hover:border-slate-700"
@@ -330,11 +345,27 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
                 {isWatchlist && <p className={cn("text-[10px] uppercase tracking-wider", selected ? "text-blue-100" : "text-slate-600")}>Obs.</p>}
             </div>
         </div>
-        <div className="text-right">
-            <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
-                {price !== null && price !== '...' ? formatNumber(price) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
-            </p>
-            {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-200" : "text-emerald-400") : (selected ? "text-rose-200" : "text-rose-400"))}>{pl}</p>}
+        <div className="flex items-center gap-3">
+            <div className="text-right">
+                <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
+                    {price !== null && price !== '...' ? formatNumber(price) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
+                </p>
+                {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-200" : "text-emerald-400") : (selected ? "text-rose-200" : "text-rose-400"))}>{pl}</p>}
+            </div>
+            {isWatchlist && (
+                <button
+                    onClick={onRemove}
+                    className={cn(
+                        "p-2 rounded-lg transition-all z-20",
+                        selected
+                            ? "text-blue-200 hover:bg-white/20 hover:text-white"
+                            : "text-slate-500 hover:text-rose-400 hover:bg-slate-700"
+                    )}
+                    title="Usuń z obserwowanych"
+                >
+                    <Trash2 size={16} />
+                </button>
+            )}
         </div>
     </div>
 );
