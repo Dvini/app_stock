@@ -168,7 +168,7 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
             }
 
             // --- TRACKING INVESTED CAPITAL & COST BASIS ---
-            if (tx.type === 'Depozyt') {
+            if (tx.type === 'Depozyt' || tx.type === 'Wpłata') {
                 cash += txTotalPLN;
                 investedPLN += txTotalPLN;
             } else if (tx.type === 'Wypłata') {

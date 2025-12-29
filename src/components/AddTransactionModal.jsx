@@ -11,7 +11,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const [price, setPrice] = useState('');
     const [currency, setCurrency] = useState('PLN'); // Default currency
     const [exchangeRate, setExchangeRate] = useState('1.0'); // New State
-    const [type, setType] = useState('Kupno'); // Kupno, Sprzedaż, Depozyt
+    const [type, setType] = useState('Kupno'); // Kupno, Sprzedaż, Wpłata, Wypłata
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [ownedAssets, setOwnedAssets] = useState([]); // [NEW] Store owned assets
@@ -59,10 +59,10 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     const numPrice = parseFloat(price) || 0;
     const numRate = parseFloat(exchangeRate) || 1.0;
     const totalCostPLN = numAmount * numPrice * numRate;
-    const isInsufficientFunds = type === 'Kupno' && totalCostPLN > availableCash;
+    const isInsufficientFunds = (type === 'Kupno' && totalCostPLN > availableCash) || (type === 'Wypłata' && numPrice > availableCash);
 
     const handleSubmit = async () => {
-        if (type !== 'Depozyt' && (!ticker || !amount || !price)) return;
+        if (!['Wpłata', 'Wypłata'].includes(type) && (!ticker || !amount || !price)) return;
 
         // Block submit if insufficient funds
         if (isInsufficientFunds) {
@@ -82,9 +82,9 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
             }
         }
 
-        if (type === 'Depozyt' && !price) return;
+        if (type === 'Wpłata' && !price) return;
 
-        if (type !== 'Depozyt') {
+        if (type !== 'Wpłata' && type !== 'Wypłata') {
             const valAmount = parseFloat(amount);
             const valPrice = parseFloat(price);
 
@@ -101,16 +101,16 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 return;
             }
         } else {
-            // Type == 'Depozyt'
-            if (parseFloat(price) === 0) {
-                alert("Kwota nie może być zerem");
+            // Type == 'Wpłata' or 'Wypłata'
+            if (parseFloat(price) <= 0) {
+                alert("Kwota musi być większa od zera");
                 return;
             }
         }
 
         try {
-            const txTicker = type === 'Depozyt' ? 'CASH' : ticker.toUpperCase();
-            const txAmount = type === 'Depozyt' ? 1 : parseFloat(amount);
+            const txTicker = ['Wpłata', 'Wypłata'].includes(type) ? 'CASH' : ticker.toUpperCase();
+            const txAmount = ['Wpłata', 'Wypłata'].includes(type) ? 1 : parseFloat(amount);
             const txPrice = parseFloat(price);
             const txTotal = txAmount * txPrice;
             const rate = parseFloat(exchangeRate) || 1.0;
@@ -127,7 +127,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 exchangeRate: rate // Store the rate used
             });
 
-            if (type !== 'Depozyt') {
+            if (type !== 'Wpłata' && type !== 'Wypłata') {
                 const asset = await db.assets.where('ticker').equals(txTicker).first();
                 if (asset) {
                     let newAmount = asset.amount;
@@ -172,8 +172,11 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
 
             if (type === 'Kupno') currentCash -= cashImpactPLN;
             if (type === 'Sprzedaż') currentCash += cashImpactPLN;
-            if (type === 'Depozyt') {
+            if (type === 'Wpłata') {
                 currentCash += cashImpactPLN;
+            }
+            if (type === 'Wypłata') {
+                currentCash -= cashImpactPLN;
             }
 
             await db.cash.put({ currency: 'PLN', amount: currentCash });
@@ -250,12 +253,12 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     {/* TYPE */}
                     <div>
                         <div className="flex bg-slate-950 p-1 rounded-xl">
-                            {['Kupno', 'Sprzedaż', 'Depozyt'].map(t => (
+                            {['Kupno', 'Sprzedaż', 'Wpłata', 'Wypłata'].map(t => (
                                 <button
                                     key={t}
                                     onClick={() => {
                                         setType(t);
-                                        if (t === 'Depozyt') {
+                                        if (t === 'Wpłata' || t === 'Wypłata') {
                                             setCurrency('PLN');
                                             setExchangeRate('1.0');
                                         }
@@ -285,7 +288,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     </div>
 
                     {/* TICKER */}
-                    {type !== 'Depozyt' && (
+                    {!['Wpłata', 'Wypłata'].includes(type) && (
                         <div className="relative">
                             <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ticker</label>
 
@@ -351,7 +354,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
 
                     {/* QUANTITY & CURRENCY */}
                     <div className="flex gap-4">
-                        {type !== 'Depozyt' && (
+                        {!['Wpłata', 'Wypłata'].includes(type) && (
                             <div className="flex-1">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ilość</label>
                                 <input
@@ -366,7 +369,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             </div>
                         )}
 
-                        {type !== 'Depozyt' && (
+                        {!['Wpłata', 'Wypłata'].includes(type) && (
                             <div className="w-1/3">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Waluta</label>
                                 <select
@@ -383,10 +386,10 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     {/* PRICE & EXCHANGE RATE */}
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Depozyt' ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
+                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Wpłata' || type === 'Wypłata' ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
                             <input
                                 type="number"
-                                min={type === 'Depozyt' ? undefined : "0"}
+                                min={type === 'Wpłata' || type === 'Wypłata' ? "0.01" : "0"}
                                 value={price}
                                 onChange={e => setPrice(e.target.value)}
                                 placeholder="0.00"

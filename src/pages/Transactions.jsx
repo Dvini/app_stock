@@ -45,7 +45,9 @@ export const Transactions = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 font-bold text-blue-400">{tx.ticker}</td>
-                                    <td className="px-6 py-4 text-right">{formatQuantity(tx.amount)}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        {['Kupno', 'Sprzedaż'].includes(tx.type) ? formatQuantity(tx.amount) : '-'}
+                                    </td>
                                     <td className="px-6 py-4 text-right">
                                         {formatNumber(tx.price)} <span className="text-xs text-slate-500">{tx.currency || 'PLN'}</span>
                                     </td>
