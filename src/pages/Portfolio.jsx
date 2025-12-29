@@ -91,12 +91,26 @@ export const Portfolio = () => {
 
             {/* Portfolio Summary Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
+                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Całkowita</p>
                     <div className="flex items-baseline gap-2 mt-1">
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
                         <span className="text-sm text-slate-500">{portfolioSummary.baseCurrency}</span>
                     </div>
+                    {/* Tooltip */}
+                    {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
+                            <div className="space-y-1">
+                                {portfolioSummary.breakdown.map(b => (
+                                    <div key={b.currency} className="flex justify-between text-sm">
+                                        <span className="text-slate-300 font-medium">{formatNumber(b.value)}</span>
+                                        <span className="text-slate-500">{b.currency}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wynik (P/L)</p>

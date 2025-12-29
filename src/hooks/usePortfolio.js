@@ -8,8 +8,11 @@ import { formatNumber } from '../utils/formatters';
 export const usePortfolio = () => {
     const { baseCurrency } = useCurrency(); // 'PLN', 'USD', 'EUR'
     const assets = useLiveQuery(() => db.assets.toArray()) || [];
-    const cashEntry = useLiveQuery(() => db.cash.get('PLN'));
-    const currentCash = cashEntry ? cashEntry.amount : 0;
+    const allCash = useLiveQuery(() => db.cash.toArray()) || [];
+    const currentCash = allCash.find(c => c.currency === 'PLN')?.amount || 0;
+
+    // ... (rest of code)
+
 
     // New Data for AI
     const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
@@ -136,6 +139,31 @@ export const usePortfolio = () => {
     }, [watchlist, livePrices]);
 
     const portfolioSummary = useMemo(() => {
+        // [NEW] Currency Breakdown
+        const breakdown = {};
+
+        // 1. Add Cash
+        allCash.forEach(c => {
+            breakdown[c.currency] = (breakdown[c.currency] || 0) + c.amount;
+        });
+
+        // 2. Add Assets
+        processedAssets.forEach(a => {
+            const currency = a.currency || 'PLN';
+            // Use valuationPrice for total value calculation (price or avgPrice fallback)
+            // But we need total native value.
+            // In processedAssets map: const valueNative = asset.amount * valuationPrice;
+            // Let's re-calculate or grab it if exposed (not exposed in return currently, only formatted 'value')
+            // Re-calc:
+            const valNative = a.amount * a.valuationPrice;
+            breakdown[currency] = (breakdown[currency] || 0) + valNative;
+        });
+
+        const breakdownEntries = Object.entries(breakdown)
+            .filter(([_, val]) => val > 0.01) // Filter small residuals
+            .map(([curr, val]) => ({ currency: curr, value: val }));
+
+        // Existing Logic
         let cashInBase = 0;
         let cashRate = 1;
         if (baseCurrency !== 'PLN') {
@@ -175,10 +203,11 @@ export const usePortfolio = () => {
             totalPL: `${totalPL_Base > 0 ? '+' : ''}${formatNumber(totalPL_Base)} ${baseCurrency}`,
             totalPLPercent: `${formatNumber(totalPLPercent)}%`,
             cash: formatNumber(cashInBase),
-            baseCurrency, // Export for UI
-            isLoadingPrices
+            baseCurrency,
+            isLoadingPrices,
+            breakdown: breakdownEntries
         };
-    }, [processedAssets, currentCash, baseCurrency, exchangeRates, isLoadingPrices]);
+    }, [processedAssets, currentCash, baseCurrency, exchangeRates, isLoadingPrices, allCash]);
 
     return {
         assets: processedAssets,
