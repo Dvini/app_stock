@@ -208,7 +208,7 @@ export const Dashboard = () => {
                         {/* Portfolio Assets */}
                         {assets.length > 0 && (
                             <div className="mb-4">
-                                <p className="text-[10px] uppercase font-bold text-slate-500 px-3 py-2">Twój Portfel</p>
+                                <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2">Twój Portfel</p>
                                 {assets.map(a => (
                                     <AssetItem
                                         key={a.ticker}
@@ -227,8 +227,8 @@ export const Dashboard = () => {
                         {/* Watchlist */}
                         {watchlist.length > 0 && (
                             <div>
-                                <p className="text-[10px] uppercase font-bold text-slate-500 px-3 py-2 flex items-center gap-1">
-                                    <Star size={10} className="text-yellow-500/50" /> Obserwowane
+                                <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2 flex items-center gap-1">
+                                    <Star size={12} className="text-yellow-500/50" /> Obserwowane
                                 </p>
                                 {watchlist.filter(w => !assets.some(a => a.ticker === w.ticker)).map(w => { // Filter out items already in portfolio
                                     const cached = getCachedPrice(w.ticker);
