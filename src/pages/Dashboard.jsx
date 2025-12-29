@@ -273,7 +273,7 @@ export const Dashboard = () => {
                                     </h2>
                                     <div className="flex items-center gap-4 mt-2">
                                         <span className="text-2xl font-medium text-slate-200">
-                                            {currentAssetInfo.price} <span className="text-sm text-slate-500">{currentAssetInfo.currency || 'PLN'}</span>
+                                            {currentAssetInfo.price !== '---' ? formatNumber(currentAssetInfo.price) : '---'} <span className="text-sm text-slate-500">{currentAssetInfo.currency || 'PLN'}</span>
                                         </span>
                                         {chartStats && (
                                             <span className={cn("px-2 py-1 rounded text-sm font-bold", chartStats.change >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
