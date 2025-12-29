@@ -3,11 +3,23 @@
 
 const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 Minutes
 const PROXY_URL = "https://corsproxy.io/?";
+const BACKUP_PROXY_URL = "https://api.allorigins.win/raw?url=";
 const YAHOO_BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/";
+
+const fetchWithBackup = async (url) => {
+    try {
+        const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
+        if (response.ok) return response;
+        throw new Error('Primary proxy failed');
+    } catch (e) {
+        console.warn("Primary proxy error, trying backup...", e);
+        return fetch(`${BACKUP_PROXY_URL}${encodeURIComponent(url)}`);
+    }
+};
 
 export const getCachedPrice = (ticker) => {
     try {
-        const cacheRaw = localStorage.getItem(`price_cache_${ticker}`);
+        const cacheRaw = localStorage.getItem(`price_cache_v2_${ticker}`);
         if (!cacheRaw) return null;
 
         const cache = JSON.parse(cacheRaw);
@@ -36,7 +48,7 @@ export const fetchCurrentPrice = async (ticker) => {
     // 2. Fetch from Network
     try {
         const targetUrl = `${YAHOO_BASE_URL}${ticker}?range=1d&interval=1d`;
-        const response = await fetch(`${PROXY_URL}${encodeURIComponent(targetUrl)}`);
+        const response = await fetchWithBackup(targetUrl);
 
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
@@ -57,7 +69,8 @@ export const fetchCurrentPrice = async (ticker) => {
         }
 
         if (price) {
-            localStorage.setItem(`price_cache_${ticker}`, JSON.stringify({
+            console.log(`[API] Fetched price for ${ticker}: ${price} ${currency}`);
+            localStorage.setItem(`price_cache_v2_${ticker}`, JSON.stringify({
                 timestamp: Date.now(),
                 price: price,
                 currency: currency
@@ -107,7 +120,7 @@ export const fetchExchangeRates = async (currencies, targetCurrency = 'PLN') => 
         const promises = missingPairs.map(async pair => {
             const targetUrl = `${YAHOO_BASE_URL}${pair}?range=1d&interval=1d`;
             try {
-                const response = await fetch(`${PROXY_URL}${encodeURIComponent(targetUrl)}`);
+                const response = await fetchWithBackup(targetUrl);
                 if (!response.ok) return null;
                 const data = await response.json();
                 const result = data.chart.result[0];
@@ -164,7 +177,7 @@ export const fetchHistory = async (ticker, range = '1mo', interval = '1d') => {
     // 2. Fetch
     try {
         const targetUrl = `${YAHOO_BASE_URL}${ticker}?range=${range}&interval=${interval}`;
-        const response = await fetch(`${PROXY_URL}${encodeURIComponent(targetUrl)}`);
+        const response = await fetchWithBackup(targetUrl);
 
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
 

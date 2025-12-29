@@ -332,7 +332,7 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
         </div>
         <div className="text-right">
             <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
-                {formatNumber(price)} <span className="text-[10px] opacity-70">{currency}</span>
+                {price !== null && price !== '...' ? formatNumber(price) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
             </p>
             {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-200" : "text-emerald-400") : (selected ? "text-rose-200" : "text-rose-400"))}>{pl}</p>}
         </div>

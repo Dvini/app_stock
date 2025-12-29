@@ -83,20 +83,22 @@ export const usePortfolio = () => {
             .filter(asset => asset.amount > 0) // [FIX] Filter out sold assets
             .map(asset => {
                 const liveData = livePrices[asset.ticker];
-                const currentPrice = liveData ? liveData.price : asset.avgPrice;
+
+                // If live data is missing, we use avgPrice for VALUATION purposes only, 
+                // but we should display '---' or similar in the PRICE column so user knows it's not real.
+                const currentPrice = liveData ? liveData.price : null;
+                const valuationPrice = currentPrice !== null ? currentPrice : asset.avgPrice;
+
                 const currency = liveData ? liveData.currency : (asset.currency || 'PLN');
 
                 // Native Value
-                const valueNative = asset.amount * currentPrice;
+                const valueNative = asset.amount * valuationPrice;
 
                 // Value in Base Currency
                 let rate = 1;
                 if (currency !== baseCurrency) {
-                    rate = exchangeRates[currency] || 0; // 0 if loading or failed
-                    if (rate === 0 && currency === 'PLN' && baseCurrency === 'USD') rate = 0.25; // Fallback approx? No, better show 0.
-                    // Actually, if rate is missing, fallback to 1 is dangerous if currencies differ.
-                    // Let's rely on fetch. If missing, maybe keep native? No, we need total.
-                    // For Safety: if rate is missing and currencies differ, total might be wrong.
+                    rate = exchangeRates[currency] || 0;
+                    // ...
                 }
                 const valueBase = valueNative * rate;
 
@@ -106,17 +108,10 @@ export const usePortfolio = () => {
 
                 const isRealData = !!liveData;
 
-                // ... existing imports ...
-
-                // Inside hook...
-
                 return {
                     ...asset,
-                    price: formatNumber(currentPrice), // Keep price as raw string for now or format? User sees this in list. Let's format but check usages. 
-                    // processedAssets are used in UI. So yes, format.
-                    // Wait, .price might be used for calculations? No, usage seems UI focused. But let's be careful.
-                    // Actually line 110: price: currentPrice.toFixed(2) -> formatNumber(currentPrice)
-                    price: formatNumber(currentPrice),
+                    price: currentPrice, // Return raw number or null
+                    valuationPrice: valuationPrice, // Internal use
                     currency,
                     value: formatNumber(valueNative),
                     valueBase: valueBase,

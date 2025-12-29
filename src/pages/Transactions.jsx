@@ -8,14 +8,14 @@ export const Transactions = () => {
     const transactions = useLiveQuery(() => db.transactions.reverse().toArray()) || [];
 
     return (
-        <div className="space-y-8 animate-in fade-in zoom-in duration-500">
-            <header className="flex justify-between items-center">
+        <div className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+            <header className="flex justify-between items-center shrink-0">
                 <h1 className="text-3xl font-extrabold tracking-tight">Historia Transakcji</h1>
             </header>
 
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
                 <table className="w-full text-left">
-                    <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider">
+                    <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4">Data</th>
                             <th className="px-6 py-4">Typ</th>

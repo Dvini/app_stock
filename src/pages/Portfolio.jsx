@@ -201,9 +201,9 @@ export const Portfolio = () => {
             </div>
 
             {/* Assets Table */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex-1">
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
                 <table className="w-full text-left">
-                    <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider">
+                    <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4">Ticker</th>
                             <th className="px-6 py-4 text-right">Ilość</th>
@@ -226,7 +226,7 @@ export const Portfolio = () => {
                                     <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
                                     <td className="px-6 py-4 text-right">{formatNumber(asset.amount)}</td>
                                     <td className="px-6 py-4 text-right font-medium text-slate-300">
-                                        {formatNumber(asset.price)} <span className="text-xs text-slate-500">{asset.currency}</span>
+                                        {asset.price !== null ? formatNumber(asset.price) : '---'} <span className="text-xs text-slate-500">{asset.currency}</span>
                                         {asset.isRealData && <span className="text-[10px] text-emerald-500 ml-1">●</span>}
                                     </td>
                                     <td className="px-6 py-4 text-right text-slate-500">
