@@ -166,8 +166,11 @@ export const usePortfolio = () => {
         const totalCostBase = processedAssets.reduce((acc, curr) => acc + (curr.amount * curr.avgPrice * curr.rate), 0);
         const totalPLPercent = totalCostBase > 0 ? (totalPL_Base / totalCostBase) * 100 : 0;
 
+        const hasForeignAssets = processedAssets.some(a => a.currency !== baseCurrency);
+        const approxPrefix = hasForeignAssets ? '~ ' : '';
+
         return {
-            totalValue: formatNumber(totalValueBase),
+            totalValue: `${approxPrefix}${formatNumber(totalValueBase)}`,
             totalValuePLN: formatNumber(totalValuePLN),
             totalPL: `${totalPL_Base > 0 ? '+' : ''}${formatNumber(totalPL_Base)} ${baseCurrency}`,
             totalPLPercent: `${formatNumber(totalPLPercent)}%`,
