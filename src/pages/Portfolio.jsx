@@ -118,7 +118,7 @@ export const Portfolio = () => {
                         </div>
                     )}
                 </div>
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
+                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wynik (P/L)</p>
                     <div className={cn("text-2xl font-bold mt-1 flex items-center gap-2", portfolioSummary.totalPL.includes('-') ? "text-rose-400" : "text-emerald-400")}>
                         {portfolioSummary.totalPL}
@@ -126,6 +126,24 @@ export const Portfolio = () => {
                             ({portfolioSummary.totalPLPercent})
                         </span>
                     </div>
+                    {/* Tooltip for P/L Breakdown */}
+                    {portfolioSummary.breakdown && portfolioSummary.breakdown.some(b => b.pl !== 0) && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            <p className="text-xs text-slate-400 font-bold mb-2 uppercase">Wynik wg walut:</p>
+                            <div className="space-y-2">
+                                {portfolioSummary.breakdown.filter(b => b.pl !== 0).map(b => (
+                                    <div key={b.currency} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-300 font-medium">{b.currency}</span>
+                                        </div>
+                                        <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
+                                            {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Gotówka</p>
