@@ -101,23 +101,25 @@ export const Settings = () => {
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
 
             {/* AI Settings */}
-            <Section title="Sztuczna Inteligencja">
-                <SettingRow
-                    icon={Cpu}
-                    label="Model AI"
-                    description="Wybierz model językowy. Parametr 'B' (Miliardy) oznacza rozmiar modelu - większy jest zazwyczaj mądrzejszy, ale wolniejszy."
-                >
-                    <select
-                        value={currentModel}
-                        onChange={(e) => changeModel(e.target.value)}
-                        className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 max-w-[250px] md:max-w-xs"
+            {import.meta.env.VITE_DISABLE_AI !== 'true' && (
+                <Section title="Sztuczna Inteligencja">
+                    <SettingRow
+                        icon={Cpu}
+                        label="Model AI"
+                        description="Wybierz model językowy. Parametr 'B' (Miliardy) oznacza rozmiar modelu - większy jest zazwyczaj mądrzejszy, ale wolniejszy."
                     >
-                        {availableModels.map(m => (
-                            <option key={m} value={m}>{getModelLabel(m)}</option>
-                        ))}
-                    </select>
-                </SettingRow>
-            </Section>
+                        <select
+                            value={currentModel}
+                            onChange={(e) => changeModel(e.target.value)}
+                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 max-w-[250px] md:max-w-xs"
+                        >
+                            {availableModels.map(m => (
+                                <option key={m} value={m}>{getModelLabel(m)}</option>
+                            ))}
+                        </select>
+                    </SettingRow>
+                </Section>
+            )}
 
             {/* Data Management */}
             <Section title="Zarządzanie Danymi">

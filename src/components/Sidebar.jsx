@@ -42,7 +42,9 @@ export const Sidebar = () => {
                 <SidebarItem to="/portfolio" icon={PieChart} label="Portfel" />
                 <SidebarItem to="/transactions" icon={History} label="Transakcje" />
                 <SidebarItem to="/simulator" icon={Calculator} label="Symulator" />
-                <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
+                {import.meta.env.VITE_DISABLE_AI !== 'true' && (
+                    <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
+                )}
                 <SidebarItem to="/settings" icon={Settings} label="Ustawienia" />
             </nav>
         </aside>

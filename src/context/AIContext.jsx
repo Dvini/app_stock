@@ -41,6 +41,13 @@ export const AIProvider = ({ children }) => {
 
             // Configure engine
             const useLocalLMM = import.meta.env.VITE_USE_LOCAL_LMM === 'true';
+            const disableAI = import.meta.env.VITE_DISABLE_AI === 'true';
+
+            if (disableAI) {
+                setInitProgress('');
+                setIsModelLoaded(false);
+                return;
+            }
 
             let engineConfig = {
                 initProgressCallback: (progress) => {

@@ -19,9 +19,15 @@ db.version(3).stores({
 
 // Helper to initialize DB if empty (optional, for dev)
 export const initDB = async () => {
-    // Check if cash entry exists
-    const cash = await db.cash.get('PLN');
-    if (!cash) {
-        await db.cash.add({ currency: 'PLN', amount: 0 }); // Default starting cash
+    try {
+        // Check if cash entry exists
+        const cash = await db.cash.get('PLN');
+        if (!cash) {
+            await db.cash.add({ currency: 'PLN', amount: 0 }); // Default starting cash
+        }
+    } catch (error) {
+        // Ignore duplicate key errors (common in React Strict Mode double-invoke)
+        if (error.name === 'ConstraintError') return;
+        throw error;
     }
 };
