@@ -1,4 +1,5 @@
 import { fetchHistory, fetchCurrentPrice } from './api';
+import { getExchangeRateWithFallback } from '../utils/currencyHelpers';
 
 export const calculatePortfolioHistory = async (transactions, range = '1mo', excludeCash = false, returnNative = false) => {
     if (!transactions || transactions.length === 0) return [];
@@ -158,12 +159,7 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
                     }
                 }
 
-                if (!rateAtTx) {
-                    if (tx.currency === 'EUR') rateAtTx = 4.3;
-                    else if (tx.currency === 'USD') rateAtTx = 4.0;
-                    else rateAtTx = 1.0;
-                }
-
+                rateAtTx = getExchangeRateWithFallback(tx.currency, rateAtTx);
                 txTotalPLN = tx.total * rateAtTx;
             }
 
@@ -220,11 +216,7 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
                         if (fxHistories[currency] && fxHistories[currency].length > 0) {
                             rate = getPriceAt(fxHistories[currency], day);
                         }
-                        if (!rate) {
-                            if (currency === 'EUR') rate = 4.3;
-                            else if (currency === 'USD') rate = 4.0;
-                            else rate = 1.0;
-                        }
+                        rate = getExchangeRateWithFallback(currency, rate);
                         valuePLN = valueNative * rate;
                     }
                     totalValue += valuePLN;

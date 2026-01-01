@@ -12,6 +12,23 @@ export const API_CONFIG = {
     RETRY_DELAY_MS: 1000,
 };
 
+// Time-related constants (for general use)
+export const TIME_CONSTANTS = {
+    ONE_DAY_MS: 24 * 60 * 60 * 1000,
+    FIVE_DAYS_MS: 5 * 24 * 60 * 60 * 1000,
+    THIRTY_DAYS_MS: 30 * 24 * 60 * 60 * 1000,
+    SIXTY_DAYS_MS: 60 * 24 * 60 * 60 * 1000,
+    ONE_YEAR_MS: 365 * 24 * 60 * 60 * 1000,
+    MONTHS_PER_YEAR: 12
+};
+
+// Dividend-specific constants
+export const DIVIDEND_CONSTANTS = {
+    UPCOMING_DAYS_RANGE: 60,
+    DAILY_SYNC_INTERVAL_MS: TIME_CONSTANTS.ONE_DAY_MS,
+    WEEKLY_SYNC_INTERVAL_MS: 7 * TIME_CONSTANTS.ONE_DAY_MS
+};
+
 // Yahoo Finance API
 export const YAHOO_API = {
     BASE_URL: 'https://query1.finance.yahoo.com/v8/finance/chart/',

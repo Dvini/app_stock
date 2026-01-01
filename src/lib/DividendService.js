@@ -2,6 +2,7 @@ import { db } from '../db/db.js';
 import { nbpService } from './NBPService.js';
 import { apiService } from './ApiService.js';
 import { alphaVantageService } from './AlphaVantageService.js';
+import { TIME_CONSTANTS, DIVIDEND_CONSTANTS } from '../utils/constants.js';
 
 /**
  * Dividend Service
@@ -101,7 +102,7 @@ class DividendService {
     async calculateUpcomingDividends(assets) {
         try {
             const today = new Date();
-            const sixtyDaysLater = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+            const sixtyDaysLater = new Date(today.getTime() + TIME_CONSTANTS.SIXTY_DAYS_MS);
 
             // Get all expected dividends from database within 60 days
             const upcomingDividends = await db.dividends
@@ -285,7 +286,7 @@ class DividendService {
                 .toArray();
 
             const totalPLN = recentDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
-            const monthlyAverage = totalPLN / 12;
+            const monthlyAverage = totalPLN / TIME_CONSTANTS.MONTHS_PER_YEAR;
 
             return monthlyAverage;
 
@@ -353,15 +354,18 @@ class DividendService {
                     continue;
                 }
 
+                // OPTIMIZATION: Fetch all existing dividends for this ticker once
+                const existingDividends = await db.dividends
+                    .where('ticker').equals(ticker)
+                    .toArray();
+
+                // Create a Map for O(1) lookup by recordDate
+                const existingMap = new Map(existingDividends.map(d => [d.recordDate, d]));
+
                 // Process each dividend
                 for (const div of dividends) {
-                    // Check if dividend already exists
-                    const existing = await db.dividends
-                        .where('ticker').equals(ticker)
-                        .and(d => d.recordDate === div.exDate)
-                        .first();
-
-                    if (existing) {
+                    // Check if dividend already exists using Map
+                    if (existingMap.has(div.exDate)) {
                         skipped++;
                         continue;
                     }

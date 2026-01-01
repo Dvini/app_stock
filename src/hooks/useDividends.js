@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { dividendService } from '../lib/DividendService';
+import { DIVIDEND_CONSTANTS } from '../utils/constants';
 
 export const useDividends = () => {
     const [isLoading, setIsLoading] = useState(true);
@@ -50,8 +51,8 @@ export const useDividends = () => {
                         const lastSync = localStorage.getItem('dividends_lastSync');
                         const now = Date.now();
 
-                        // Daily sync interval (24 hours)
-                        const syncInterval = 24 * 60 * 60 * 1000;
+                        // Daily sync interval
+                        const syncInterval = DIVIDEND_CONSTANTS.DAILY_SYNC_INTERVAL_MS;
 
                         const shouldSync = !lastSync || (now - parseInt(lastSync)) > syncInterval;
 
