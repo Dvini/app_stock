@@ -38,12 +38,15 @@ export const validateTicker = (ticker) => {
  */
 export const validateAmount = (amount, options = {}) => {
     const {
-        min = 0,
+        min,
         max = Infinity,
         allowZero = false,
         allowNegative = false,
         label = 'Wartość'
     } = options;
+
+    // Set default min based on allowNegative
+    const effectiveMin = min !== undefined ? min : (allowNegative ? -Infinity : 0);
 
     if (amount === undefined || amount === null || amount === '') {
         return { valid: false, error: `${label} jest wymagana`, value: null };
@@ -63,8 +66,8 @@ export const validateAmount = (amount, options = {}) => {
         return { valid: false, error: `${label} musi być większa od zera`, value: null };
     }
 
-    if (num < min) {
-        return { valid: false, error: `${label} musi być większa lub równa ${min}`, value: null };
+    if (num < effectiveMin) {
+        return { valid: false, error: `${label} musi być większa lub równa ${effectiveMin}`, value: null };
     }
 
     if (num > max) {
