@@ -21,7 +21,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
     useEffect(() => {
         const fetchData = async () => {
             const assets = await db.assets.toArray();
-            setOwnedAssets(assets);
+            setOwnedAssets(assets.filter(a => a.amount > 0));
 
             const cashEntry = await db.cash.get('PLN');
             setAvailableCash(cashEntry ? cashEntry.amount : 0);

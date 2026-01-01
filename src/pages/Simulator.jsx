@@ -102,10 +102,7 @@ export const Simulator = () => {
             // SELL
             // Standard FIFO/Avg logic: Selling doesn't change the Average Price of remaining shares
             // unless we specifically want to simulate "Realized P/L" impact on total portfolio value
-            if (numAmount > currentQty) {
-                alert("Nie możesz sprzedać więcej niż posiadasz!");
-                return;
-            }
+
             newQty = currentQty - numAmount;
             newAvg = currentAvg; // Remains same
             cashChange = (numAmount * numPrice);
