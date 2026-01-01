@@ -31,41 +31,39 @@ export const useDividends = () => {
             setError(null);
 
             try {
-                // Check auto-sync settings
-                const autoSyncEnabled = localStorage.getItem('settings_dividends_autoSync') !== 'false';
+                // Check auto-sync settings (now controlled by frequency only)
                 const frequency = localStorage.getItem('settings_dividends_frequency') || 'daily';
 
-                // Smart sync logic
-                if (dividends.length === 0 && assets.length > 0 && autoSyncEnabled) {
-                    console.log('[useDividends] Empty dividends table, triggering initial sync...');
-                    try {
-                        const result = await dividendService.syncDividendsFromAPI();
-                        console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
-                    } catch (syncError) {
-                        console.error('[useDividends] Initial sync failed:', syncError);
-                    }
-                } else if (autoSyncEnabled && frequency !== 'manual') {
-                    // Check if enough time has passed based on frequency
-                    const lastSync = localStorage.getItem('dividends_lastSync');
-                    const now = Date.now();
-
-                    let syncInterval;
-                    if (frequency === 'daily') {
-                        syncInterval = 24 * 60 * 60 * 1000; // 24 hours
-                    } else if (frequency === 'weekly') {
-                        syncInterval = 7 * 24 * 60 * 60 * 1000; // 7 days
-                    }
-
-                    const shouldSync = !lastSync || (now - parseInt(lastSync)) > syncInterval;
-
-                    if (shouldSync) {
-                        console.log(`[useDividends] ${frequency} sync due, triggering...`);
+                // Smart sync logic - only sync if frequency is not 'manual'
+                if (frequency !== 'manual') {
+                    // Initial sync if dividends table is empty
+                    if (dividends.length === 0 && assets.length > 0) {
+                        console.log('[useDividends] Empty dividends table, triggering initial sync...');
                         try {
                             const result = await dividendService.syncDividendsFromAPI();
-                            console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
-                            localStorage.setItem('dividends_lastSync', now.toString());
+                            console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
                         } catch (syncError) {
-                            console.error('[useDividends] Auto-sync failed:', syncError);
+                            console.error('[useDividends] Initial sync failed:', syncError);
+                        }
+                    } else {
+                        // Check if enough time has passed based on frequency
+                        const lastSync = localStorage.getItem('dividends_lastSync');
+                        const now = Date.now();
+
+                        // Daily sync interval (24 hours)
+                        const syncInterval = 24 * 60 * 60 * 1000;
+
+                        const shouldSync = !lastSync || (now - parseInt(lastSync)) > syncInterval;
+
+                        if (shouldSync) {
+                            console.log(`[useDividends] ${frequency} sync due, triggering...`);
+                            try {
+                                const result = await dividendService.syncDividendsFromAPI();
+                                console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
+                                localStorage.setItem('dividends_lastSync', now.toString());
+                            } catch (syncError) {
+                                console.error('[useDividends] Auto-sync failed:', syncError);
+                            }
                         }
                     }
                 }

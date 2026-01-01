@@ -207,9 +207,9 @@ export const Dividends = () => {
                                 ) : (
                                     received.map((div) => (
                                         <tr key={div.id} className="hover:bg-slate-800/50 transition-colors group">
-                                            <td className="px-4 py-3 text-slate-400 text-xs">{div.paymentDate}</td>
+                                            <td className="px-4 py-3 text-slate-400 text-sm">{div.paymentDate}</td>
                                             <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
-                                            <td className="px-4 py-3 text-right text-slate-300 font-mono text-xs">
+                                            <td className="px-4 py-3 text-right text-slate-300 font-mono text-sm">
                                                 {formatNumber(div.amountPerShare, 2, 4)}{' '}
                                                 <span className="text-xs text-slate-500">{div.currency}</span>
                                             </td>
@@ -217,13 +217,13 @@ export const Dividends = () => {
                                                 {formatNumber(div.totalAmount)}{' '}
                                                 <span className="text-xs text-slate-500">{div.currency}</span>
                                             </td>
-                                            <td className="px-4 py-3 text-right text-slate-400 font-mono text-xs">
+                                            <td className="px-4 py-3 text-right text-slate-400 font-mono text-sm">
                                                 {div.currency !== 'PLN' ? formatNumber(div.exchangeRate, 4, 4) : '-'}
                                             </td>
                                             <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
                                                 {formatNumber(div.valuePLN)} PLN
                                             </td>
-                                            <td className="px-4 py-3 text-center text-xs text-slate-500">
+                                            <td className="px-4 py-3 text-center text-sm text-slate-500">
                                                 {div.sharesOwned}
                                             </td>
                                         </tr>

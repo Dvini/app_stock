@@ -37,10 +37,7 @@ export const Settings = () => {
     const { baseCurrency, setBaseCurrency } = useCurrency();
     const [importStatus, setImportStatus] = useState('');
 
-    // Dividend settings
-    const [dividendAutoSync, setDividendAutoSync] = useState(() => {
-        return localStorage.getItem('settings_dividends_autoSync') !== 'false';
-    });
+    // Dividend settings - single control via frequency
     const [dividendFrequency, setDividendFrequency] = useState(() => {
         return localStorage.getItem('settings_dividends_frequency') || 'daily';
     });
@@ -132,32 +129,9 @@ export const Settings = () => {
             {/* Dividends Settings */}
             <Section title="Dywidendy">
                 <SettingRow
-                    icon={DollarSign}
-                    label="Automatyczna synchronizacja"
-                    description="Automatycznie pobieraj dane o dywidendach z API przy otwarciu zakładki Dywidendy."
-                >
-                    <button
-                        onClick={() => {
-                            const newValue = !dividendAutoSync;
-                            setDividendAutoSync(newValue);
-                            localStorage.setItem('settings_dividends_autoSync', newValue);
-                        }}
-                        className={`relative inline-flex h-7 w-12 items-center rounded-full ${dividendAutoSync ? 'bg-blue-600' : 'bg-slate-700'
-                            } transition-colors`}
-                    >
-                        <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${dividendAutoSync ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                        />
-                    </button>
-                </SettingRow>
-
-                <div className="h-px bg-slate-800 my-2" />
-
-                <SettingRow
                     icon={RefreshCw}
                     label="Częstotliwość synchronizacji"
-                    description="Jak często sprawdzać nowe dywidendy. Zmniejsz by oszczędzić zapytania API."
+                    description="Jak często automatycznie pobierać dane o dywidendach z API. Wybierz 'Wyłączona' aby pobierać tylko ręcznie."
                 >
                     <select
                         value={dividendFrequency}
@@ -165,13 +139,10 @@ export const Settings = () => {
                             setDividendFrequency(e.target.value);
                             localStorage.setItem('settings_dividends_frequency', e.target.value);
                         }}
-                        disabled={!dividendAutoSync}
-                        className={`bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold ${dividendAutoSync ? 'text-slate-200' : 'text-slate-500'
-                            } outline-none focus:border-blue-600 min-w-[140px]`}
+                        className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 min-w-[140px]"
                     >
                         <option value="daily">1x dziennie</option>
-                        <option value="weekly">1x tygodniowo</option>
-                        <option value="manual">Ręcznie</option>
+                        <option value="manual">Wyłączona</option>
                     </select>
                 </SettingRow>
             </Section>
