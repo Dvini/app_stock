@@ -129,7 +129,7 @@ export const Dividends = () => {
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
                     <div className="px-6 py-4 border-b border-slate-800 shrink-0">
                         <h2 className="text-xl font-bold">Kalendarz Rynkowy</h2>
-                        <p className="text-xs text-slate-500 mt-0.5">Nadchodzące dywidendy (portfel + obserwowane)</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Nadchodzące dywidendy (następne 60 dni)</p>
                     </div>
                     <div className="overflow-auto flex-1 custom-scrollbar">
                         <table className="w-full text-left text-sm">
