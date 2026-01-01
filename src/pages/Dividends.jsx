@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DollarSign, TrendingUp, Calendar, Info, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
@@ -36,28 +36,28 @@ export const Dividends = () => {
         }
     };
 
+    // Calculate total received dividends (all time)
+    const totalReceivedPLN = useMemo(() => {
+        return received.reduce((sum, div) => sum + (div.valuePLN || 0), 0);
+    }, [received]);
+
+    // Calculate previous year total for tooltip
+    const previousYearTotal = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+
+        return received
+            .filter(d => new Date(d.paymentDate).getFullYear() === previousYear)
+            .reduce((sum, d) => sum + (d.valuePLN || 0), 0);
+    }, [received]);
+
     // Tooltip content for stat cards
     const tooltips = {
         ytdTotal: {
-            title: 'Wpływ Suma (PLN)',
-            description: 'Łączna wartość dywidend otrzymanych od początku bieżącego roku kalendarzowego. Każda zagraniczna dywidenda jest przeliczana po średnim kursie NBP z dnia poprzedzającego wpłatę środków, zgodnie z wymogami podatkowymi.',
-            formula: 'Σ (Kwota dywidendy × Kurs NBP)'
-        },
-        upcoming60Days: {
-            title: 'Oczekiwane (60 dni)',
-            description: 'Prognoza kwoty dywidend, które wpłyną na Twoje konto w ciągu najbliższych 60 dni. Obliczana na podstawie liczby posiadanych obecnie akcji oraz ogłoszonych przez spółki kwot dywidend brutto.',
-            formula: 'Σ (Liczba akcji × DPS × Kurs bieżący)'
-        },
-        yieldOnCost: {
-            title: 'Yield on Cost (YoC)',
-            description: 'Pokazuje Twoją osobistą rentowność dywidendową. To stosunek rocznych dywidend do łącznego kosztu zakupu akcji. Mówi Ci, ile % Twojej pierwotnej inwestycji zarabiasz rocznie w formie dywidend.',
-            formula: '(Suma dywidend rocznych / Łączny koszt zakupu) × 100%'
-        },
-        monthlyAverage: {
-            title: 'Średnia Miesięczna',
-            description: 'Wygładza sezonowość wypłat dywidend. To średnia kwota otrzymywana miesięcznie w ciągu ostatnich 12 miesięcy. Pomaga w planowaniu budżetu z przychodów pasywnych.',
-            formula: 'Suma dywidend z 12 miesięcy / 12'
+            title: 'Wpływ YTD',
+            description: `Bieżący rok (${new Date().getFullYear()}): ${formatNumber(ytdTotal)} PLN\nPoprzedni rok (${new Date().getFullYear() - 1}): ${formatNumber(previousYearTotal)} PLN`
         }
+        // Other tooltips removed as per user request
     };
 
     return (
@@ -105,7 +105,6 @@ export const Dividends = () => {
                     value={`${formatNumber(upcoming60Days)} PLN`}
                     sublabel="Najbliższe 2 miesiące"
                     color="blue"
-                    tooltip={tooltips.upcoming60Days}
                     isLoading={isLoading}
                 />
                 <StatCard
@@ -113,7 +112,6 @@ export const Dividends = () => {
                     value={`${formatNumber(yieldOnCost)}% `}
                     sublabel="Rentowność dywidendowa"
                     color="purple"
-                    tooltip={tooltips.yieldOnCost}
                     isLoading={isLoading}
                 />
                 <StatCard
@@ -121,7 +119,6 @@ export const Dividends = () => {
                     value={`${formatNumber(monthlyAverage)} PLN`}
                     sublabel="Ostatnie 12 miesięcy"
                     color="amber"
-                    tooltip={tooltips.monthlyAverage}
                     isLoading={isLoading}
                 />
             </div>
@@ -175,9 +172,17 @@ export const Dividends = () => {
 
                 {/* Received Dividends Table */}
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-slate-800 shrink-0">
-                        <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
-                        <p className="text-xs text-slate-500 mt-0.5">Historia wypłaconych dywidend</p>
+                    <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">Historia wypłaconych dywidend</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-slate-500">Suma wszystkich wypłat</p>
+                            <p className="text-2xl font-bold text-emerald-400 font-mono">
+                                {formatNumber(totalReceivedPLN)} PLN
+                            </p>
+                        </div>
                     </div>
                     <div className="overflow-auto flex-1 custom-scrollbar">
                         <table className="w-full text-left text-sm">
@@ -252,7 +257,7 @@ const StatCard = ({ label, value, sublabel, color, tooltip, isLoading }) => {
         >
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs text-slate-500 uppercase font-bold">{label}</span>
-                <Info size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
+                {tooltip && <Info size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />}
             </div>
 
             {isLoading ? (
@@ -269,10 +274,12 @@ const StatCard = ({ label, value, sublabel, color, tooltip, isLoading }) => {
             {showTooltip && tooltip && (
                 <div className="absolute left-full ml-2 top-0 bg-slate-800 border border-slate-700 rounded-xl p-4 w-72 z-50 shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200">
                     <h4 className="font-bold mb-2 text-sm">{tooltip.title}</h4>
-                    <p className="text-xs text-slate-400 mb-3 leading-relaxed">{tooltip.description}</p>
-                    <div className="bg-slate-900 px-3 py-2 rounded-lg">
-                        <code className="text-xs text-blue-300 font-mono">{tooltip.formula}</code>
-                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-line">{tooltip.description}</p>
+                    {tooltip.formula && (
+                        <div className="bg-slate-900 px-3 py-2 rounded-lg mt-3">
+                            <code className="text-xs text-blue-300 font-mono">{tooltip.formula}</code>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
