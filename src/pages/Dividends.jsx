@@ -3,6 +3,7 @@ import { DollarSign, TrendingUp, Calendar, Info, RefreshCw } from 'lucide-react'
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
 import { formatNumber } from '../utils/formatters';
+import { ErrorBanner, SkeletonLoader } from '../components/UIComponents';
 
 export const Dividends = () => {
     const {
@@ -67,6 +68,14 @@ export const Dividends = () => {
                 <div className="fixed top-4 right-4 bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top-2 fade-in">
                     <p className="text-sm font-bold text-slate-200">{toastMessage}</p>
                 </div>
+            )}
+
+            {/* Error Banner */}
+            {error && !isLoading && (
+                <ErrorBanner
+                    error={error}
+                    onDismiss={() => { }} // Error is controlled by hook, just show it
+                />
             )}
 
             {/* Header */}
@@ -198,7 +207,13 @@ export const Dividends = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
-                                {received.length === 0 ? (
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan="7" className="px-4 py-4">
+                                            <SkeletonLoader rows={5} />
+                                        </td>
+                                    </tr>
+                                ) : received.length === 0 ? (
                                     <tr>
                                         <td colSpan="7" className="px-6 py-8 text-center text-slate-500 italic">
                                             Brak otrzymanych dywidend w historii.

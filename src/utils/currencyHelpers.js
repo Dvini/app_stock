@@ -38,5 +38,5 @@ export const getExchangeRateWithFallback = (currency, rateFromAPI) => {
  * @returns {boolean} True if rate is valid (non-zero, positive number)
  */
 export const isValidRate = (rate) => {
-    return rate && rate > 0 && !isNaN(rate);
+    return typeof rate === 'number' && rate > 0 && !isNaN(rate);
 };
