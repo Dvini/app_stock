@@ -211,3 +211,57 @@ export const fetchHistory = async (ticker, range = '1mo', interval = '1d') => {
         return null;
     }
 };
+
+// NEW: Fetch historical exchange rate for a specific date
+export const fetchHistoricalRate = async (currency, dateStr) => {
+    // 1. Calculate timestamps for the requested date
+    // specific date start (00:00) and end (23:59)
+    // We add a buffer of a few days to handle weekends/holidays (fetch range)
+    const dateObj = new Date(dateStr);
+    const startTimestamp = Math.floor(dateObj.getTime() / 1000);
+    // Add 4 days to ensure we capture a trading day if it's a weekend
+    const endTimestamp = startTimestamp + (4 * 24 * 60 * 60);
+
+    const pair = `${currency}PLN=X`;
+    const CACHE_KEY = `rate_history_${pair}_${dateStr}`;
+
+    // 2. Check Cache
+    const cacheRaw = localStorage.getItem(CACHE_KEY);
+    if (cacheRaw) {
+        return JSON.parse(cacheRaw); // Return { rate, date }
+    }
+
+    // 3. Fetch
+    try {
+        const targetUrl = `${YAHOO_BASE_URL}${pair}?period1=${startTimestamp}&period2=${endTimestamp}&interval=1d`;
+        const response = await fetchWithBackup(targetUrl);
+
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+        const data = await response.json();
+        const result = data.chart.result[0];
+        const timestamps = result.timestamp;
+        const quotes = result.indicators.quote[0];
+
+        if (!timestamps || !quotes || !quotes.close) return null;
+
+        // Find the closest available date >= requested date
+        let validPrice = null;
+        for (let i = 0; i < quotes.close.length; i++) {
+            if (quotes.close[i]) {
+                validPrice = quotes.close[i];
+                break;
+            }
+        }
+
+        if (validPrice) {
+            const finalData = { rate: validPrice, date: dateStr };
+            localStorage.setItem(CACHE_KEY, JSON.stringify(finalData));
+            return finalData;
+        }
+
+    } catch (error) {
+        console.error(`Failed to fetch historical rate for ${pair} on ${dateStr}`, error);
+    }
+    return null;
+};

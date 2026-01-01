@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Calendar } from 'lucide-react';
 import { db } from '../db/db';
 import { searchTickers } from '../lib/tickers';
-import { fetchCurrentPrice } from '../lib/api';
+import { fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { formatNumber } from '../utils/formatters';
 
 export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
@@ -29,30 +29,46 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         fetchData();
     }, []);
 
-    // Fetch Rate on Currency Change
+    // Fetch Rate on Currency Change or Date Change
     useEffect(() => {
         const fetchRate = async () => {
             if (currency === 'PLN') {
                 setExchangeRate('1.0');
                 return;
             }
+
             try {
-                const pair = `${currency}PLN=X`;
-                const rateData = await fetchCurrentPrice(pair);
-                if (rateData && rateData.price) {
-                    setExchangeRate(rateData.price.toFixed(4));
+                // Check if date is today (or future)
+                const today = new Date().toISOString().split('T')[0];
+                const isToday = date === today;
+
+                if (isToday) {
+                    const pair = `${currency}PLN=X`;
+                    const rateData = await fetchCurrentPrice(pair);
+                    if (rateData && rateData.price) {
+                        setExchangeRate(rateData.price.toFixed(4));
+                        return;
+                    }
                 } else {
-                    // Fallbacks
-                    if (currency === 'USD') setExchangeRate('4.00');
-                    else if (currency === 'EUR') setExchangeRate('4.30');
-                    else setExchangeRate('1.0');
+                    // Fetch Historical
+                    const historicalData = await fetchHistoricalRate(currency, date);
+                    if (historicalData && historicalData.rate) {
+                        setExchangeRate(historicalData.rate.toFixed(4));
+                        return;
+                    }
                 }
+
+                // Fallbacks if fetch failed or no data
+                if (currency === 'USD') setExchangeRate('4.00');
+                else if (currency === 'EUR') setExchangeRate('4.30');
+                else setExchangeRate('1.0');
+
             } catch (e) {
                 console.warn("Rate fetch failed", e);
             }
         };
         fetchRate();
-    }, [currency]);
+    }, [currency, date]);
 
     // Derived values for validation and display
     const numAmount = parseFloat(amount) || 0;
