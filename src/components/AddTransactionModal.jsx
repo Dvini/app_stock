@@ -3,6 +3,7 @@ import { X, Check, Calendar } from 'lucide-react';
 import { db } from '../db/db';
 import { searchTickers } from '../lib/tickers';
 import { fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
+import { nbpService } from '../lib/NBPService';
 import { formatNumber } from '../utils/formatters';
 
 export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
@@ -43,6 +44,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 const isToday = date === today;
 
                 if (isToday) {
+                    // For today, use Yahoo Finance (NBP might not have today's rate yet)
                     const pair = `${currency}PLN=X`;
                     const rateData = await fetchCurrentPrice(pair);
                     if (rateData && rateData.price) {
@@ -50,15 +52,27 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         return;
                     }
                 } else {
-                    // Fetch Historical
+                    // For historical dates, try NBP first (more accurate for PLN)
+                    console.log('[AddTransactionModal] Fetching historical rate from NBP...');
+                    const nbpData = await nbpService.getHistoricalRate(currency, date);
+
+                    if (nbpData && nbpData.rate) {
+                        console.log('[AddTransactionModal] Using NBP rate:', nbpData.rate);
+                        setExchangeRate(nbpData.rate.toFixed(4));
+                        return;
+                    }
+
+                    // Fallback to Yahoo Finance if NBP fails
+                    console.log('[AddTransactionModal] NBP failed, falling back to Yahoo Finance...');
                     const historicalData = await fetchHistoricalRate(currency, date);
                     if (historicalData && historicalData.rate) {
+                        console.log('[AddTransactionModal] Using Yahoo Finance rate:', historicalData.rate);
                         setExchangeRate(historicalData.rate.toFixed(4));
                         return;
                     }
                 }
 
-                // Fallbacks if fetch failed or no data
+                // Fallbacks if both APIs failed
                 if (currency === 'USD') setExchangeRate('4.00');
                 else if (currency === 'EUR') setExchangeRate('4.30');
                 else setExchangeRate('1.0');

@@ -1,0 +1,436 @@
+import { db } from '../db/db.js';
+import { nbpService } from './NBPService.js';
+import { apiService } from './ApiService.js';
+import { alphaVantageService } from './AlphaVantageService.js';
+
+/**
+ * Dividend Service
+ * Handles dividend calculations, calendar, and historical tracking
+ */
+class DividendService {
+    /**
+     * Calculate received dividends based on transaction history
+     * Analyzes buy/sell transactions to determine share ownership on record dates
+     * @returns {Promise<Array>} Array of received dividend records
+     */
+    async calculateReceivedDividends() {
+        try {
+            // Get all dividends from database
+            const dividends = await db.dividends.toArray();
+
+            // Get all transactions to calculate share ownership on record dates
+            const transactions = await db.transactions
+                .orderBy('date')
+                .toArray();
+
+            // Process each dividend to ensure accurate share counts
+            const processed = await Promise.all(
+                dividends.map(async (dividend) => {
+                    // Calculate shares owned on record date
+                    const sharesOnRecordDate = this._calculateSharesOnDate(
+                        transactions,
+                        dividend.ticker,
+                        dividend.recordDate
+                    );
+
+                    // Get NBP rate for the payment date (previous day)
+                    let exchangeRate = dividend.exchangeRate;
+                    if (!exchangeRate && dividend.currency !== 'PLN') {
+                        const prevDate = this._getPreviousDay(dividend.paymentDate);
+                        const rateData = await nbpService.getHistoricalRate(dividend.currency, prevDate);
+                        exchangeRate = rateData?.rate || 1.0;
+                    }
+
+                    // Calculate values
+                    const totalAmount = sharesOnRecordDate * dividend.amountPerShare;
+                    const valuePLN = totalAmount * (exchangeRate || 1.0);
+
+                    return {
+                        ...dividend,
+                        sharesOwned: sharesOnRecordDate,
+                        totalAmount,
+                        exchangeRate: exchangeRate || 1.0,
+                        valuePLN
+                    };
+                })
+            );
+
+            return processed.filter(d => d.sharesOwned > 0);
+        } catch (error) {
+            console.error('[DividendService] Failed to calculate received dividends:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Calculate shares owned on a specific date based on transaction history
+     * @private
+     */
+    _calculateSharesOnDate(transactions, ticker, date) {
+        let shares = 0;
+
+        for (const tx of transactions) {
+            if (tx.ticker !== ticker) continue;
+            if (tx.date > date) break; // Stop if transaction is after record date
+
+            if (tx.type === 'Kupno') {
+                shares += tx.amount;
+            } else if (tx.type === 'Sprzedaż') {
+                shares -= tx.amount;
+            }
+        }
+
+        return shares;
+    }
+
+    /**
+     * Get previous day (for finding NBP rate)
+     * @private
+     */
+    _getPreviousDay(dateStr) {
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() - 1);
+        return date.toISOString().split('T')[0];
+    }
+
+    /**
+     * Calculate upcoming dividends for next 60 days
+     * @param {Array} assets - Current portfolio assets
+     * @returns {Promise<Array>} Array of upcoming dividend projections
+     */
+    async calculateUpcomingDividends(assets) {
+        try {
+            const today = new Date();
+            const sixtyDaysLater = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+            // Get all expected dividends from database within 60 days
+            const upcomingDividends = await db.dividends
+                .where('paymentDate')
+                .between(
+                    today.toISOString().split('T')[0],
+                    sixtyDaysLater.toISOString().split('T')[0],
+                    true,
+                    true
+                )
+                .and(d => d.status === 'expected')
+                .toArray();
+
+            // Calculate estimated amounts based on current holdings
+            const processed = upcomingDividends.map(dividend => {
+                const asset = assets.find(a => a.ticker === dividend.ticker);
+                const sharesOwned = asset?.amount || 0;
+                const estimatedTotal = sharesOwned * dividend.amountPerShare;
+
+                // Use current exchange rate for estimation
+                const estimatedPLN = estimatedTotal * (dividend.exchangeRate || 1.0);
+
+                return {
+                    ...dividend,
+                    sharesOwned,
+                    estimatedTotal,
+                    estimatedPLN
+                };
+            });
+
+            return processed.filter(d => d.sharesOwned > 0);
+        } catch (error) {
+            console.error('[DividendService] Failed to calculate upcoming dividends:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Fetch dividend calendar from Yahoo Finance API
+     * Note: Yahoo Finance doesn't have a dedicated dividend endpoint
+     * This is a placeholder - real implementation may require different approach
+     * @param {string} ticker - Stock ticker symbol
+     * @returns {Promise<Object|null>} Dividend info or null
+     */
+    async fetchDividendCalendar(ticker) {
+        try {
+            // Yahoo Finance doesn't have reliable dividend data via their chart API
+            // This would require scraping or alternative API
+            // For now, return null - dividends should be added manually
+            console.warn('[DividendService] fetchDividendCalendar not fully implemented - use manual entry');
+            return null;
+        } catch (error) {
+            console.error(`[DividendService] Failed to fetch dividend calendar for ${ticker}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Add dividend manually to database
+     * @param {Object} dividendData - Dividend information
+     * @returns {Promise<number>} ID of created dividend
+     */
+    async addDividend(dividendData) {
+        try {
+            const {
+                ticker,
+                recordDate,
+                paymentDate,
+                amountPerShare,
+                currency = 'USD',
+                status = 'received'
+            } = dividendData;
+
+            // Validate required fields
+            if (!ticker || !recordDate || !paymentDate || !amountPerShare) {
+                throw new Error('Missing required dividend fields');
+            }
+
+            // Get NBP rate for payment date (previous day)
+            let exchangeRate = 1.0;
+            if (currency !== 'PLN') {
+                const prevDate = this._getPreviousDay(paymentDate);
+                const rateData = await nbpService.getHistoricalRate(currency, prevDate);
+                exchangeRate = rateData?.rate || 1.0;
+            }
+
+            // Calculate shares owned on record date
+            const transactions = await db.transactions.orderBy('date').toArray();
+            const sharesOwned = this._calculateSharesOnDate(transactions, ticker, recordDate);
+
+            // Calculate values
+            const totalAmount = sharesOwned * amountPerShare;
+            const valuePLN = totalAmount * exchangeRate;
+
+            // Add to database
+            const id = await db.dividends.add({
+                ticker,
+                recordDate,
+                paymentDate,
+                amountPerShare,
+                totalAmount,
+                currency,
+                exchangeRate,
+                valuePLN,
+                sharesOwned,
+                status
+            });
+
+            console.log(`[DividendService] Added dividend for ${ticker}: ${amountPerShare} ${currency} (ID: ${id})`);
+            return id;
+
+        } catch (error) {
+            console.error('[DividendService] Failed to add dividend:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Calculate Yield on Cost (YoC)
+     * Returns dividend yield based on original purchase cost
+     * @returns {Promise<number>} YoC percentage
+     */
+    async calculateYieldOnCost() {
+        try {
+            // Get all buy transactions
+            const buyTransactions = await db.transactions
+                .where('type')
+                .equals('Kupno')
+                .toArray();
+
+            // Calculate total cost basis (in PLN)
+            let totalCostPLN = 0;
+            for (const tx of buyTransactions) {
+                const costInOriginalCurrency = tx.amount * tx.price;
+                const exchangeRate = tx.exchangeRate || 1.0;
+                totalCostPLN += costInOriginalCurrency * exchangeRate;
+            }
+
+            if (totalCostPLN === 0) {
+                return 0;
+            }
+
+            // Get annual dividends (last 12 months)
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
+
+            const recentDividends = await db.dividends
+                .where('paymentDate')
+                .aboveOrEqual(oneYearAgoStr)
+                .and(d => d.status === 'received')
+                .toArray();
+
+            const annualDividendsPLN = recentDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
+
+            // YoC = (Annual Dividends / Total Cost) * 100
+            const yoc = (annualDividendsPLN / totalCostPLN) * 100;
+
+            return yoc;
+
+        } catch (error) {
+            console.error('[DividendService] Failed to calculate YoC:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate monthly average dividends (last 12 months)
+     * @returns {Promise<number>} Average monthly dividend in PLN
+     */
+    async calculateMonthlyAverage() {
+        try {
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
+
+            const recentDividends = await db.dividends
+                .where('paymentDate')
+                .aboveOrEqual(oneYearAgoStr)
+                .and(d => d.status === 'received')
+                .toArray();
+
+            const totalPLN = recentDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
+            const monthlyAverage = totalPLN / 12;
+
+            return monthlyAverage;
+
+        } catch (error) {
+            console.error('[DividendService] Failed to calculate monthly average:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate YTD (Year-to-Date) total dividends in PLN
+     * @returns {Promise<number>} Total dividends received this year in PLN
+     */
+    async calculateYTDTotal() {
+        try {
+            const currentYear = new Date().getFullYear();
+            const yearStart = `${currentYear}-01-01`;
+
+            const ytdDividends = await db.dividends
+                .where('paymentDate')
+                .aboveOrEqual(yearStart)
+                .and(d => d.status === 'received')
+                .toArray();
+
+            const totalPLN = ytdDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
+
+            return totalPLN;
+
+        } catch (error) {
+            console.error('[DividendService] Failed to calculate YTD total:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Synchronize dividends from Twelve Data API
+     * Fetches dividend data for all owned stocks and populates the database
+     * @returns {Promise<{added: number, skipped: number}>} Sync statistics
+     */
+    async syncDividendsFromAPI() {
+        try {
+            console.log('[DividendService] Starting dividend synchronization from Alpha Vantage...');
+
+            // Get all unique tickers from transactions
+            const transactions = await db.transactions.orderBy('date').toArray(); // CRITICAL: Sort chronologically
+            const tickers = [...new Set(transactions.map(tx => tx.ticker))];
+
+            if (tickers.length === 0) {
+                console.log('[DividendService] No tickers found in transactions');
+                return { added: 0, skipped: 0 };
+            }
+
+            console.log(`[DividendService] Found ${tickers.length} unique tickers:`, tickers);
+
+            // Fetch dividends for all tickers
+            const dividendsData = await alphaVantageService.fetchMultipleDividends(tickers);
+
+            let added = 0;
+            let skipped = 0;
+
+            // Process each ticker's dividends
+            for (const [ticker, dividends] of Object.entries(dividendsData)) {
+                if (!dividends || dividends.length === 0) {
+                    console.log(`[DividendService] No dividends found for ${ticker}`);
+                    continue;
+                }
+
+                // Process each dividend
+                for (const div of dividends) {
+                    // Check if dividend already exists
+                    const existing = await db.dividends
+                        .where('ticker').equals(ticker)
+                        .and(d => d.recordDate === div.exDate)
+                        .first();
+
+                    if (existing) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Calculate shares owned on ex-date
+                    const sharesOwned = this._calculateSharesOnDate(transactions, ticker, div.exDate);
+
+                    if (sharesOwned === 0) {
+                        // User didn't own shares on this ex-date, skip
+                        skipped++;
+                        continue;
+                    }
+
+                    // Get NBP rate for the ex-date (use ex-date as payment approximation)
+                    let exchangeRate = 1.0;
+                    if (div.currency !== 'PLN') {
+                        // Try to get rate from day before ex-date
+                        const prevDate = this._getPreviousDay(div.exDate);
+                        const rateData = await nbpService.getHistoricalRate(div.currency, prevDate);
+                        exchangeRate = rateData?.rate || 1.0;
+                    }
+
+                    // Calculate values
+                    const totalAmount = sharesOwned * div.amount;
+                    const valuePLN = totalAmount * exchangeRate;
+
+                    // Add to database
+                    await db.dividends.add({
+                        ticker,
+                        recordDate: div.exDate,
+                        paymentDate: div.exDate, // Using ex-date as approximation
+                        amountPerShare: div.amount,
+                        totalAmount,
+                        currency: div.currency,
+                        exchangeRate,
+                        valuePLN,
+                        sharesOwned,
+                        status: 'received' // Assuming all historical dividends are received
+                    });
+
+                    added++;
+                    console.log(`[DividendService] Added dividend: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`);
+                }
+            }
+
+            console.log(`[DividendService] Sync complete: ${added} added, ${skipped} skipped`);
+            return { added, skipped };
+
+        } catch (error) {
+            console.error('[DividendService] Failed to sync dividends:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete dividend by ID
+     * @param {number} id - Dividend ID
+     */
+    async deleteDividend(id) {
+        try {
+            await db.dividends.delete(id);
+            console.log(`[DividendService] Deleted dividend ID: ${id}`);
+        } catch (error) {
+            console.error('[DividendService] Failed to delete dividend:', error);
+            throw error;
+        }
+    }
+}
+
+// Export singleton instance
+export const dividendService = new DividendService();
+export default DividendService;

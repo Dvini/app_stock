@@ -23,12 +23,14 @@ export const Transactions = () => {
                             <th className="px-6 py-4 text-right">Ilość</th>
                             <th className="px-6 py-4 text-right">Cena</th>
                             <th className="px-6 py-4 text-right">Wartość</th>
+                            <th className="px-6 py-4 text-right">Kurs Waluty</th>
+                            <th className="px-6 py-4 text-right">Wartość (PLN)</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                         {transactions.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="px-6 py-8 text-center text-slate-500 italic">
+                                <td colSpan="8" className="px-6 py-8 text-center text-slate-500 italic">
                                     Brak transakcji w historii.
                                 </td>
                             </tr>
@@ -53,6 +55,15 @@ export const Transactions = () => {
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">
                                         {formatNumber(tx.total)} <span className="text-xs font-normal text-slate-500">{tx.currency || 'PLN'}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-slate-400 font-mono text-xs">
+                                        {tx.currency && tx.currency !== 'PLN' && tx.exchangeRate
+                                            ? formatNumber(tx.exchangeRate, 4, 4)
+                                            : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right font-mono font-bold">
+                                        {formatNumber(tx.total * (tx.exchangeRate || 1))}{' '}
+                                        <span className="text-xs font-normal text-slate-500">PLN</span>
                                     </td>
                                 </tr>
                             ))

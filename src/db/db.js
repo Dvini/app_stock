@@ -17,6 +17,15 @@ db.version(3).stores({
     watchlist: '++id, ticker, dateAdded, currency'
 });
 
+// Version 4: Add dividends table
+db.version(4).stores({
+    assets: '++id, ticker, type, amount, avgPrice, currency',
+    transactions: '++id, date, type, ticker, amount, price, total, currency, exchangeRate',
+    cash: 'currency, amount',
+    watchlist: '++id, ticker, dateAdded, currency',
+    dividends: '++id, ticker, recordDate, paymentDate'
+});
+
 // Helper to initialize DB if empty (optional, for dev)
 export const initDB = async () => {
     try {

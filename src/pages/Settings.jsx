@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Upload, Trash2, Cpu, Globe, Moon, Sun, AlertTriangle } from 'lucide-react';
+import { Save, Upload, Trash2, Cpu, Globe, Moon, Sun, AlertTriangle, RefreshCw, DollarSign } from 'lucide-react';
 import { exportData, importData, clearData } from '../lib/dataManagement';
 import { useAI } from '../context/AIContext';
 import { useCurrency } from '../context/CurrencyContext';
@@ -36,6 +36,14 @@ export const Settings = () => {
     const { currentModel, changeModel } = useAI();
     const { baseCurrency, setBaseCurrency } = useCurrency();
     const [importStatus, setImportStatus] = useState('');
+
+    // Dividend settings
+    const [dividendAutoSync, setDividendAutoSync] = useState(() => {
+        return localStorage.getItem('settings_dividends_autoSync') !== 'false';
+    });
+    const [dividendFrequency, setDividendFrequency] = useState(() => {
+        return localStorage.getItem('settings_dividends_frequency') || 'daily';
+    });
 
     const handleImport = async (e) => {
         const file = e.target.files[0];
@@ -121,12 +129,58 @@ export const Settings = () => {
                 </Section>
             )}
 
-            {/* Data Management */}
+            {/* Dividends Settings */}
+            <Section title="Dywidendy">
+                <SettingRow
+                    icon={DollarSign}
+                    label="Automatyczna synchronizacja"
+                    description="Automatycznie pobieraj dane o dywidendach z API przy otwarciu zakładki Dywidendy."
+                >
+                    <button
+                        onClick={() => {
+                            const newValue = !dividendAutoSync;
+                            setDividendAutoSync(newValue);
+                            localStorage.setItem('settings_dividends_autoSync', newValue);
+                        }}
+                        className={`relative inline-flex h-7 w-12 items-center rounded-full ${dividendAutoSync ? 'bg-blue-600' : 'bg-slate-700'
+                            } transition-colors`}
+                    >
+                        <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${dividendAutoSync ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                        />
+                    </button>
+                </SettingRow>
+
+                <div className="h-px bg-slate-800 my-2" />
+
+                <SettingRow
+                    icon={RefreshCw}
+                    label="Częstotliwość synchronizacji"
+                    description="Jak często sprawdzać nowe dywidendy. Zmniejsz by oszczędzić zapytania API."
+                >
+                    <select
+                        value={dividendFrequency}
+                        onChange={(e) => {
+                            setDividendFrequency(e.target.value);
+                            localStorage.setItem('settings_dividends_frequency', e.target.value);
+                        }}
+                        disabled={!dividendAutoSync}
+                        className={`bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold ${dividendAutoSync ? 'text-slate-200' : 'text-slate-500'
+                            } outline-none focus:border-blue-600 min-w-[140px]`}
+                    >
+                        <option value="daily">1x dziennie</option>
+                        <option value="weekly">1x tygodniowo</option>
+                        <option value="manual">Ręcznie</option>
+                    </select>
+                </SettingRow>
+            </Section>
+
             <Section title="Zarządzanie Danymi">
                 <SettingRow
                     icon={Save}
                     label="Eksport Danych"
-                    description="Pobierz kopię zapasową wszystkich swoich transakcji i ustawień do pliku JSON."
+                    description="Pobierz kopię zapasową (v2.0): transakcje, dywidendy, kursy walut, cache cen."
                 >
                     <button
                         onClick={exportData}

@@ -1,0 +1,187 @@
+/**
+ * useDividends Hook
+ * Manages dividend data, calculations, and statistics
+ */
+
+import { useState, useEffect, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
+import { dividendService } from '../lib/DividendService';
+
+export const useDividends = () => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Live queries from database
+    const dividends = useLiveQuery(() => db.dividends.toArray()) || [];
+    const assets = useLiveQuery(() => db.assets.toArray()) || [];
+
+    // Statistics state
+    const [stats, setStats] = useState({
+        ytdTotal: 0,
+        upcoming60Days: 0,
+        yieldOnCost: 0,
+        monthlyAverage: 0
+    });
+
+    // Calculate statistics with smart auto-sync
+    useEffect(() => {
+        const calculateStats = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                // Check auto-sync settings
+                const autoSyncEnabled = localStorage.getItem('settings_dividends_autoSync') !== 'false';
+                const frequency = localStorage.getItem('settings_dividends_frequency') || 'daily';
+
+                // Smart sync logic
+                if (dividends.length === 0 && assets.length > 0 && autoSyncEnabled) {
+                    console.log('[useDividends] Empty dividends table, triggering initial sync...');
+                    try {
+                        const result = await dividendService.syncDividendsFromAPI();
+                        console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
+                    } catch (syncError) {
+                        console.error('[useDividends] Initial sync failed:', syncError);
+                    }
+                } else if (autoSyncEnabled && frequency !== 'manual') {
+                    // Check if enough time has passed based on frequency
+                    const lastSync = localStorage.getItem('dividends_lastSync');
+                    const now = Date.now();
+
+                    let syncInterval;
+                    if (frequency === 'daily') {
+                        syncInterval = 24 * 60 * 60 * 1000; // 24 hours
+                    } else if (frequency === 'weekly') {
+                        syncInterval = 7 * 24 * 60 * 60 * 1000; // 7 days
+                    }
+
+                    const shouldSync = !lastSync || (now - parseInt(lastSync)) > syncInterval;
+
+                    if (shouldSync) {
+                        console.log(`[useDividends] ${frequency} sync due, triggering...`);
+                        try {
+                            const result = await dividendService.syncDividendsFromAPI();
+                            console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
+                            localStorage.setItem('dividends_lastSync', now.toString());
+                        } catch (syncError) {
+                            console.error('[useDividends] Auto-sync failed:', syncError);
+                        }
+                    }
+                }
+
+                const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
+                    dividendService.calculateYTDTotal(),
+                    dividendService.calculateYieldOnCost(),
+                    dividendService.calculateMonthlyAverage()
+                ]);
+
+                // Calculate upcoming dividends
+                const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
+                const upcoming60Days = upcomingDividends.reduce((sum, d) => sum + (d.estimatedPLN || 0), 0);
+
+                setStats({
+                    ytdTotal,
+                    upcoming60Days,
+                    yieldOnCost: yoc,
+                    monthlyAverage
+                });
+
+            } catch (err) {
+                console.error('[useDividends] Error calculating stats:', err);
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        calculateStats();
+    }, [dividends.length, assets.length]); // Recalculate when dividends or assets change
+
+    // Processed received dividends
+    const received = useMemo(() => {
+        return dividends
+            .filter(d => d.status === 'received')
+            .sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)); // Most recent first
+    }, [dividends]);
+
+    // Processed calendar (upcoming dividends)
+    const calendar = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        return dividends
+            .filter(d =>
+                d.status === 'expected' &&
+                d.paymentDate >= today &&
+                d.paymentDate <= sixtyDaysLater
+            )
+            .sort((a, b) => new Date(a.paymentDate) - new Date(b.paymentDate)); // Soonest first
+    }, [dividends]);
+
+    /**
+     * Add a new dividend
+     */
+    const addDividend = async (dividendData) => {
+        try {
+            await dividendService.addDividend(dividendData);
+        } catch (err) {
+            console.error('[useDividends] Error adding dividend:', err);
+            throw err;
+        }
+    };
+
+    /**
+     * Delete a dividend
+     */
+    const deleteDividend = async (id) => {
+        try {
+            await dividendService.deleteDividend(id);
+        } catch (err) {
+            console.error('[useDividends] Error deleting dividend:', err);
+            throw err;
+        }
+    };
+
+    /**
+     * Manually trigger dividend sync (for refresh button)
+     */
+    const syncDividendsManually = async () => {
+        try {
+            setIsLoading(true);
+            const result = await dividendService.syncDividendsFromAPI();
+            const now = Date.now();
+            localStorage.setItem('dividends_lastSync', now.toString());
+            console.log(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
+            return result;
+        } catch (err) {
+            console.error('[useDividends] Manual sync failed:', err);
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return {
+        // Statistics
+        ytdTotal: stats.ytdTotal,
+        upcoming60Days: stats.upcoming60Days,
+        yieldOnCost: stats.yieldOnCost,
+        monthlyAverage: stats.monthlyAverage,
+
+        // Tables
+        calendar,
+        received,
+
+        // Actions
+        addDividend,
+        deleteDividend,
+        syncDividendsManually, // NEW: Manual refresh
+
+        // Status
+        isLoading,
+        error
+    };
+};
+
+export default useDividends;

@@ -4,6 +4,7 @@ import {
     LayoutDashboard,
     PieChart,
     History,
+    DollarSign,
     Bot,
     Settings,
     Calculator,
@@ -41,6 +42,7 @@ export const Sidebar = () => {
                 <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                 <SidebarItem to="/portfolio" icon={PieChart} label="Portfel" />
                 <SidebarItem to="/transactions" icon={History} label="Transakcje" />
+                <SidebarItem to="/dividends" icon={DollarSign} label="Dywidendy" />
                 <SidebarItem to="/simulator" icon={Calculator} label="Symulator" />
                 {import.meta.env.VITE_DISABLE_AI !== 'true' && (
                     <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
