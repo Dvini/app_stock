@@ -1,11 +1,20 @@
 /**
- * ErrorBanner Component
- * Displays error messages with dismiss functionality
+ * UI Components - Reusable display components
  */
 
 import { XCircle, X } from 'lucide-react';
 
-export const ErrorBanner = ({ error, onDismiss, className = '' }) => {
+interface ErrorBannerProps {
+    error: string | null;
+    onDismiss?: () => void;
+    className?: string;
+}
+
+/**
+ * ErrorBanner Component
+ * Displays error messages with dismiss functionality
+ */
+export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, className = '' }) => {
     if (!error) return null;
 
     return (
@@ -30,11 +39,16 @@ export const ErrorBanner = ({ error, onDismiss, className = '' }) => {
     );
 };
 
+interface SkeletonLoaderProps {
+    rows?: number;
+    className?: string;
+}
+
 /**
  * SkeletonLoader Component
  * Loading placeholder for tables
  */
-export const SkeletonLoader = ({ rows = 5, className = '' }) => {
+export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ rows = 5, className = '' }) => {
     return (
         <div className={`space-y-2 ${className}`}>
             {[...Array(rows)].map((_, i) => (
@@ -50,12 +64,19 @@ export const SkeletonLoader = ({ rows = 5, className = '' }) => {
     );
 };
 
+type SpinnerSize = 'sm' | 'md' | 'lg';
+
+interface LoadingSpinnerProps {
+    size?: SpinnerSize;
+    className?: string;
+}
+
 /**
  * LoadingSpinner Component
  * Simple loading indicator
  */
-export const LoadingSpinner = ({ size = 'md', className = '' }) => {
-    const sizeClasses = {
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', className = '' }) => {
+    const sizeClasses: Record<SpinnerSize, string> = {
         sm: 'w-4 h-4',
         md: 'w-6 h-6',
         lg: 'w-8 h-8'

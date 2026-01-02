@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { cn } from '../lib/utils';
@@ -30,7 +29,7 @@ export const Transactions = () => {
                     <tbody className="divide-y divide-slate-800">
                         {transactions.length === 0 ? (
                             <tr>
-                                <td colSpan="8" className="px-6 py-8 text-center text-slate-500 italic">
+                                <td colSpan={8} className="px-6 py-8 text-center text-slate-500 italic">
                                     Brak transakcji w historii.
                                 </td>
                             </tr>

@@ -8,11 +8,18 @@ import {
     Bot,
     Settings,
     Calculator,
-    TrendingUp
+    TrendingUp,
+    LucideIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-const SidebarItem = ({ to, icon: Icon, label }) => (
+interface SidebarItemProps {
+    to: string;
+    icon: LucideIcon;
+    label: string;
+}
+
+const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label }) => (
     <NavLink
         to={to}
         className={({ isActive }) =>
@@ -44,7 +51,7 @@ export const Sidebar = () => {
                 <SidebarItem to="/transactions" icon={History} label="Transakcje" />
                 <SidebarItem to="/dividends" icon={DollarSign} label="Dywidendy" />
                 <SidebarItem to="/simulator" icon={Calculator} label="Symulator" />
-                {import.meta.env.VITE_DISABLE_AI !== 'true' && (
+                {(import.meta.env.VITE_DISABLE_AI as string) !== 'true' && (
                     <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
                 )}
                 <SidebarItem to="/settings" icon={Settings} label="Ustawienia" />
