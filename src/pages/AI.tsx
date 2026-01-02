@@ -1,14 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
+// @ts-ignore - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
 import { cn } from '../lib/utils';
 import { PieChart } from '../components/PieChart';
+// @ts-ignore - will be migrated to TypeScript
 import { WebGPUChart } from '../components/WebGPUChart';
+
+interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 export const AI = () => {
     const { messages, sendMessage, isLoading, initProgress, isModelLoaded, clearChat, currentModel } = useAI();
     const [input, setInput] = useState('');
-    const scrollRef = useRef(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -22,7 +29,7 @@ export const AI = () => {
         setInput('');
     };
 
-    const handleKeyPress = (e) => {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -60,7 +67,6 @@ export const AI = () => {
             </header>
 
             <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
-                {/* Chat Area */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
                     {messages.length === 0 && (
                         <div className="text-center text-slate-500 mt-20">
@@ -70,7 +76,7 @@ export const AI = () => {
                         </div>
                     )}
 
-                    {messages.map((msg, idx) => (
+                    {messages.map((msg: Message, idx: number) => (
                         <div key={idx} className={cn("flex gap-3", msg.role === 'user' ? "flex-row-reverse" : "")}>
                             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0",
                                 msg.role === 'user' ? "bg-blue-600" : "bg-emerald-600")}>
@@ -97,7 +103,6 @@ export const AI = () => {
                     )}
                 </div>
 
-                {/* Input Area */}
                 <div className="p-4 bg-slate-950 border-t border-slate-800">
                     <div className="flex gap-2">
                         <input
@@ -126,28 +131,26 @@ export const AI = () => {
     );
 };
 
-const MessageContent = ({ content }) => {
-    // 1. Try splitting by custom delimiters
-    let parts = content.split(/(\|\|\|CHART_START\|\|\|[\s\S]*?\|\|\|CHART_END\|\|\|)/g);
+interface MessageContentProps {
+    content: string;
+}
 
-    // 2. If no custom delimiters found, try to find Markdown JSON blocks that look like charts
+const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
+    let parts = content.split(/(\\|\\|\\|CHART_START\\|\\|\\|[\s\S]*?\\|\\|\\|CHART_END\\|\\|\\|)/g);
+
     if (parts.length === 1 && (content.includes('```json') || content.includes('```')) && (content.includes('"type": "pie"') || content.includes('"type": "area"'))) {
-        // Fallback: Extract JSON from code blocks
         const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
-        const newParts = [];
+        const newParts: string[] = [];
         let lastIndex = 0;
         let match;
 
         while ((match = markdownRegex.exec(content)) !== null) {
-            // Add text before block
             if (match.index > lastIndex) {
                 newParts.push(content.substring(lastIndex, match.index));
             }
-            // Add the content as a "chart block" wrapper for consistency
             newParts.push(`|||CHART_START|||${match[1]}|||CHART_END|||`);
             lastIndex = markdownRegex.lastIndex;
         }
-        // Add remaining text
         if (lastIndex < content.length) {
             newParts.push(content.substring(lastIndex));
         }
@@ -163,10 +166,7 @@ const MessageContent = ({ content }) => {
                 if (part.startsWith('|||CHART_START|||')) {
                     try {
                         let jsonStr = part.replace('|||CHART_START|||', '').replace('|||CHART_END|||', '').trim();
-
-                        // Strip Comments (single line //)
                         jsonStr = jsonStr.replace(/\/\/.*$/gm, '');
-
                         const chartData = JSON.parse(jsonStr);
 
                         if (chartData.type === 'pie') {
@@ -195,7 +195,6 @@ const MessageContent = ({ content }) => {
                         return <div key={index} className="text-red-400 text-xs p-2 border border-red-900 bg-red-900/10 rounded">Błąd renderowania wykresu</div>;
                     }
                 }
-                // Regular text (render newlines)
                 if (!part.trim()) return null;
                 return (
                     <div key={index} className="whitespace-pre-wrap">

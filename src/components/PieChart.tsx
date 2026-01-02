@@ -42,8 +42,6 @@ export const PieChart: React.FC<PieChartProps> = ({ data, colors = [] }) => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        let animationId: number;
-
         // Process Data
         const total = data.reduce((acc, item) => acc + item.value, 0);
         let startAngle = -Math.PI / 2; // Start at 12 o'clock
@@ -146,18 +144,23 @@ export const PieChart: React.FC<PieChartProps> = ({ data, colors = [] }) => {
         let currentAngle = 0;
 
         for (let i = 0; i < data.length; i++) {
-            const sliceAngle = (data[i].value / total) * 2 * Math.PI;
+            const item = data[i];
+            if (!item) continue;
+            const sliceAngle = (item.value / total) * 2 * Math.PI;
             if (normalizedAngle >= currentAngle && normalizedAngle < currentAngle + sliceAngle) {
                 // Found it
-                setTooltip({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
-                    label: data[i].label,
-                    value: data[i].value,
-                    percent: (data[i].value / total * 100).toFixed(1) + '%',
-                    pl: data[i].pl,
-                    color: chartColors[i % chartColors.length]
-                });
+                const item = data[i];
+                if (item) {
+                    setTooltip({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top,
+                        label: item.label,
+                        value: item.value,
+                        percent: ((item.value / total) * 100).toFixed(1) + '%',
+                        pl: item.pl,
+                        color: chartColors[i % chartColors.length] || '#3b82f6'
+                    });
+                }
                 return;
             }
             currentAngle += sliceAngle;

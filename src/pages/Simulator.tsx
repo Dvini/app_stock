@@ -1,26 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { POPULAR_TICKERS as tickers } from '../lib/tickers';
 import { fetchExchangeRates } from '../lib/api';
-import { Calculator, ArrowRight, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Calculator, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
+import type { CurrencyCode } from '../types/database';
+
+interface SimulatorResult {
+    mode: string;
+    ticker: string;
+    oldQty: number;
+    newQty: number;
+    oldAvg: number;
+    newAvg: number;
+    diff: number;
+    cashChange: number;
+    totalValueImpact: number;
+    projectedValue: number;
+    currency: string;
+}
 
 export const Simulator = () => {
-    const { assets, portfolioSummary } = usePortfolio();
-    const [mode, setMode] = useState('BUY'); // 'BUY' or 'SELL'
+    const { assets } = usePortfolio();
+    const [mode, setMode] = useState<'BUY' | 'SELL'>('BUY');
     const [selectedTicker, setSelectedTicker] = useState('');
     const [amount, setAmount] = useState('');
     const [price, setPrice] = useState('');
-    const [result, setResult] = useState(null);
-    const [plnRate, setPlnRate] = useState(null);
+    const [result, setResult] = useState<SimulatorResult | null>(null);
+    const [plnRate, setPlnRate] = useState<number | null>(null);
 
-    // Helper to determine currency
-    const getCurrency = (tickerSymbol) => {
-        // 1. Check if we own it (most accurate)
+    const getCurrency = (tickerSymbol: string): CurrencyCode => {
         const asset = assets.find(a => a.ticker === tickerSymbol);
         if (asset) return asset.currency;
 
-        // 2. Check global list and infer from region
         const tickerDef = tickers.find(t => t.symbol === tickerSymbol);
         if (tickerDef) {
             const region = tickerDef.region;
@@ -30,12 +42,11 @@ export const Simulator = () => {
             if (region === 'JP') return 'JPY';
             if (region === 'DE' || region === 'FR' || region === 'EU' || region === 'UCITS ETF') return 'EUR';
         }
-        return 'PLN'; // Fallback
+        return 'PLN';
     };
 
     const currentCurrency = selectedTicker ? getCurrency(selectedTicker) : '';
 
-    // Fetch PLN Rate if needed
     useEffect(() => {
         let active = true;
         const fetchRate = async () => {
@@ -55,11 +66,6 @@ export const Simulator = () => {
         fetchRate();
         return () => { active = false; };
     }, [currentCurrency]);
-
-    // Filter available tickers for autocomplete (starts with existing assets, then popular)
-    // For simplicity, we can use a datalist or a simple select for now.
-    // Enhanced UX: Combined list of "My Assets" and "All Tickers"
-    const uniqueTickers = Array.from(new Set([...assets.map(a => a.ticker), ...tickers.map(t => t.symbol)]));
 
     const handleCalculate = () => {
         if (!selectedTicker || !amount || !price) return;
@@ -89,22 +95,17 @@ export const Simulator = () => {
         let newQty = 0;
         let newAvg = 0;
         let cashChange = 0;
-        let diff = 0; // Difference in average price
+        let diff = 0;
 
         if (mode === 'BUY') {
             newQty = currentQty + numAmount;
-            // Weighted Average: ((oldQty * oldAvg) + (newQty * newPrice)) / totalQty
             const totalCost = (currentQty * currentAvg) + (numAmount * numPrice);
             newAvg = totalCost / newQty;
             cashChange = -(numAmount * numPrice);
             diff = newAvg - currentAvg;
         } else {
-            // SELL
-            // Standard FIFO/Avg logic: Selling doesn't change the Average Price of remaining shares
-            // unless we specifically want to simulate "Realized P/L" impact on total portfolio value
-
             newQty = currentQty - numAmount;
-            newAvg = currentAvg; // Remains same
+            newAvg = currentAvg;
             cashChange = (numAmount * numPrice);
             diff = 0;
         }
@@ -118,9 +119,9 @@ export const Simulator = () => {
             newAvg,
             diff,
             cashChange,
-            totalValueImpact: 0, // Complex to calc perfectly without live price, but we assume Price = Value for the new chunk
-            projectedValue: (newQty * numPrice), // Value of this specific position at simulated price
-            currency: currentCurrency // Store for result display
+            totalValueImpact: 0,
+            projectedValue: (newQty * numPrice),
+            currency: currentCurrency
         });
     };
 
@@ -134,7 +135,6 @@ export const Simulator = () => {
             </h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* LEFT: Inputs */}
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
                     <div className="mb-8">
                         <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">Rodzaj Operacji</label>
@@ -218,9 +218,7 @@ export const Simulator = () => {
                     </div>
                 </div>
 
-                {/* RIGHT: Results */}
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 border-dashed rounded-3xl p-8 flex items-center justify-center relative overflow-hidden group">
-                    {/* Background Glow Effect */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700"></div>
 
                     {!result ? (
@@ -235,7 +233,6 @@ export const Simulator = () => {
                             </h2>
 
                             <div className="space-y-6 flex-1">
-                                {/* Avg Price Change */}
                                 <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
                                     <div className="text-slate-400 text-xs uppercase mb-1">Średnia Cena Zakupu</div>
                                     <div className="flex items-end justify-between">
@@ -262,7 +259,6 @@ export const Simulator = () => {
                                     )}
                                 </div>
 
-                                {/* Quantity Change */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
                                         <div className="text-slate-400 text-xs uppercase mb-1">Nowa Ilość</div>

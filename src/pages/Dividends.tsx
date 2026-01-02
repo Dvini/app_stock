@@ -1,9 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, Calendar, Info, RefreshCw } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Info, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
 import { formatNumber } from '../utils/formatters';
 import { ErrorBanner, SkeletonLoader } from '../components/UIComponents';
+
+interface Tooltip {
+    title: string;
+    description: string;
+    formula?: string;
+}
+
+interface StatCardProps {
+    label: string;
+    value: string;
+    sublabel: string;
+    color: 'emerald' | 'blue' | 'purple' | 'amber';
+    tooltip?: Tooltip;
+    isLoading: boolean;
+}
 
 export const Dividends = () => {
     const {
@@ -13,14 +28,12 @@ export const Dividends = () => {
         monthlyAverage,
         calendar,
         received,
-        addDividend,
-        deleteDividend,
-        syncDividendsManually, // NEW
+        syncDividendsManually,
         isLoading,
         error
     } = useDividends();
 
-    const [toastMessage, setToastMessage] = useState(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const handleManualRefresh = async () => {
@@ -37,12 +50,10 @@ export const Dividends = () => {
         }
     };
 
-    // Calculate total received dividends (all time)
     const totalReceivedPLN = useMemo(() => {
         return received.reduce((sum, div) => sum + (div.valuePLN || 0), 0);
     }, [received]);
 
-    // Calculate previous year total for tooltip
     const previousYearTotal = useMemo(() => {
         const currentYear = new Date().getFullYear();
         const previousYear = currentYear - 1;
@@ -52,33 +63,28 @@ export const Dividends = () => {
             .reduce((sum, d) => sum + (d.valuePLN || 0), 0);
     }, [received]);
 
-    // Tooltip content for stat cards
-    const tooltips = {
+    const tooltips: { [key: string]: Tooltip } = {
         ytdTotal: {
             title: 'Wpływ YTD',
             description: `Bieżący rok (${new Date().getFullYear()}): ${formatNumber(ytdTotal)} PLN\nPoprzedni rok (${new Date().getFullYear() - 1}): ${formatNumber(previousYearTotal)} PLN`
         }
-        // Other tooltips removed as per user request
     };
 
     return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
-            {/* Toast Notification */}
             {toastMessage && (
                 <div className="fixed top-4 right-4 bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top-2 fade-in">
                     <p className="text-sm font-bold text-slate-200">{toastMessage}</p>
                 </div>
             )}
 
-            {/* Error Banner */}
             {error && !isLoading && (
                 <ErrorBanner
                     error={error}
-                    onDismiss={() => { }} // Error is controlled by hook, just show it
+                    onDismiss={() => { }}
                 />
             )}
 
-            {/* Header */}
             <header className="shrink-0 flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-extrabold tracking-tight">Dywidendy</h1>
@@ -99,7 +105,6 @@ export const Dividends = () => {
                 </button>
             </header>
 
-            {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                 <StatCard
                     label="Wpływ Suma"
@@ -132,9 +137,7 @@ export const Dividends = () => {
                 />
             </div>
 
-            {/* Two Tables Side by Side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
-                {/* Calendar Table */}
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
                     <div className="px-6 py-4 border-b border-slate-800 shrink-0">
                         <h2 className="text-xl font-bold">Kalendarz Rynkowy</h2>
@@ -154,7 +157,7 @@ export const Dividends = () => {
                             <tbody className="divide-y divide-slate-800">
                                 {calendar.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-8 text-center text-slate-500 italic">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 italic">
                                             Brak nadchodzących dywidend w ciągu 60 dni.
                                         </td>
                                     </tr>
@@ -169,7 +172,7 @@ export const Dividends = () => {
                                                 <span className="text-xs text-slate-500">{div.currency}</span>
                                             </td>
                                             <td className="px-4 py-3 text-right font-mono text-emerald-400">
-                                                ~{formatNumber(div.estimatedPLN)} PLN
+                                                ~{formatNumber((div as any).estimatedPLN || 0)} PLN
                                             </td>
                                         </tr>
                                     ))
@@ -179,7 +182,6 @@ export const Dividends = () => {
                     </div>
                 </div>
 
-                {/* Received Dividends Table */}
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
                     <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
                         <div>
@@ -209,13 +211,13 @@ export const Dividends = () => {
                             <tbody className="divide-y divide-slate-800">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan="7" className="px-4 py-4">
+                                        <td colSpan={7} className="px-4 py-4">
                                             <SkeletonLoader rows={5} />
                                         </td>
                                     </tr>
                                 ) : received.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500 italic">
+                                        <td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">
                                             Brak otrzymanych dywidend w historii.
                                         </td>
                                     </tr>
@@ -253,8 +255,7 @@ export const Dividends = () => {
     );
 };
 
-// Stat Card Component with Tooltip
-const StatCard = ({ label, value, sublabel, color, tooltip, isLoading }) => {
+const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tooltip, isLoading }) => {
     const [showTooltip, setShowTooltip] = useState(false);
 
     const colorClasses = {
@@ -285,7 +286,6 @@ const StatCard = ({ label, value, sublabel, color, tooltip, isLoading }) => {
 
             <span className="text-xs text-slate-600">{sublabel}</span>
 
-            {/* Tooltip */}
             {showTooltip && tooltip && (
                 <div className="absolute left-full ml-2 top-0 bg-slate-800 border border-slate-700 rounded-xl p-4 w-72 z-50 shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200">
                     <h4 className="font-bold mb-2 text-sm">{tooltip.title}</h4>

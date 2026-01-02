@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { Save, Upload, Trash2, Cpu, Globe, Moon, Sun, AlertTriangle, RefreshCw, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { Save, Upload, Trash2, Cpu, RefreshCw, AlertTriangle } from 'lucide-react';
 import { exportData, importData, clearData } from '../lib/dataManagement';
+// @ts-ignore - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
-import { useCurrency } from '../context/CurrencyContext';
 
-const Section = ({ title, children }) => (
+interface SectionProps {
+    title: string;
+    children: React.ReactNode;
+}
+
+const Section: React.FC<SectionProps> = ({ title, children }) => (
     <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden mb-6">
         <div className="bg-slate-800/50 p-4 border-b border-slate-800">
             <h3 className="font-bold text-slate-200">{title}</h3>
@@ -15,7 +20,14 @@ const Section = ({ title, children }) => (
     </div>
 );
 
-const SettingRow = ({ icon: Icon, label, description, children }) => (
+interface SettingRowProps {
+    icon: React.ElementType;
+    label: string;
+    description: string;
+    children: React.ReactNode;
+}
+
+const SettingRow: React.FC<SettingRowProps> = ({ icon: Icon, label, description, children }) => (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex gap-4">
             <div className="bg-slate-800 p-2.5 rounded-xl h-fit">
@@ -34,7 +46,6 @@ const SettingRow = ({ icon: Icon, label, description, children }) => (
 
 export const Settings = () => {
     const { currentModel, changeModel } = useAI();
-    const { baseCurrency, setBaseCurrency } = useCurrency();
     const [importStatus, setImportStatus] = useState('');
 
     // Dividend settings - single control via frequency
@@ -42,8 +53,8 @@ export const Settings = () => {
         return localStorage.getItem('settings_dividends_frequency') || 'daily';
     });
 
-    const handleImport = async (e) => {
-        const file = e.target.files[0];
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
         if (!file) return;
 
         if (window.confirm("UWAGA: Importowanie nadpisze wszystkie obecne dane! Czy na pewno chcesz kontynuować?")) {
@@ -82,7 +93,7 @@ export const Settings = () => {
         "Phi-3.5-mini-instruct-q4f16_1-MLC"
     ];
 
-    const getModelLabel = (id) => {
+    const getModelLabel = (id: string): string => {
         if (id.includes('Qwen2.5-1.5B')) return 'Qwen 2.5 (1.5B) - Lightweight';
         if (id.includes('Qwen2.5-3B')) return 'Qwen 2.5 (3B)';
         if (id.includes('Qwen2.5-7B')) return 'Qwen 2.5 (7B) - High Performance';
@@ -106,7 +117,7 @@ export const Settings = () => {
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
 
             {/* AI Settings */}
-            {import.meta.env.VITE_DISABLE_AI !== 'true' && (
+            {(import.meta.env.VITE_DISABLE_AI as string) !== 'true' && (
                 <Section title="Sztuczna Inteligencja">
                     <SettingRow
                         icon={Cpu}
