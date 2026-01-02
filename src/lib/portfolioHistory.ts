@@ -1,12 +1,23 @@
-import { fetchHistory, fetchCurrentPrice } from './api';
 import { getExchangeRateWithFallback } from '../utils/currencyHelpers';
 import { getPriceAt, fetchHistoricalData } from './portfolioHistoryHelpers';
+import type { Transaction } from '../types/database';
 
-export const calculatePortfolioHistory = async (transactions, range = '1mo', excludeCash = false, returnNative = false) => {
+interface HistoryDataPoint {
+    time: number;
+    price: number;
+    pl: number;
+}
+
+export const calculatePortfolioHistory = async (
+    transactions: Transaction[],
+    range: string = '1mo',
+    excludeCash: boolean = false,
+    returnNative: boolean = false
+): Promise<HistoryDataPoint[]> => {
     if (!transactions || transactions.length === 0) return [];
 
     // Sort transactions by date first to ensure correct timeline
-    const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const now = new Date();
     let startDate = new Date();
 
@@ -15,7 +26,7 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
         if (firstInvestTx) {
             startDate = new Date(firstInvestTx.date);
         } else if (sortedTx.length > 0) {
-            startDate = new Date(sortedTx[0].date);
+            startDate = new Date(sortedTx[0]?.date || now);
         } else {
             startDate.setMonth(now.getMonth() - 1); // Fallback
         }
@@ -30,7 +41,7 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
     // Safety: don't go before 1970 or invalid dates
     if (isNaN(startDate.getTime())) startDate = new Date(new Date().setMonth(now.getMonth() - 1));
 
-    const uniqueTickers = [...new Set(transactions.map(t => t.ticker))].filter(t => t !== 'CASH');
+    const uniqueTickers = [...new Set(transactions.map(t => t.ticker).filter((t): t is string => t !== undefined && t !== 'CASH'))];
 
     let apiRange = range;
     if (range === 'max') apiRange = '10y'; // 'max' often fails via proxy, 10y is usually sufficient
@@ -38,25 +49,25 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
     else if (['1y', 'ytd', '1mo', '5d', '1d'].includes(range)) apiRange = '1y';
     else apiRange = '1y';
 
-    const currenciesToFetch = new Set();
+    const currenciesToFetch = new Set<string>();
 
     // Fetch all historical data (extracted to helper function)
     const { histories, fxHistories } = await fetchHistoricalData(uniqueTickers, currenciesToFetch, apiRange);
 
     // 3. Replay Loop
-    const timeline = [];
+    const timeline: Date[] = [];
     // If range is large, step might need optimization, but 1d is fine for charts
     for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
         timeline.push(new Date(d));
     }
 
-    const resultSeries = timeline.map(day => {
+    const resultSeries: HistoryDataPoint[] = timeline.map(day => {
         const relevantTx = sortedTx.filter(t => new Date(t.date) <= day);
-        const portfolio = {};
+        const portfolio: Record<string, number> = {};
         let cash = 0;
         let investedPLN = 0;
         let investedNative = 0; // Total Net Invested in Native Currency
-        let assetAvgPrices = {};
+        const assetAvgPrices: Record<string, { qty: number; avgPrice: number }> = {};
 
         relevantTx.forEach(tx => {
             let txTotalPLN = tx.total;
@@ -65,14 +76,15 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
             if (tx.currency && tx.currency !== 'PLN' && !excludeCash) {
                 const txDate = new Date(tx.date);
                 let rateAtTx = 0;
-                if (fxHistories[tx.currency]) {
-                    rateAtTx = getPriceAt(fxHistories[tx.currency], txDate);
+                const fxHistory = fxHistories[tx.currency];
+                if (fxHistory) {
+                    rateAtTx = getPriceAt(fxHistory, txDate);
                 }
 
                 // Fallback if History missing for that date (e.g. today)
                 if (!rateAtTx || rateAtTx === 0) {
-                    if (fxHistories[tx.currency] && fxHistories[tx.currency].length > 0) {
-                        rateAtTx = fxHistories[tx.currency][fxHistories[tx.currency].length - 1].price;
+                    if (fxHistory && fxHistory.length > 0) {
+                        rateAtTx = fxHistory[fxHistory.length - 1]?.price || 0;
                     }
                 }
 
@@ -81,34 +93,40 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
             }
 
             // --- TRACKING INVESTED CAPITAL & COST BASIS ---
-            if (tx.type === 'Depozyt' || tx.type === 'Wpłata') {
+            if (tx.type === 'Depozyt' || tx.type === 'deposit') {
                 cash += txTotalPLN;
                 investedPLN += txTotalPLN;
             } else if (tx.type === 'Wypłata') {
                 cash -= txTotalPLN;
                 investedPLN -= txTotalPLN;
             } else if (tx.type === 'Kupno') {
-                portfolio[tx.ticker] = (portfolio[tx.ticker] || 0) + tx.amount;
-                cash -= txTotalPLN;
-                investedNative += tx.total;
+                const ticker = tx.ticker;
+                if (ticker) {
+                    portfolio[ticker] = (portfolio[ticker] || 0) + tx.amount;
+                    cash -= txTotalPLN;
+                    investedNative += tx.total;
 
-                if (!assetAvgPrices[tx.ticker]) assetAvgPrices[tx.ticker] = { qty: 0, avgPrice: 0 };
-                const entry = assetAvgPrices[tx.ticker];
-                const oldVal = entry.qty * entry.avgPrice;
-                const newVal = tx.amount * tx.price;
-                entry.qty += tx.amount;
-                entry.avgPrice = (oldVal + newVal) / entry.qty;
+                    if (!assetAvgPrices[ticker]) assetAvgPrices[ticker] = { qty: 0, avgPrice: 0 };
+                    const entry = assetAvgPrices[ticker];
+                    const oldVal = entry.qty * entry.avgPrice;
+                    const newVal = tx.amount * (tx.price || 0);
+                    entry.qty += tx.amount;
+                    entry.avgPrice = (oldVal + newVal) / entry.qty;
+                }
 
             } else if (tx.type === 'Sprzedaż') {
-                portfolio[tx.ticker] = (portfolio[tx.ticker] || 0) - tx.amount;
-                cash += txTotalPLN;
-                investedNative -= tx.total;
+                const ticker = tx.ticker;
+                if (ticker) {
+                    portfolio[ticker] = (portfolio[ticker] || 0) - tx.amount;
+                    cash += txTotalPLN;
+                    investedNative -= tx.total;
 
-                if (assetAvgPrices[tx.ticker]) {
-                    assetAvgPrices[tx.ticker].qty -= tx.amount;
-                    if (assetAvgPrices[tx.ticker].qty <= 0) {
-                        assetAvgPrices[tx.ticker].avgPrice = 0;
-                        assetAvgPrices[tx.ticker].qty = 0;
+                    if (assetAvgPrices[ticker]) {
+                        assetAvgPrices[ticker].qty -= tx.amount;
+                        if (assetAvgPrices[ticker].qty <= 0) {
+                            assetAvgPrices[ticker].avgPrice = 0;
+                            assetAvgPrices[ticker].qty = 0;
+                        }
                     }
                 }
             }
@@ -118,9 +136,10 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
         let totalPL = 0;
 
         Object.entries(portfolio).forEach(([ticker, amount]) => {
-            if (amount > 0 && histories[ticker]) {
-                const assetPrice = getPriceAt(histories[ticker].data, day);
-                const currency = histories[ticker].currency;
+            const history = histories[ticker];
+            if (amount > 0 && history) {
+                const assetPrice = getPriceAt(history.data, day);
+                const currency = history.currency;
 
                 let valueNative = assetPrice * amount;
 
@@ -130,8 +149,9 @@ export const calculatePortfolioHistory = async (transactions, range = '1mo', exc
                     let valuePLN = valueNative;
                     if (currency !== 'PLN') {
                         let rate = 0;
-                        if (fxHistories[currency] && fxHistories[currency].length > 0) {
-                            rate = getPriceAt(fxHistories[currency], day);
+                        const fxHistory = fxHistories[currency];
+                        if (fxHistory && fxHistory.length > 0) {
+                            rate = getPriceAt(fxHistory, day);
                         }
                         rate = getExchangeRateWithFallback(currency, rate);
                         valuePLN = valueNative * rate;

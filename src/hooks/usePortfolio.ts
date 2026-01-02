@@ -11,12 +11,61 @@ import { formatNumber } from '../utils/formatters';
 import useAssets from './useAssets';
 import usePrices from './usePrices';
 import useExchangeRates from './useExchangeRates';
+import type { Transaction, CurrencyCode } from '../types/database';
+
+interface ProcessedAsset {
+    id?: number;
+    ticker: string;
+    type: string;
+    amount: number;
+    avgPrice: number;
+    currency: CurrencyCode;
+    price: number | null;
+    valuationPrice: number;
+    value: string;
+    valueBase: number;
+    rate: number;
+    pl: string;
+    plValue: number;
+    isRealData: boolean;
+}
+
+interface ProcessedWatchlistItem {
+    id?: number;
+    ticker: string;
+    dateAdded: string;
+    currency: CurrencyCode;
+    price: number | string;
+}
+
+interface CurrencyBreakdown {
+    currency: string;
+    value: number;
+    pl: number;
+}
+
+interface PortfolioSummary {
+    totalValue: string;
+    totalValuePLN: string;
+    totalPL: string;
+    totalPLPercent: string;
+    cash: string;
+    baseCurrency: CurrencyCode;
+    isLoadingPrices: boolean;
+    breakdown: CurrencyBreakdown[];
+}
+
+export interface UsePortfolioReturn {
+    assets: ProcessedAsset[];
+    watchlist: ProcessedWatchlistItem[];
+    transactions: Transaction[];
+    portfolioSummary: PortfolioSummary;
+}
 
 /**
  * Main portfolio hook
- * @returns {Object} Complete portfolio data
  */
-export const usePortfolio = () => {
+export const usePortfolio = (): UsePortfolioReturn => {
     const { baseCurrency } = useCurrency();
 
     // Use specialized hooks
@@ -43,7 +92,7 @@ export const usePortfolio = () => {
 
         // Add watchlist currencies
         watchlist.forEach(w => {
-            if (w.currency && w.currency !== baseCurrency) {
+            if (w?.currency && w.currency !== baseCurrency) {
                 currencySet.add(w.currency);
             }
         });
@@ -57,7 +106,7 @@ export const usePortfolio = () => {
     }, [currencies, watchlist, baseCurrency]);
 
     // Fetch exchange rates
-    const { rates: exchangeRates, convert } = useExchangeRates(neededCurrencies, {
+    const { rates: exchangeRates } = useExchangeRates(neededCurrencies, {
         targetCurrency: baseCurrency
     });
 
@@ -69,7 +118,7 @@ export const usePortfolio = () => {
             // Current price from live data or fallback to avgPrice for valuation
             const currentPrice = priceData?.price || null;
             const valuationPrice = currentPrice !== null ? currentPrice : asset.avgPrice;
-            const currency = priceData?.currency || asset.currency || 'PLN';
+            const currency = (priceData?.currency || asset.currency || 'PLN') as CurrencyCode;
 
             // Native value (in asset's currency)
             const valueNative = asset.amount * valuationPrice;
@@ -103,11 +152,11 @@ export const usePortfolio = () => {
     // Process watchlist
     const processedWatchlist = useMemo(() => {
         return watchlist.map(item => {
-            const priceData = watchlistPrices[item.ticker];
+            const priceData = watchlistPrices[item?.ticker];
             return {
                 ...item,
                 price: priceData?.price || '---',
-                currency: priceData?.currency || item.currency || 'PLN'
+                currency: (priceData?.currency || item?.currency || 'PLN') as CurrencyCode
             };
         });
     }, [watchlist, watchlistPrices]);
@@ -115,14 +164,15 @@ export const usePortfolio = () => {
     // Portfolio summary with currency breakdown
     const portfolioSummary = useMemo(() => {
         // Currency breakdown
-        const breakdown = {};
+        const breakdown: Record<string, { value: number; pl: number }> = {};
 
         // Add cash
         allCash.forEach(c => {
-            if (!breakdown[c.currency]) {
-                breakdown[c.currency] = { value: 0, pl: 0 };
+            const curr = c.currency;
+            if (!breakdown[curr]) {
+                breakdown[curr] = { value: 0, pl: 0 };
             }
-            breakdown[c.currency].value += c.amount;
+            breakdown[curr]!.value += c.amount;
         });
 
         // Add assets
@@ -137,7 +187,7 @@ export const usePortfolio = () => {
             breakdown[currency].pl += a.plValue;
         });
 
-        const breakdownEntries = Object.entries(breakdown)
+        const breakdownEntries: CurrencyBreakdown[] = Object.entries(breakdown)
             .filter(([_, data]) => data.value > 0.01)
             .map(([curr, data]) => ({
                 currency: curr,

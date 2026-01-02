@@ -2,9 +2,15 @@
 // Suffixes adapted for Yahoo Finance compatibility
 // Expanded to include broader indices (sWIG80, broad European/US markets)
 
-const createTicker = (symbol, name, region) => ({ symbol, name, region });
+interface Ticker {
+    symbol: string;
+    name: string;
+    region: string;
+}
 
-export const POPULAR_TICKERS = [
+const createTicker = (symbol: string, name: string, region: string): Ticker => ({ symbol, name, region });
+
+export const POPULAR_TICKERS: Ticker[] = [
     // --- INDICES (Trackable via Yahoo Finance usually with ^ or ETFs) ---
     createTicker('^GSPC', 'S&P 500 Index', 'INDEX'),
     createTicker('^IXIC', 'Nasdaq Composite', 'INDEX'),
@@ -37,7 +43,7 @@ export const POPULAR_TICKERS = [
     createTicker('XTB.WA', 'XTB', 'PL'),
     createTicker('11B.WA', '11 bit studios', 'PL'),
     createTicker('BDX.WA', 'Budimex', 'PL'),
-    createTicker('CIG.WA', 'CI Games', 'PL'), // Requested
+    createTicker('CIG.WA', 'CI Games', 'PL'),
     createTicker('TEN.WA', 'Ten Square Games', 'PL'),
     createTicker('LWB.WA', 'Bogdanka', 'PL'),
     createTicker('ENA.WA', 'Enea', 'PL'),
@@ -173,7 +179,7 @@ export const POPULAR_TICKERS = [
     createTicker('ORA.PA', 'Orange', 'FR'),
     createTicker('EN.PA', 'Bouygues', 'FR'),
     createTicker('VIV.PA', 'Vivendi', 'FR'),
-    createTicker('ETL.PA', 'Eutelsat', 'FR'), // Requested
+    createTicker('ETL.PA', 'Eutelsat', 'FR'),
 
     // --- GERMANY (DAX 40+) ---
     createTicker('SAP.DE', 'SAP SE', 'DE'),
@@ -249,7 +255,7 @@ export const POPULAR_TICKERS = [
     createTicker('CSPX.L', 'iShares Core S&P 500', 'UCITS ETF'),
 ];
 
-export const searchTickers = (query) => {
+export const searchTickers = (query: string): Ticker[] => {
     if (!query) return [];
     const q = query.toUpperCase();
 
