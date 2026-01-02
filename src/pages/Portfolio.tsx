@@ -1,59 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
+// @ts-ignore - will be migrated
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { PieChart } from '../components/PieChart';
-import { WebGPUChart } from '../components/WebGPUChart'; // Reusing Line Chart
+// @ts-ignore - will be migrated
+import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatNumber, formatQuantity } from '../utils/formatters';
+
+type ViewMode = 'pie' | 'history';
+type HistoryRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
+
+interface HistoryDataPoint {
+    time: number;
+    price: number;
+    value: number;
+}
 
 export const Portfolio = () => {
     const { assets, portfolioSummary } = usePortfolio();
     const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
     const [showAddModal, setShowAddModal] = useState(false);
 
-    // Visualization State
-    const [viewMode, setViewMode] = useState('history'); // 'pie' or 'history'
-    const [historyData, setHistoryData] = useState([]);
+    const [viewMode, setViewMode] = useState<ViewMode>('history');
+    const [historyData, setHistoryData] = useState<HistoryDataPoint[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyRange, setHistoryRange] = useState('max');
-    const [selectedTicker, setSelectedTicker] = useState('PORTFOLIO'); // 'PORTFOLIO' or specific ticker
+    const [historyRange, setHistoryRange] = useState<HistoryRange>('max');
+    const [selectedTicker, setSelectedTicker] = useState('PORTFOLIO');
 
-    // Prepare Pie Data
     const pieData = assets.map(a => ({
         label: a.ticker,
-        value: a.valueBase, // Allocations based on Base Currency
+        value: a.valueBase,
         pl: a.pl
     })).sort((a, b) => b.value - a.value);
 
-    // Calculate History Effect
     useEffect(() => {
         if (viewMode !== 'history') return;
 
         const loadHistory = async () => {
             setHistoryLoading(true);
             try {
-                // If specific ticker selected, just fetch that ticker's history
-                // If PORTFOLIO selected, use reconstruction algo
-
                 let data;
                 if (selectedTicker === 'PORTFOLIO') {
                     data = await calculatePortfolioHistory(transactions, historyRange, false, false);
                 } else {
                     const tickerTx = transactions.filter(t => t.ticker === selectedTicker);
-                    // returnNative=true ensures we calculate PL in native currency
                     data = await calculatePortfolioHistory(tickerTx, historyRange, true, true);
                 }
 
-                // Map P/L to "price" for the chart component, but keep original if needed
-                // The user wants the CHART to show P/L. 
-                const plData = data.map(d => ({
+                const plData: HistoryDataPoint[] = data.map(d => ({
                     time: d.time,
-                    price: d.pl, // ! SHOW P/L ON CHART
-                    value: d.price // Store total value in 'value' just in case
+                    price: d.pl,
+                    value: d.price
                 }));
 
                 setHistoryData(plData);
@@ -68,14 +70,6 @@ export const Portfolio = () => {
         }
     }, [transactions.length, viewMode, historyRange, selectedTicker]);
 
-    // Determine Chart Color (Green for Profit, Red for Loss)
-    const getChartColor = () => {
-        if (!historyData || historyData.length === 0) return [0.2, 0.8, 0.4, 1.0];
-        const lastPoint = historyData[historyData.length - 1];
-        const isProfit = lastPoint.price >= 0; // price is now mapped to PL
-        return isProfit ? [0.2, 0.8, 0.4, 1.0] : [0.9, 0.3, 0.3, 1.0];
-    };
-
     return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
             <header className="flex justify-between items-center shrink-0">
@@ -89,7 +83,6 @@ export const Portfolio = () => {
                 </button>
             </header>
 
-            {/* Portfolio Summary Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Całkowita</p>
@@ -97,7 +90,6 @@ export const Portfolio = () => {
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
                         <span className="text-sm text-slate-500">{portfolioSummary.baseCurrency}</span>
                     </div>
-                    {/* Tooltip */}
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
@@ -126,7 +118,6 @@ export const Portfolio = () => {
                             ({portfolioSummary.totalPLPercent})
                         </span>
                     </div>
-                    {/* Tooltip for P/L Breakdown */}
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.some(b => b.pl !== 0) && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">Wynik wg walut:</p>
@@ -151,9 +142,7 @@ export const Portfolio = () => {
                 </div>
             </div>
 
-            {/* Visualizations Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[450px] shrink-0">
-                {/* Controls & KPIs */}
                 <div className="lg:col-span-3 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative overflow-hidden">
                     <div className="flex justify-between items-center mb-4 z-10">
                         <div className="flex bg-slate-800 p-1 rounded-lg">
@@ -183,12 +172,12 @@ export const Portfolio = () => {
                                 </select>
                                 <div className="flex bg-slate-800 rounded-lg p-1">
                                     {[
-                                        { l: '1D', v: '1d' },
-                                        { l: '1T', v: '5d' },
-                                        { l: '1M', v: '1mo' },
-                                        { l: '1R', v: '1y' },
-                                        { l: '5L', v: '5y' },
-                                        { l: 'MAX', v: 'max' }
+                                        { l: '1D', v: '1d' as HistoryRange },
+                                        { l: '1T', v: '5d' as HistoryRange },
+                                        { l: '1M', v: '1mo' as HistoryRange },
+                                        { l: '1R', v: '1y' as HistoryRange },
+                                        { l: '5L', v: '5y' as HistoryRange },
+                                        { l: 'MAX', v: 'max' as HistoryRange }
                                     ].map(r => (
                                         <button
                                             key={r.v}
@@ -209,7 +198,6 @@ export const Portfolio = () => {
                                 <div className="w-full h-full max-w-[400px]">
                                     <PieChart data={pieData} />
                                 </div>
-                                {/* Legend */}
                                 <div className="ml-8 hidden md:block space-y-2 max-h-full overflow-y-auto custom-scrollbar pr-2">
                                     {pieData.map((d, i) => (
                                         <div key={d.label} className="flex items-center gap-2 text-sm">
@@ -238,7 +226,6 @@ export const Portfolio = () => {
                 </div>
             </div>
 
-            {/* Assets Table */}
             <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
                 <table className="w-full text-left">
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
@@ -254,7 +241,7 @@ export const Portfolio = () => {
                     <tbody className="divide-y divide-slate-800">
                         {assets.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="px-6 py-8 text-center text-slate-500 italic">
+                                <td colSpan={6} className="px-6 py-8 text-center text-slate-500 italic">
                                     Twój portfel jest pusty. Kliknij "Nowa Operacja", aby dodać aktywa.
                                 </td>
                             </tr>

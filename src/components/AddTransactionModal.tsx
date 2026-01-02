@@ -1,24 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { X, Check, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Calendar } from 'lucide-react';
 import { db } from '../db/db';
 import { searchTickers } from '../lib/tickers';
 import { fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { nbpService } from '../lib/NBPService';
 import { formatNumber } from '../utils/formatters';
+import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
 
-export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
+interface AddTransactionModalProps {
+    onClose: () => void;
+    onTransactionAdded?: () => void;
+}
+
+
+export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onTransactionAdded }) => {
     const [ticker, setTicker] = useState('');
     const [amount, setAmount] = useState('');
     const [price, setPrice] = useState('');
-    const [currency, setCurrency] = useState('PLN'); // Default currency
-    const [exchangeRate, setExchangeRate] = useState('1.0'); // New State
-    const [type, setType] = useState('Kupno'); // Kupno, Sprzedaż, Wpłata, Wypłata
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
+    const [currency, setCurrency] = useState<CurrencyCode>('PLN');
+    const [exchangeRate, setExchangeRate] = useState('1.0');
+    const [type, setType] = useState<DbTransactionType>('Kupno');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [ownedAssets, setOwnedAssets] = useState([]); // [NEW] Store owned assets
-    const [availableCash, setAvailableCash] = useState(0); // [NEW] Available Cash
+    const [ownedAssets, setOwnedAssets] = useState<Asset[]>([]);
+    const [availableCash, setAvailableCash] = useState(0);
 
-    // [NEW] Fetch owned assets and Cash
     useEffect(() => {
         const fetchData = async () => {
             const assets = await db.assets.toArray();
@@ -30,7 +36,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         fetchData();
     }, []);
 
-    // Fetch Rate on Currency Change or Date Change
     useEffect(() => {
         const fetchRate = async () => {
             if (currency === 'PLN') {
@@ -39,12 +44,10 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
             }
 
             try {
-                // Check if date is today (or future)
                 const today = new Date().toISOString().split('T')[0];
                 const isToday = date === today;
 
                 if (isToday) {
-                    // For today, use Yahoo Finance (NBP might not have today's rate yet)
                     const pair = `${currency}PLN=X`;
                     const rateData = await fetchCurrentPrice(pair);
                     if (rateData && rateData.price) {
@@ -52,9 +55,8 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         return;
                     }
                 } else {
-                    // For historical dates, try NBP first (more accurate for PLN)
                     console.log('[AddTransactionModal] Fetching historical rate from NBP...');
-                    const nbpData = await nbpService.getHistoricalRate(currency, date);
+                    const nbpData = await nbpService.getHistoricalRate(currency, date || '');
 
                     if (nbpData && nbpData.rate) {
                         console.log('[AddTransactionModal] Using NBP rate:', nbpData.rate);
@@ -62,9 +64,8 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         return;
                     }
 
-                    // Fallback to Yahoo Finance if NBP fails
                     console.log('[AddTransactionModal] NBP failed, falling back to Yahoo Finance...');
-                    const historicalData = await fetchHistoricalRate(currency, date);
+                    const historicalData = await fetchHistoricalRate(currency, date || '');
                     if (historicalData && historicalData.rate) {
                         console.log('[AddTransactionModal] Using Yahoo Finance rate:', historicalData.rate);
                         setExchangeRate(historicalData.rate.toFixed(4));
@@ -72,7 +73,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                     }
                 }
 
-                // Fallbacks if both APIs failed
                 if (currency === 'USD') setExchangeRate('4.00');
                 else if (currency === 'EUR') setExchangeRate('4.30');
                 else setExchangeRate('1.0');
@@ -84,22 +84,21 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         fetchRate();
     }, [currency, date]);
 
-    // Derived values for validation and display
     const numAmount = parseFloat(amount) || 0;
     const numPrice = parseFloat(price) || 0;
     const numRate = parseFloat(exchangeRate) || 1.0;
     const totalCostPLN = numAmount * numPrice * numRate;
-    const isInsufficientFunds = (type === 'Kupno' && totalCostPLN > availableCash) || (type === 'Wypłata' && numPrice > availableCash);
+    const isDeposit = (type as string) === 'Wpłata' || type === 'deposit' || type === 'Depozyt';
+    const isWithdraw = (type as string) === 'Wypłata' || type === 'withdraw';
+    const isInsufficientFunds = (type === 'Kupno' && totalCostPLN > availableCash) || (isWithdraw && numPrice > availableCash);
 
     const handleSubmit = async () => {
-        if (!['Wpłata', 'Wypłata'].includes(type) && (!ticker || !amount || !price)) return;
+        if (!isDeposit && !isWithdraw && (!ticker || !amount || !price)) return;
 
-        // Block submit if insufficient funds
         if (isInsufficientFunds) {
             return;
         }
 
-        // [NEW] Validation: Cannot sell what you don't own
         if (type === 'Sprzedaż') {
             const asset = ownedAssets.find(a => a.ticker === ticker.toUpperCase());
             if (!asset) {
@@ -112,9 +111,9 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
             }
         }
 
-        if (type === 'Wpłata' && !price) return;
+        if (isDeposit && !price) return;
 
-        if (type !== 'Wpłata' && type !== 'Wypłata') {
+        if (!isDeposit && !isWithdraw) {
             const valAmount = parseFloat(amount);
             const valPrice = parseFloat(price);
 
@@ -131,7 +130,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 return;
             }
         } else {
-            // Type == 'Wpłata' or 'Wypłata'
             if (parseFloat(price) <= 0) {
                 alert("Kwota musi być większa od zera");
                 return;
@@ -139,32 +137,30 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         }
 
         try {
-            const txTicker = ['Wpłata', 'Wypłata'].includes(type) ? 'CASH' : ticker.toUpperCase();
-            const txAmount = ['Wpłata', 'Wypłata'].includes(type) ? 1 : parseFloat(amount);
+            const txTicker = (isDeposit || isWithdraw) ? 'CASH' : ticker.toUpperCase();
+            const txAmount = (isDeposit || isWithdraw) ? 1 : parseFloat(amount);
             const txPrice = parseFloat(price);
             const txTotal = txAmount * txPrice;
             const rate = parseFloat(exchangeRate) || 1.0;
 
-            // Save to transactions history
             await db.transactions.add({
-                date: date,
-                type,
+                date: date as string,
+                type: type,
                 ticker: txTicker,
                 amount: txAmount,
                 price: txPrice,
                 currency: currency,
                 total: txTotal,
-                exchangeRate: rate // Store the rate used
+                exchangeRate: rate
             });
 
-            if (type !== 'Wpłata' && type !== 'Wypłata') {
+            if (!isDeposit && !isWithdraw) {
                 const asset = await db.assets.where('ticker').equals(txTicker).first();
                 if (asset) {
                     let newAmount = asset.amount;
                     let newAvgPrice = asset.avgPrice;
 
                     if (type === 'Kupno') {
-                        // Weighted Average Price Calculation
                         const totalCostOld = asset.amount * asset.avgPrice;
                         const totalCostNew = parseFloat(amount) * parseFloat(price);
                         const totalAmount = asset.amount + parseFloat(amount);
@@ -176,7 +172,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         newAmount -= parseFloat(amount);
                     }
 
-                    await db.assets.update(asset.id, {
+                    await db.assets.update(asset.id!, {
                         amount: newAmount,
                         avgPrice: newAvgPrice,
                         currency: currency
@@ -188,21 +184,19 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         amount: parseFloat(amount),
                         avgPrice: parseFloat(price),
                         currency: currency,
-                        type: 'Stock'
+                        type: 'stock'
                     });
                 }
             }
 
-            // Cash Update
             const cashEntry = await db.cash.get('PLN');
             let currentCash = cashEntry ? cashEntry.amount : 0;
 
-            // USE MANUAL EXCHANGE RATE
             let cashImpactPLN = txTotal * rate;
 
             if (type === 'Kupno') currentCash -= cashImpactPLN;
             if (type === 'Sprzedaż') currentCash += cashImpactPLN;
-            if (type === 'Wpłata') {
+            if (isDeposit) {
                 currentCash += cashImpactPLN;
             }
             if (type === 'Wypłata') {
@@ -219,26 +213,21 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         }
     };
 
-    const commonCurrencies = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
+    const commonCurrencies: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
 
-    // Auto-detect currency based on region?
-    const handleTickerSelect = async (t) => {
+    const handleTickerSelect = async (t: any) => {
         setTicker(t.symbol);
         setShowSuggestions(false);
-        // Simple heuristic
         if (t.region === 'US') setCurrency('USD');
         if (t.region === 'EU' || t.exchange?.includes('Paris')) setCurrency('EUR');
         if (t.region === 'WA' || t.symbol.endsWith('.WA')) setCurrency('PLN');
-        // else default PLN
 
-        // [NEW] Auto-fetch price
         try {
             const priceData = await fetchCurrentPrice(t.symbol);
             if (priceData && priceData.price) {
-                setPrice(priceData.price);
-                // [NEW] Authoritative Currency override from API
+                setPrice(priceData.price.toString());
                 if (priceData.currency) {
-                    setCurrency(priceData.currency);
+                    setCurrency(priceData.currency as CurrencyCode);
                 }
             }
         } catch (e) {
@@ -246,8 +235,7 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
         }
     };
 
-    // [NEW] Handle selection from dropdown
-    const handleAssetSelect = async (e) => {
+    const handleAssetSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const selectedTicker = e.target.value;
         setTicker(selectedTicker);
 
@@ -257,11 +245,10 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 setCurrency(asset.currency);
             }
 
-            // [NEW] Auto-fetch price
             try {
                 const priceData = await fetchCurrentPrice(selectedTicker);
                 if (priceData && priceData.price) {
-                    setPrice(priceData.price);
+                    setPrice(priceData.price.toString());
                 }
             } catch (e) {
                 console.error("Failed to fetch price for asset", selectedTicker, e);
@@ -280,15 +267,14 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                 </div>
 
                 <div className="space-y-4">
-                    {/* TYPE */}
                     <div>
                         <div className="flex bg-slate-950 p-1 rounded-xl">
-                            {['Kupno', 'Sprzedaż', 'Wpłata', 'Wypłata'].map(t => (
+                            {(['Kupno', 'Sprzedaż', 'Wpłata', 'Wypłata'] as DbTransactionType[]).map(t => (
                                 <button
                                     key={t}
                                     onClick={() => {
                                         setType(t);
-                                        if (t === 'Wpłata' || t === 'Wypłata') {
+                                        if (isDeposit || isWithdraw) {
                                             setCurrency('PLN');
                                             setExchangeRate('1.0');
                                         }
@@ -302,7 +288,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         </div>
                     </div>
 
-                    {/* DATE */}
                     <div className="relative">
                         <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Data</label>
                         <div className="relative">
@@ -317,13 +302,11 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         </div>
                     </div>
 
-                    {/* TICKER */}
-                    {!['Wpłata', 'Wypłata'].includes(type) && (
+                    {!(isDeposit || isWithdraw) && (
                         <div className="relative">
                             <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ticker</label>
 
                             {type === 'Sprzedaż' ? (
-                                // [NEW] Dropdown for Sales
                                 <div className="relative">
                                     <select
                                         value={ticker}
@@ -342,7 +325,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                                     )}
                                 </div>
                             ) : (
-                                // Existing Logic for Buying
                                 <>
                                     <input
                                         type="text"
@@ -382,9 +364,8 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         </div>
                     )}
 
-                    {/* QUANTITY & CURRENCY */}
                     <div className="flex gap-4">
-                        {!['Wpłata', 'Wypłata'].includes(type) && (
+                        {!(isDeposit || isWithdraw) && (
                             <div className="flex-1">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ilość</label>
                                 <input
@@ -399,12 +380,12 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             </div>
                         )}
 
-                        {!['Wpłata', 'Wypłata'].includes(type) && (
+                        {!(isDeposit || isWithdraw) && (
                             <div className="w-1/3">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Waluta</label>
                                 <select
                                     value={currency}
-                                    onChange={(e) => setCurrency(e.target.value)}
+                                    onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold text-center appearance-none"
                                 >
                                     {commonCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
@@ -413,13 +394,12 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         )}
                     </div>
 
-                    {/* PRICE & EXCHANGE RATE */}
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{type === 'Wpłata' || type === 'Wypłata' ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
+                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{isDeposit || isWithdraw ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
                             <input
                                 type="number"
-                                min={type === 'Wpłata' || type === 'Wypłata' ? "0.01" : "0"}
+                                min={isDeposit || isWithdraw ? "0.01" : "0"}
                                 value={price}
                                 onChange={e => setPrice(e.target.value)}
                                 placeholder="0.00"
@@ -440,7 +420,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                         )}
                     </div>
 
-                    {/* COST SUMMARY */}
                     {type === 'Kupno' && amount && price && (
                         <div className={`p-4 rounded-xl border ${isInsufficientFunds ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800/50 border-slate-700'}`}>
                             <div className="flex justify-between items-center mb-1">
@@ -460,7 +439,6 @@ export const AddTransactionModal = ({ onClose, onTransactionAdded }) => {
                             )}
                         </div>
                     )}
-
 
                     <div className="pt-4 flex space-x-3">
                         <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-colors">Anuluj</button>

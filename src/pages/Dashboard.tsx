@@ -1,51 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePortfolio } from '../hooks/usePortfolio';
+// @ts-ignore
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { AddToWatchlistModal } from '../components/AddToWatchlistModal';
+// @ts-ignore
 import { WebGPUChart } from '../components/WebGPUChart';
 import { fetchHistory, getCachedPrice, fetchCurrentPrice } from '../lib/api';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 
+type ChartRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
+
+interface ChartDataPoint {
+    time: number;
+    price: number;
+}
+
+interface AssetItemProps {
+    ticker: string;
+    price: number | string | null;
+    currency: string;
+    pl: string | null;
+    amount?: number;
+    selected: boolean;
+    onClick: () => void;
+    isWatchlist?: boolean;
+    onRemove?: (e: React.MouseEvent) => void;
+}
+
 export const Dashboard = () => {
     const { assets, portfolioSummary } = usePortfolio();
     const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
 
-    // State
-    const [selectedTicker, setSelectedTicker] = useState(null);
-    const [chartData, setChartData] = useState([]);
+    const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [chartCurrency, setChartCurrency] = useState('PLN');
-    const [chartRange, setChartRange] = useState('1mo'); // 1d, 5d, 1mo, 1y
+    const [chartRange, setChartRange] = useState<ChartRange>('1mo');
     const [isLoadingChart, setIsLoadingChart] = useState(false);
 
-    // Modals
     const [showTxModal, setShowTxModal] = useState(false);
     const [showWatchlistModal, setShowWatchlistModal] = useState(false);
 
-    // Initial Selection
     useEffect(() => {
         if (!selectedTicker && assets.length > 0) {
-            setSelectedTicker(assets[0].ticker);
+            setSelectedTicker(assets[0]?.ticker || null);
         } else if (!selectedTicker && watchlist.length > 0) {
-            setSelectedTicker(watchlist[0].ticker);
+            setSelectedTicker(watchlist[0]?.ticker || null);
         }
-    }, [assets, watchlist]);
+    }, [assets, watchlist, selectedTicker]);
 
-    // Fetch Chart Data Effect
     useEffect(() => {
         if (!selectedTicker) return;
 
         const loadChart = async () => {
             setIsLoadingChart(true);
-
-            // Map ranges to API params
-            // 1d -> range=1d, interval=5m
-            // 5d -> range=5d, interval=15m
-            // 1mo -> range=1mo, interval=1d
-            // 1y -> range=1y, interval=1wk
 
             let interval = '1d';
             if (chartRange === '1d') interval = '5m';
@@ -57,16 +68,13 @@ export const Dashboard = () => {
 
             const result = await fetchHistory(selectedTicker, chartRange, interval);
 
-            // Handle new API response structure { data, currency } or old array [legacy fallback?]
             if (result && result.data) {
-                setChartData(result.data);
+                setChartData(result.data as any);
                 setChartCurrency(result.currency);
             } else if (Array.isArray(result)) {
-                // Fallback for immediate safety if any old cache lingers
                 setChartData(result);
-                // Try to use known asset currency if available, else PLN
-                const knownAsset = assets.find(a => a.ticker === selectedTicker) || watchlist.find(w => w.ticker === selectedTicker);
-                setChartCurrency(knownAsset ? (knownAsset.currency || 'PLN') : 'PLN');
+                const knownAsset = assets.find(a => a.ticker === selectedTicker);
+                setChartCurrency(knownAsset?.currency || 'PLN');
             } else {
                 setChartData([]);
             }
@@ -74,25 +82,19 @@ export const Dashboard = () => {
         };
 
         loadChart();
-    }, [selectedTicker, chartRange]);
+    }, [selectedTicker, chartRange, assets]);
 
-    // Combined List for Sidebar
-    const getAssetPrice = (ticker) => {
+    const getAssetPrice = (ticker: string) => {
         const p = assets.find(a => a.ticker === ticker);
         if (p) return { price: p.price, currency: p.currency, pl: p.pl, isOwned: true };
 
-        // If not owned, try to get cached price
         const cached = getCachedPrice(ticker);
-        // Check if cached is object (new format)
         if (cached && typeof cached === 'object') {
             return { price: cached.price, currency: cached.currency, pl: null, isOwned: false };
         }
-        // Fallback or legacy (should not happen with new api.js but safe to keep)
         return { price: cached || '---', currency: 'PLN', pl: null, isOwned: false };
     };
 
-    // Ensure we trigger updates for watchlist items without transactions
-    // In a real app we'd have a unified hook, but here we can just auto-fetch visible items
     useEffect(() => {
         watchlist.forEach(async (w) => {
             if (!getCachedPrice(w.ticker)) {
@@ -101,7 +103,7 @@ export const Dashboard = () => {
         });
     }, [watchlist.length]);
 
-    const removeFromWatchlist = async (ticker) => {
+    const removeFromWatchlist = async (ticker: string) => {
         try {
             await db.watchlist.where('ticker').equals(ticker).delete();
             if (selectedTicker === ticker) {
@@ -112,7 +114,7 @@ export const Dashboard = () => {
         }
     };
 
-    const ranges = [
+    const ranges: Array<{ label: string; val: ChartRange }> = [
         { label: '1D', val: '1d' },
         { label: '1T', val: '5d' },
         { label: '1M', val: '1mo' },
@@ -121,12 +123,12 @@ export const Dashboard = () => {
         { label: 'MAX', val: 'max' },
     ];
 
-    const currentAssetInfo = getAssetPrice(selectedTicker);
+    const currentAssetInfo = selectedTicker ? getAssetPrice(selectedTicker) : { price: '---', currency: 'PLN', pl: null, isOwned: false };
 
     const getChartStats = () => {
         if (!chartData || chartData.length === 0) return null;
-        const start = chartData[0].price;
-        const end = chartData[chartData.length - 1].price;
+        const start = chartData[0]?.price || 0;
+        const end = chartData[chartData.length - 1]?.price || 0;
         const change = end - start;
         const percent = (change / start) * 100;
         return { change, percent, end };
@@ -136,7 +138,6 @@ export const Dashboard = () => {
 
     return (
         <div className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500">
-            {/* Header / Portfolio Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                 <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Portfela</p>
@@ -144,7 +145,6 @@ export const Dashboard = () => {
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
                         <span className="text-sm text-slate-500">{portfolioSummary.baseCurrency || 'PLN'}</span>
                     </div>
-                    {/* Tooltip */}
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
@@ -154,7 +154,6 @@ export const Dashboard = () => {
                                         <div className="flex flex-col">
                                             <span className="text-slate-300 font-medium">{formatNumber(b.value)} <span className="text-xs text-slate-500">{b.currency}</span></span>
                                         </div>
-                                        {/* Show PL if value > 0 and PL exists */}
                                         {b.pl !== 0 && (
                                             <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
                                                 {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
@@ -193,10 +192,7 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Main Content Area */}
             <div className="flex-1 min-h-0 flex gap-6">
-
-                {/* Left Sidebar: Assets List */}
                 <div className="w-1/3 min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
                     <div className="p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
                         <h3 className="font-bold text-slate-200 flex items-center gap-2">
@@ -205,7 +201,6 @@ export const Dashboard = () => {
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                        {/* Portfolio Assets */}
                         {assets.length > 0 && (
                             <div className="mb-4">
                                 <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2">Twój Portfel</p>
@@ -214,7 +209,7 @@ export const Dashboard = () => {
                                         key={a.ticker}
                                         ticker={a.ticker}
                                         price={a.price}
-                                        currency={a.currency || 'PLN'} // Fallback
+                                        currency={a.currency || 'PLN'}
                                         pl={a.pl}
                                         amount={a.amount}
                                         selected={selectedTicker === a.ticker}
@@ -224,13 +219,12 @@ export const Dashboard = () => {
                             </div>
                         )}
 
-                        {/* Watchlist */}
                         {watchlist.length > 0 && (
                             <div>
                                 <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2 flex items-center gap-1">
                                     <Star size={12} className="text-yellow-500/50" /> Obserwowane
                                 </p>
-                                {watchlist.filter(w => !assets.some(a => a.ticker === w.ticker)).map(w => { // Filter out items already in portfolio
+                                {watchlist.filter(w => !assets.some(a => a.ticker === w.ticker)).map(w => {
                                     const cached = getCachedPrice(w.ticker);
                                     return (
                                         <AssetItem
@@ -260,11 +254,9 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Right Area: Chart */}
                 <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative">
                     {selectedTicker ? (
                         <>
-                            {/* Chart Header */}
                             <div className="p-6 border-b border-slate-800 flex justify-between items-start bg-gradient-to-r from-slate-900 to-slate-900/50">
                                 <div>
                                     <h2 className="text-4xl font-black tracking-tight flex items-center gap-3">
@@ -273,7 +265,7 @@ export const Dashboard = () => {
                                     </h2>
                                     <div className="flex items-center gap-4 mt-2">
                                         <span className="text-2xl font-medium text-slate-200">
-                                            {currentAssetInfo.price !== '---' ? formatNumber(currentAssetInfo.price) : '---'} <span className="text-sm text-slate-500">{currentAssetInfo.currency || 'PLN'}</span>
+                                            {currentAssetInfo.price !== '---' ? formatNumber(currentAssetInfo.price as number) : '---'} <span className="text-sm text-slate-500">{currentAssetInfo.currency || 'PLN'}</span>
                                         </span>
                                         {chartStats && (
                                             <span className={cn("px-2 py-1 rounded text-sm font-bold", chartStats.change >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
@@ -301,7 +293,6 @@ export const Dashboard = () => {
                                 </div>
                             </div>
 
-                            {/* Chart Canvas */}
                             <div className="flex-1 relative w-full h-full bg-slate-950/30">
                                 {isLoadingChart ? (
                                     <div className="absolute inset-0 flex items-center justify-center">
@@ -334,7 +325,6 @@ export const Dashboard = () => {
                         </div>
                     )}
                 </div>
-
             </div>
 
             {showTxModal && <AddTransactionModal onClose={() => setShowTxModal(false)} />}
@@ -343,7 +333,7 @@ export const Dashboard = () => {
     );
 };
 
-const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
+const AssetItem: React.FC<AssetItemProps> = ({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
     <div
         onClick={onClick}
         className={cn(
@@ -362,18 +352,18 @@ const AssetItem = ({ ticker, price, currency, pl, amount, selected, onClick, isW
             </div>
             <div>
                 <p className={cn("font-bold text-sm", selected ? "text-white" : "text-slate-200")}>{ticker}</p>
-                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-200" : "text-slate-500")}>{formatQuantity(amount)} szt.</p>}
+                {!isWatchlist && <p className={cn("text-xs", selected ? "text-blue-200" : "text-slate-500")}>{amount && formatQuantity(amount)} szt.</p>}
                 {isWatchlist && <p className={cn("text-[10px] uppercase tracking-wider", selected ? "text-blue-200" : "text-slate-600")}>Obs.</p>}
             </div>
         </div>
         <div className="flex items-center gap-3">
             <div className="text-right">
                 <p className={cn("font-medium text-sm", selected ? "text-white" : "text-slate-200")}>
-                    {price !== null && price !== '...' ? formatNumber(price) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
+                    {price !== null && price !== '...' ? formatNumber(price as number) : '---'} <span className="text-[10px] opacity-70">{currency}</span>
                 </p>
-                {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? (selected ? "text-emerald-400" : "text-emerald-400") : (selected ? "text-rose-400" : "text-rose-400"))}>{pl}</p>}
+                {pl && <p className={cn("text-xs font-bold", pl.startsWith('+') ? "text-emerald-400" : "text-rose-400")}>{pl}</p>}
             </div>
-            {isWatchlist && (
+            {isWatchlist && onRemove && (
                 <button
                     onClick={onRemove}
                     className={cn(

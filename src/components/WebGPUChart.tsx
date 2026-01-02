@@ -1,20 +1,39 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { formatNumber } from '../utils/formatters';
 
-export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currency = 'PLN', range = '1mo' }) => {
-    const canvasRef = useRef(null);
-    const containerRef = useRef(null);
-    const [tooltip, setTooltip] = useState(null);
+interface WebGPUChartProps {
+    data?: any[];
+    color?: number[];
+    currency?: string;
+    range?: string;
+}
+
+interface TooltipState {
+    x: number;
+    y: number;
+    price: string;
+    date: string;
+    index: number;
+}
+
+export const WebGPUChart: React.FC<WebGPUChartProps> = ({
+    data = [],
+    color = [0.16, 0.8, 0.45, 1.0],
+    currency = 'PLN',
+    range = '1mo'
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
     // Data parsing
-    const hasObjects = data.length > 0 && typeof data[0] === 'object';
-    const points = hasObjects ? data.map(d => d.price) : data;
-    const times = hasObjects ? data.map(d => d.time) : [];
+    const hasObjects = data.length > 0 && typeof data?.[0] === 'object' && data?.[0] !== null;
+    const points: number[] = hasObjects ? data.map(d => d?.price || 0) : (data as number[]);
+    const times: number[] = hasObjects ? data.map(d => d?.time || 0) : [];
 
     // Colors
-    const isNegative = color[0] > 0.5 && color[1] < 0.5; // Detection logic based on passed prop
-    const themeColor = isNegative ? '#f43f5e' : '#10b981'; // Rose-500 or Emerald-500
-    const themeRgb = isNegative ? '244, 63, 94' : '16, 185, 129';
+    const isNegative = (color?.[0] ?? 0) > 0.5 && (color?.[1] ?? 0) < 0.5;
+    const themeColor = isNegative ? '#f43f5e' : '#10b981';
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -22,6 +41,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
         if (!canvas || !container || points.length === 0) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
         const render = () => {
             const dpr = window.devicePixelRatio || 1;
@@ -35,57 +55,36 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             const w = rect.width;
             const h = rect.height;
 
-            // Dimensions
             const padding = { top: 20, right: 20, bottom: 30, left: 60 };
             const chartW = w - padding.left - padding.right;
             const chartH = h - padding.top - padding.bottom;
 
             ctx.clearRect(0, 0, w, h);
 
-            // Min/Max for Scaling
             const minVal = Math.min(...points);
             const maxVal = Math.max(...points);
             const rangeVal = maxVal - minVal || 1;
 
-            // --- Grid & Axes ---
             ctx.lineWidth = 1;
-            ctx.strokeStyle = '#334155'; // Slate-700
-            ctx.fillStyle = '#94a3b8'; // Slate-400
+            ctx.strokeStyle = '#334155';
+            ctx.fillStyle = '#94a3b8';
             ctx.font = '10px Roboto, sans-serif';
 
-            // Y-Axis Grid & Labels (5 steps)
             const ySteps = 5;
             for (let i = 0; i <= ySteps; i++) {
                 const yRatio = i / ySteps;
                 const y = padding.top + chartH * yRatio;
                 const val = maxVal - (rangeVal * yRatio);
 
-                // Grid line
                 ctx.beginPath();
                 ctx.moveTo(padding.left, y);
                 ctx.lineTo(w - padding.right, y);
                 ctx.stroke();
 
-                // Label
                 ctx.textAlign = 'right';
-                // Use formatNumber (assuming it is imported correctly in the file already)
-                // Note: The previous tool call imported formatNumber, so it should be available.
-                // However, I need to make sure I don't break the closure or context.
-                // The previous tool call view showed I needed to re-declare the whole component signature or at least be careful.
-                // I will use local variable naming for the range prop to avoid conflict with the mathematical 'range' variable.
-
-                // Oops, I see I used 'range' as a variable name for (max - min) in line 47 of the original file.
-                // I should rename that local variable or the prop. 
-                // I'll rename the prop in the destructuring to 'chartRange' or rename the local variable.
-                // Let's rename the local variable to 'valRange' or 'yRange'.
-                // Actually in the ReplacementContent above I renamed the local variable to 'rangeVal'.
-
                 ctx.fillText(formatNumber(val), padding.left - 10, y + 3);
             }
 
-            // X-Axis
-            // Logic to pick nice dates based on data density
-            // ... (Simple logic: first, last, and middle)
             if (times.length > 0) {
                 const xSteps = 4;
                 const step = Math.floor(times.length / xSteps);
@@ -93,7 +92,7 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
                 for (let i = 0; i <= xSteps; i++) {
                     const idx = Math.min(i * step, times.length - 1);
                     const x = padding.left + (idx / (times.length - 1)) * chartW;
-                    const date = new Date(times[idx] * 1000);
+                    const date = new Date((times[idx] || 0) * 1000);
 
                     let labelStr;
                     if (range === '1d') {
@@ -106,33 +105,20 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
                 }
             }
 
-
-            // --- Chart Path ---
-            const getX = (i) => padding.left + (i / (points.length - 1)) * chartW;
-            const getY = (val) => padding.top + chartH - ((val - minVal) / rangeVal) * chartH;
-
-            // X-Axis Gradient Logic (Vertical Bands)
-            // Color depends on the sign of the value at that specific X coordinate.
-            // We scan for zero-crossings to create sharp transitions.
+            const getX = (i: number) => padding.left + (i / (points.length - 1)) * chartW;
+            const getY = (val: number) => padding.top + chartH - ((val - minVal) / rangeVal) * chartH;
 
             const gradientLeft = padding.left;
             const gradientRight = w - padding.right;
             const gradientWidth = gradientRight - gradientLeft;
 
-            // Custom Gradient Logic
+            const getColor = (val: number) => val >= 0 ? '#10b981' : '#f43f5e';
 
-            // Helper to get Color
-            const getColor = (val) => val >= 0 ? '#10b981' : '#f43f5e';
-
-            // 1. Stroke Gradient (Hard Edge)
             const strokeGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
-
-            // 2. Fill Gradient (Soft/Smoother Edge)
             const fillGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
 
-            // Optimization for single-color cases
-            let isAllPositive = minVal >= 0;
-            let isAllNegative = maxVal < 0;
+            const isAllPositive = minVal >= 0;
+            const isAllNegative = maxVal < 0;
 
             if (isAllPositive) {
                 strokeGradient.addColorStop(0, '#10b981'); strokeGradient.addColorStop(1, '#10b981');
@@ -141,32 +127,25 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
                 strokeGradient.addColorStop(0, '#f43f5e'); strokeGradient.addColorStop(1, '#f43f5e');
                 fillGradient.addColorStop(0, '#f43f5e'); fillGradient.addColorStop(1, '#f43f5e');
             } else {
-                // Mixed - Compute Stops
-                strokeGradient.addColorStop(0, getColor(points[0]));
-                fillGradient.addColorStop(0, getColor(points[0]));
+                strokeGradient.addColorStop(0, getColor(points[0]!));
+                fillGradient.addColorStop(0, getColor(points[0]!));
 
                 for (let i = 0; i < points.length - 1; i++) {
-                    const p1 = points[i];
-                    const p2 = points[i + 1];
+                    const p1 = points[i]!;
+                    const p2 = points[i + 1]!;
 
-                    // Check for Zero Crossing
                     if ((p1 >= 0 && p2 < 0) || (p1 < 0 && p2 >= 0)) {
                         const ratio = Math.abs(p1) / (Math.abs(p1) + Math.abs(p2));
                         const crossingIdx = i + ratio;
-                        // Stop = (getX(crossingIdx) - gradientLeft) / gradientWidth.
 
                         const crossingX = getX(crossingIdx);
                         let stop = (crossingX - gradientLeft) / gradientWidth;
                         stop = Math.max(0, Math.min(1, stop));
 
-                        // --- Hard Stroke ---
-                        // Immediate switch
                         strokeGradient.addColorStop(stop, getColor(p1));
                         strokeGradient.addColorStop(stop, getColor(p2));
 
-                        // --- Soft Fill ---
-                        // Reduced smoothness as requested (very narrow blur)
-                        const smoothness = 0.02; // 2% width
+                        const smoothness = 0.02;
                         const start = Math.max(0, stop - smoothness);
                         const end = Math.min(1, stop + smoothness);
 
@@ -174,12 +153,11 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
                         fillGradient.addColorStop(end, getColor(p2));
                     }
                 }
-                const lastColor = getColor(points[points.length - 1]);
+                const lastColor = getColor(points[points.length - 1]!);
                 strokeGradient.addColorStop(1, lastColor);
                 fillGradient.addColorStop(1, lastColor);
             }
 
-            // 1. Area Fill
             ctx.save();
             ctx.globalAlpha = 0.2;
             ctx.beginPath();
@@ -191,14 +169,13 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             ctx.fill();
             ctx.restore();
 
-            // 2. Line Stroke
             ctx.beginPath();
             points.forEach((val, i) => {
                 if (i === 0) ctx.moveTo(getX(i), getY(val));
                 else ctx.lineTo(getX(i), getY(val));
             });
             ctx.strokeStyle = strokeGradient;
-            ctx.lineWidth = 2; // Hard line
+            ctx.lineWidth = 2;
             ctx.stroke();
         };
 
@@ -211,17 +188,13 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             observer.disconnect();
             window.removeEventListener('resize', render);
         };
-    }, [data, color]);
+    }, [data, color, points, times, range]);
 
-    // Custom Interaction Handler for React implementation of Tooltip Overlay
-    // We separate the interaction to keep React render cycle clean
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!containerRef.current || points.length === 0) return;
         const rect = containerRef.current.getBoundingClientRect();
         const xLocal = e.clientX - rect.left;
-        const yLocal = e.clientY - rect.top;
 
-        // Dimensions must match render logic
         const w = rect.width;
         const h = rect.height;
         const padding = { top: 20, right: 20, bottom: 30, left: 60 };
@@ -233,14 +206,12 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
             return;
         }
 
-        // Find Index
         const ratio = (xLocal - padding.left) / chartW;
         const index = Math.min(Math.max(Math.round(ratio * (points.length - 1)), 0), points.length - 1);
 
-        const price = points[index];
+        const price = points[index]!;
         const time = times[index];
 
-        // Calc coordinates for tooltip
         const xPos = padding.left + (index / (points.length - 1)) * chartW;
 
         const minVal = Math.min(...points);
@@ -268,18 +239,14 @@ export const WebGPUChart = ({ data = [], color = [0.16, 0.8, 0.45, 1.0], currenc
 
             {tooltip && (
                 <>
-                    {/* Crosshair X */}
                     <div className="absolute top-5 bottom-8 border-l border-slate-500/50 border-dashed pointer-events-none" style={{ left: tooltip.x }} />
-                    {/* Crosshair Y */}
                     <div className="absolute left-[60px] right-5 border-t border-slate-500/50 border-dashed pointer-events-none" style={{ top: tooltip.y }} />
 
-                    {/* Dot */}
                     <div
                         className="absolute w-3 h-3 bg-white rounded-full border-2 shadow-lg transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                         style={{ left: tooltip.x, top: tooltip.y, borderColor: themeColor }}
                     />
 
-                    {/* Tooltip Card */}
                     <div
                         className="absolute bg-slate-800 text-white rounded-lg p-2 shadow-xl border border-slate-700 pointer-events-none z-20 whitespace-nowrap"
                         style={{
