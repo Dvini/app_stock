@@ -1,19 +1,51 @@
-import { cacheService } from './CacheService.js';
+import { cacheService } from './CacheService';
+import type { CurrencyCode } from '../types/database';
+
+interface ApiServiceOptions {
+    proxyUrls?: string[];
+    baseUrl?: string;
+    cacheDuration?: number;
+    maxRetries?: number;
+}
+
+interface PriceData {
+    price: number;
+    currency: CurrencyCode;
+}
+
+interface HistoryDataPoint {
+    timestamp: number;
+    price: number;
+    date: string;
+}
+
+interface HistoryData {
+    data: HistoryDataPoint[];
+    currency: CurrencyCode;
+}
+
+interface RateData {
+    rate: number;
+    date: string;
+    from: CurrencyCode;
+    to: CurrencyCode;
+}
 
 /**
  * API Service for fetching stock data from Yahoo Finance
  * Implements caching, retry logic, and error handling
  */
 class ApiService {
+    private proxyUrls: string[];
+    private baseUrl: string;
+    private cacheDuration: number;
+    private maxRetries: number;
+    private currentProxyIndex: number;
+
     /**
      * Create a new ApiService instance
-     * @param {Object} options - Configuration options
-     * @param {string[]} options.proxyUrls - List of proxy URLs to try
-     * @param {string} options.baseUrl - Yahoo Finance base URL
-     * @param {number} options.cacheDuration - Default cache duration in ms
-     * @param {number} options.maxRetries - Maximum number of retries
      */
-    constructor(options = {}) {
+    constructor(options: ApiServiceOptions = {}) {
         this.proxyUrls = options.proxyUrls || [
             'https://corsproxy.io/?',
             'https://api.allorigins.win/raw?url='
@@ -26,11 +58,8 @@ class ApiService {
 
     /**
      * Fetch with automatic proxy fallback and retry
-     * @param {string} url - The URL to fetch
-     * @param {number} retryCount - Current retry count
-     * @returns {Promise<Response>} Fetch response
      */
-    async fetchWithBackup(url, retryCount = 0) {
+    async fetchWithBackup(url: string, retryCount: number = 0): Promise<Response> {
         const proxyUrl = this.proxyUrls[this.currentProxyIndex];
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
 
@@ -44,7 +73,8 @@ class ApiService {
             // If response is not OK, throw to trigger retry
             throw new Error(`API Error: ${response.status} ${response.statusText}`);
         } catch (error) {
-            console.warn(`[ApiService] Fetch failed with proxy ${this.currentProxyIndex}:`, error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.warn(`[ApiService] Fetch failed with proxy ${this.currentProxyIndex}:`, errorMessage);
 
             // Try next proxy
             if (this.currentProxyIndex < this.proxyUrls.length - 1) {
@@ -64,29 +94,25 @@ class ApiService {
             }
 
             // All retries failed
-            throw new Error(`Failed to fetch after ${this.maxRetries} retries: ${error.message}`);
+            throw new Error(`Failed to fetch after ${this.maxRetries} retries: ${errorMessage}`);
         }
     }
 
     /**
      * Wait for specified milliseconds
-     * @param {number} ms - Milliseconds to wait
-     * @returns {Promise<void>}
      */
-    _wait(ms) {
+    private _wait(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
      * Get current price for a ticker
-     * @param {string} ticker - Stock ticker symbol
-     * @returns {Promise<{price: number, currency: string}|null>} Price data or null
      */
-    async getCurrentPrice(ticker) {
+    async getCurrentPrice(ticker: string): Promise<PriceData | null> {
         const cacheKey = `price_${ticker}`;
 
         // 1. Check cache
-        const cached = cacheService.get(cacheKey, this.cacheDuration);
+        const cached = cacheService.get<PriceData>(cacheKey, this.cacheDuration);
         if (cached) {
             console.log(`[ApiService] Using cached price for ${ticker}`);
             return cached;
@@ -114,7 +140,7 @@ class ApiService {
             }
 
             if (price) {
-                const priceData = { price, currency };
+                const priceData: PriceData = { price, currency };
 
                 // 3. Cache the result
                 cacheService.set(cacheKey, priceData, { ttl: this.cacheDuration });
@@ -134,21 +160,18 @@ class ApiService {
 
     /**
      * Get exchange rates for multiple currencies
-     * @param {string[]} currencies - Array of currency codes (e.g. ['USD', 'EUR'])
-     * @param {string} targetCurrency - Target currency (default: 'PLN')
-     * @returns {Promise<Object>} Object mapping currency codes to rates
      */
-    async getExchangeRates(currencies, targetCurrency = 'PLN') {
+    async getExchangeRates(currencies: string[], targetCurrency: string = 'PLN'): Promise<Record<string, number>> {
         const uniqueCurrencies = currencies.filter(c => c && c !== targetCurrency);
         if (uniqueCurrencies.length === 0) return {};
 
-        const rates = {};
-        const missingPairs = [];
+        const rates: Record<string, number> = {};
+        const missingPairs: Array<{ currency: string; pair: string }> = [];
 
         // 1. Check cache for each currency
         for (const currency of uniqueCurrencies) {
             const cacheKey = `rate_${currency}${targetCurrency}`;
-            const cached = cacheService.get(cacheKey, this.cacheDuration);
+            const cached = cacheService.get<number>(cacheKey, this.cacheDuration);
 
             if (cached) {
                 rates[currency] = cached;
@@ -206,19 +229,15 @@ class ApiService {
 
     /**
      * Get historical price data for charting
-     * @param {string} ticker - Stock ticker symbol
-     * @param {string} range - Time range (1d, 1mo, 1y, etc.)
-     * @param {string} interval - Data interval (1m, 1h, 1d, etc.)
-     * @returns {Promise<{data: Array, currency: string}|null>} Historical data or null
      */
-    async getHistory(ticker, range = '1mo', interval = '1d') {
+    async getHistory(ticker: string, range: string = '1mo', interval: string = '1d'): Promise<HistoryData | null> {
         const cacheKey = `history_${ticker}_${range}_${interval}`;
 
         // Shorter cache for intraday data
         const cacheDuration = range === '1d' ? 5 * 60 * 1000 : this.cacheDuration;
 
         // 1. Check cache
-        const cached = cacheService.get(cacheKey, cacheDuration);
+        const cached = cacheService.get<HistoryData>(cacheKey, cacheDuration);
         if (cached) {
             console.log(`[ApiService] Using cached history for ${ticker} (${range}, ${interval})`);
             return cached;
@@ -240,15 +259,19 @@ class ApiService {
             }
 
             // Clean and format data
-            const cleanData = timestamps
-                .map((t, i) => ({
-                    time: t,
-                    price: quotes.close[i]
-                }))
-                .filter(item => item.price !== null && item.price !== undefined);
+            const cleanData: HistoryDataPoint[] = timestamps
+                .map((t: number, i: number) => {
+                    const date = new Date(t * 1000).toISOString().split('T')[0]!;
+                    return {
+                        timestamp: t,
+                        price: quotes.close[i],
+                        date
+                    };
+                })
+                .filter((item: HistoryDataPoint) => item.price !== null && item.price !== undefined);
 
             const currency = result.meta.currency || 'PLN';
-            const historyData = { data: cleanData, currency };
+            const historyData: HistoryData = { data: cleanData, currency: currency as CurrencyCode };
 
             // 3. Cache the result
             cacheService.set(cacheKey, historyData, { ttl: cacheDuration });
@@ -264,15 +287,12 @@ class ApiService {
 
     /**
      * Get historical exchange rate for a specific date
-     * @param {string} currency - Currency code
-     * @param {string} dateStr - Date string (YYYY-MM-DD)
-     * @returns {Promise<{rate: number, date: string}|null>} Historical rate or null
      */
-    async getHistoricalRate(currency, dateStr) {
+    async getHistoricalRate(currency: string, dateStr: string): Promise<RateData | null> {
         const cacheKey = `rate_history_${currency}PLN_${dateStr}`;
 
         // 1. Check cache (historical rates don't expire)
-        const cached = cacheService.get(cacheKey);
+        const cached = cacheService.get<RateData>(cacheKey);
         if (cached) {
             console.log(`[ApiService] Using cached historical rate for ${currency} on ${dateStr}`);
             return cached;
@@ -301,7 +321,7 @@ class ApiService {
             }
 
             // Find first valid price (closest available date >= requested date)
-            let validPrice = null;
+            let validPrice: number | null = null;
             for (let i = 0; i < quotes.close.length; i++) {
                 if (quotes.close[i]) {
                     validPrice = quotes.close[i];
@@ -310,7 +330,12 @@ class ApiService {
             }
 
             if (validPrice) {
-                const rateData = { rate: validPrice, date: dateStr };
+                const rateData: RateData = { 
+                    rate: validPrice, 
+                    date: dateStr,
+                    from: currency as CurrencyCode,
+                    to: 'PLN'
+                };
 
                 // 4. Cache forever (historical data doesn't change)
                 cacheService.set(cacheKey, rateData);
@@ -330,9 +355,8 @@ class ApiService {
 
     /**
      * Invalidate all cache entries for a specific ticker
-     * @param {string} ticker - Stock ticker symbol
      */
-    invalidateTickerCache(ticker) {
+    invalidateTickerCache(ticker: string): void {
         cacheService.invalidate(new RegExp(`_(price|history)_${ticker}`));
         console.log(`[ApiService] Invalidated cache for ${ticker}`);
     }
@@ -340,7 +364,7 @@ class ApiService {
     /**
      * Clear all API cache
      */
-    clearCache() {
+    clearCache(): void {
         cacheService.clear();
         console.log('[ApiService] Cleared all API cache');
     }

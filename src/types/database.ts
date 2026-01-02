@@ -3,7 +3,7 @@
  */
 
 // Transaction types
-export type TransactionType = 'buy' | 'sell' | 'deposit' | 'withdraw';
+export type TransactionType = 'buy' | 'sell' | 'deposit' | 'withdraw' | 'Kupno' | 'Sprzedaż' | 'Depozyt' | 'Wypłata';
 
 // Asset types  
 export type AssetType = 'stock' | 'etf' | 'crypto' | 'commodity';
@@ -64,9 +64,13 @@ export interface Dividend {
   ticker: string;
   recordDate: string; // ISO date string
   paymentDate: string; // ISO date string
-  amount?: number;
-  currency?: CurrencyCode;
-  status?: 'upcoming' | 'paid' | 'expected' | 'received'; // Added 'expected' and 'received'
+  amountPerShare: number; // Amount per share
+  totalAmount?: number; // Total amount for owned shares
+  currency: CurrencyCode;
+  exchangeRate?: number; // Exchange rate to PLN
+  valuePLN?: number; // Total value in PLN
+  sharesOwned?: number; // Shares owned on record date
+  status: 'upcoming' | 'paid' | 'expected' | 'received';
 }
 
 /**

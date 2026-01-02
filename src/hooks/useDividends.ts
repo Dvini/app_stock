@@ -146,7 +146,19 @@ export const useDividends = (): UseDividendsReturn => {
      */
     const addDividend = useCallback(async (dividendData: Partial<Dividend>) => {
         try {
-            await dividendService.addDividend(dividendData);
+            // Validate required fields
+            if (!dividendData.ticker || !dividendData.recordDate || !dividendData.paymentDate || dividendData.amountPerShare === undefined) {
+                throw new Error('Missing required dividend fields');
+            }
+            
+            await dividendService.addDividend({
+                ticker: dividendData.ticker,
+                recordDate: dividendData.recordDate,
+                paymentDate: dividendData.paymentDate,
+                amountPerShare: dividendData.amountPerShare,
+                currency: dividendData.currency,
+                status: dividendData.status
+            });
         } catch (err) {
             console.error('[useDividends] Error adding dividend:', err);
             throw err;
