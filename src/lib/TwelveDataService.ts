@@ -1,10 +1,20 @@
-import { cacheService } from './CacheService.js';
+import { cacheService } from './CacheService';
+
+interface DividendRecord {
+    exDate: string;
+    amount: number;
+    currency: string;
+}
 
 /**
  * Twelve Data API Service
  * Provides dividend data and other stock market information
  */
 class TwelveDataService {
+    private baseUrl: string;
+    private apiKey: string;
+    private cacheDuration: number;
+
     constructor() {
         this.baseUrl = 'https://api.twelvedata.com';
         this.apiKey = '81cf647aca014141b00ee9dd7b3b2d98';
@@ -13,15 +23,12 @@ class TwelveDataService {
 
     /**
      * Fetch dividend history for a stock
-     * @param {string} symbol - Stock ticker symbol (e.g., 'AAPL', 'PKN.WA')
-     * @param {string} range - Time range: 'last', '1y', '5y', 'full' (default: 'full')
-     * @returns {Promise<Array>} Array of dividend records
      */
-    async fetchDividends(symbol, range = 'full') {
+    async fetchDividends(symbol: string, range: string = 'full'): Promise<DividendRecord[]> {
         const cacheKey = `td_dividends_${symbol}_${range}`;
 
         // Check cache
-        const cached = cacheService.get(cacheKey, this.cacheDuration);
+        const cached = cacheService.get<DividendRecord[]>(cacheKey, this.cacheDuration);
         if (cached) {
             console.log(`[TwelveDataService] Using cached dividends for ${symbol}`);
             return cached;
@@ -50,7 +57,7 @@ class TwelveDataService {
             const dividends = data.dividends || [];
 
             // Transform to our format
-            const formattedDividends = dividends.map(div => ({
+            const formattedDividends: DividendRecord[] = dividends.map((div: any) => ({
                 exDate: div.ex_date,
                 amount: div.amount,
                 currency: data.meta?.currency || 'USD'
@@ -70,12 +77,9 @@ class TwelveDataService {
 
     /**
      * Fetch dividends for multiple symbols
-     * @param {Array<string>} symbols - Array of stock ticker symbols
-     * @param {string} range - Time range
-     * @returns {Promise<Object>} Object with symbol as key and dividends array as value
      */
-    async fetchMultipleDividends(symbols, range = 'full') {
-        const results = {};
+    async fetchMultipleDividends(symbols: string[], range: string = 'full'): Promise<Record<string, DividendRecord[]>> {
+        const results: Record<string, DividendRecord[]> = {};
 
         // Fetch one by one to avoid rate limiting
         for (const symbol of symbols) {
@@ -91,7 +95,7 @@ class TwelveDataService {
     /**
      * Clear all Twelve Data cache
      */
-    clearCache() {
+    clearCache(): void {
         cacheService.invalidate(/^td_/);
         console.log('[TwelveDataService] Cleared all Twelve Data cache');
     }

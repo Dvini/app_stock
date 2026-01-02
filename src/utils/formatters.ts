@@ -1,11 +1,7 @@
 /**
  * Format a number with Polish locale formatting
- * @param {number|string} value - Value to format
- * @param {number} minDecimals - Minimum decimal places (default: 2)
- * @param {number} maxDecimals - Maximum decimal places (default: 2)
- * @returns {string} Formatted number
  */
-export const formatNumber = (value, minDecimals = 2, maxDecimals = 2) => {
+export const formatNumber = (value: number | string | undefined | null, minDecimals = 2, maxDecimals = 2): string => {
     if (value === undefined || value === null) return '0,00';
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0,00';
@@ -19,10 +15,8 @@ export const formatNumber = (value, minDecimals = 2, maxDecimals = 2) => {
 
 /**
  * Format a quantity/amount with variable precision
- * @param {number|string} value - Value to format
- * @returns {string} Formatted quantity
  */
-export const formatQuantity = (value) => {
+export const formatQuantity = (value: number | string | undefined | null): string => {
     if (value === undefined || value === null) return '0';
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0';
@@ -36,12 +30,8 @@ export const formatQuantity = (value) => {
 
 /**
  * Format a value with currency symbol
- * @param {number} value - Value to format
- * @param {string} currency - Currency code (PLN, USD, EUR, etc.)
- * @param {boolean} showSymbol - Whether to show currency symbol (default: true)
- * @returns {string} Formatted currency value
  */
-export const formatCurrency = (value, currency = 'PLN', showSymbol = true) => {
+export const formatCurrency = (value: number | string | undefined | null, currency = 'PLN', showSymbol = true): string => {
     if (value === undefined || value === null) return '0,00 ' + currency;
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0,00 ' + currency;
@@ -51,7 +41,7 @@ export const formatCurrency = (value, currency = 'PLN', showSymbol = true) => {
     if (!showSymbol) return formatted;
 
     // Currency symbols mapping
-    const symbols = {
+    const symbols: Record<string, string> = {
         'PLN': 'zł',
         'USD': '$',
         'EUR': '€',
@@ -74,12 +64,8 @@ export const formatCurrency = (value, currency = 'PLN', showSymbol = true) => {
 
 /**
  * Format a percentage value
- * @param {number} value - Value to format (0.15 = 15%)
- * @param {number} decimals - Decimal places (default: 2)
- * @param {boolean} includeSign - Include + for positive values (default: false)
- * @returns {string} Formatted percentage
  */
-export const formatPercentage = (value, decimals = 2, includeSign = false) => {
+export const formatPercentage = (value: number | string | undefined | null, decimals = 2, includeSign = false): string => {
     if (value === undefined || value === null) return '0,00%';
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0,00%';
@@ -94,19 +80,18 @@ export const formatPercentage = (value, decimals = 2, includeSign = false) => {
     return `${formatted}%`;
 };
 
+type DateFormatType = 'short' | 'medium' | 'long' | 'time' | 'datetime';
+
 /**
  * Format a date with Polish locale
- * @param {Date|string|number} date - Date to format
- * @param {string} format - Format type: 'short', 'medium', 'long', 'time' (default: 'medium')
- * @returns {string} Formatted date
  */
-export const formatDate = (date, format = 'medium') => {
+export const formatDate = (date: Date | string | number | undefined | null, format: DateFormatType = 'medium'): string => {
     if (!date) return '';
 
     const dateObj = date instanceof Date ? date : new Date(date);
     if (isNaN(dateObj.getTime())) return '';
 
-    const formats = {
+    const formats: Record<DateFormatType, Intl.DateTimeFormatOptions> = {
         'short': { // 01.01.2024
             day: '2-digit',
             month: '2-digit',
@@ -141,12 +126,18 @@ export const formatDate = (date, format = 'medium') => {
 };
 
 /**
- * Format profit/loss value with color indication
- * @param {number} value - P/L value
- * @param {string} currency - Currency code
- * @returns {Object} Object with formatted value and color class
+ * Profit/loss formatted result
  */
-export const formatProfitLoss = (value, currency = 'PLN') => {
+export interface ProfitLossResult {
+    value: string;
+    className: string;
+    withSign: string;
+}
+
+/**
+ * Format profit/loss value with color indication
+ */
+export const formatProfitLoss = (value: number, currency = 'PLN'): ProfitLossResult => {
     const formatted = formatCurrency(value, currency);
     const isPositive = value > 0;
     const isNegative = value < 0;
@@ -160,11 +151,8 @@ export const formatProfitLoss = (value, currency = 'PLN') => {
 
 /**
  * Format large numbers with abbreviations (K, M, B)
- * @param {number} value - Value to format
- * @param {number} decimals - Decimal places (default: 1)
- * @returns {string} Abbreviated number
  */
-export const formatAbbreviated = (value, decimals = 1) => {
+export const formatAbbreviated = (value: number | undefined | null, decimals = 1): string => {
     if (value === undefined || value === null || isNaN(value)) return '0';
 
     const absValue = Math.abs(value);
@@ -182,4 +170,3 @@ export const formatAbbreviated = (value, decimals = 1) => {
 
     return sign + formatNumber(absValue, 0, decimals);
 };
-

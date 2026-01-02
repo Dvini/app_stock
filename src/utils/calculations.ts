@@ -3,13 +3,21 @@
  */
 
 /**
- * Calculate profit/loss for a position
- * @param {number} buyPrice - Average buy price
- * @param {number} currentPrice - Current market price
- * @param {number} quantity - Quantity of shares
- * @returns {Object} P/L details
+ * Profit/loss calculation result
  */
-export const calculateProfitLoss = (buyPrice, currentPrice, quantity) => {
+export interface ProfitLossResult {
+    costBasis: number;
+    currentValue: number;
+    profitLoss: number;
+    profitLossPercent: number;
+    isProfit: boolean;
+    isLoss: boolean;
+}
+
+/**
+ * Calculate profitloss for a position
+ */
+export const calculateProfitLoss = (buyPrice: number, currentPrice: number, quantity: number): ProfitLossResult => {
     const costBasis = buyPrice * quantity;
     const currentValue = currentPrice * quantity;
     const profitLoss = currentValue - costBasis;
@@ -25,12 +33,16 @@ export const calculateProfitLoss = (buyPrice, currentPrice, quantity) => {
     };
 };
 
+interface TransactionForAverage {
+    type: 'buy' | 'sell';
+    amount: number;
+    price: number;
+}
+
 /**
  * Calculate average price from multiple transactions
- * @param {Array} transactions - Array of transactions with {amount, price}
- * @returns {number} Average price
  */
-export const calculateAveragePrice = (transactions) => {
+export const calculateAveragePrice = (transactions: TransactionForAverage[]): number => {
     if (!transactions || transactions.length === 0) return 0;
 
     let totalCost = 0;
@@ -49,15 +61,23 @@ export const calculateAveragePrice = (transactions) => {
     return totalQuantity > 0 ? totalCost / totalQuantity : 0;
 };
 
+interface AssetWithValue {
+    ticker: string;
+    value: number;
+    [key: string]: unknown;
+}
+
+interface AssetWithAllocation extends AssetWithValue {
+    allocation: number;
+    allocationPercent: number;
+}
+
 /**
  * Calculate portfolio allocation percentages
- * @param {Array} assets - Array of assets with {ticker, value}
- * @param {number} totalValue - Total portfolio value
- * @returns {Array} Assets with allocation percentages
  */
-export const calculateAllocation = (assets, totalValue) => {
+export const calculateAllocation = (assets: AssetWithValue[], totalValue: number): AssetWithAllocation[] => {
     if (!assets || assets.length === 0 || totalValue === 0) {
-        return assets;
+        return assets as AssetWithAllocation[];
     }
 
     return assets.map(asset => ({
@@ -67,23 +87,38 @@ export const calculateAllocation = (assets, totalValue) => {
     }));
 };
 
+interface AssetForPortfolioValue {
+    amount: number;
+    currentPrice: number;
+    currency?: string;
+    [key: string]: unknown;
+}
+
+interface PortfolioValueResult {
+    totalValue: number;
+    byCurrency: Record<string, number>;
+    assets: Array<AssetForPortfolioValue & { value: number; valueInTarget: number }>;
+    targetCurrency: string;
+}
+
 /**
  * Calculate total portfolio value with currency conversion
- * @param {Array} assets - Array of assets with {ticker, amount, currentPrice, currency}
- * @param {Object} exchangeRates - Exchange rates to target currency
- * @param {string} targetCurrency - Target currency (default: PLN)
- * @returns {Object} Portfolio value details
  */
-export const calculatePortfolioValue = (assets, exchangeRates = {}, targetCurrency = 'PLN') => {
+export const calculatePortfolioValue = (
+    assets: AssetForPortfolioValue[],
+    exchangeRates: Record<string, number> = {},
+    targetCurrency = 'PLN'
+): PortfolioValueResult => {
     if (!assets || assets.length === 0) {
         return {
             totalValue: 0,
             byCurrency: {},
-            assets: []
+            assets: [],
+            targetCurrency
         };
     }
 
-    const byCurrency = {};
+    const byCurrency: Record<string, number> = {};
     let totalValue = 0;
 
     const enrichedAssets = assets.map(asset => {
@@ -117,13 +152,18 @@ export const calculatePortfolioValue = (assets, exchangeRates = {}, targetCurren
     };
 };
 
+interface ROIResult {
+    roi: number;
+    roiPercent: number;
+    gain: number;
+    isPositive?: boolean;
+    isNegative?: boolean;
+}
+
 /**
  * Calculate return on investment (ROI)
- * @param {number} initialInvestment - Initial cost basis
- * @param {number} currentValue - Current value
- * @returns {Object} ROI details
  */
-export const calculateROI = (initialInvestment, currentValue) => {
+export const calculateROI = (initialInvestment: number, currentValue: number): ROIResult => {
     if (initialInvestment === 0) {
         return {
             roi: 0,
@@ -147,12 +187,8 @@ export const calculateROI = (initialInvestment, currentValue) => {
 
 /**
  * Calculate compound annual growth rate (CAGR)
- * @param {number} beginningValue - Starting value
- * @param {number} endingValue - Ending value
- * @param {number} years - Number of years
- * @returns {number} CAGR as decimal (0.15 = 15%)
  */
-export const calculateCAGR = (beginningValue, endingValue, years) => {
+export const calculateCAGR = (beginningValue: number, endingValue: number, years: number): number => {
     if (beginningValue === 0 || years === 0) return 0;
     return Math.pow(endingValue / beginningValue, 1 / years) - 1;
 };
@@ -160,10 +196,8 @@ export const calculateCAGR = (beginningValue, endingValue, years) => {
 /**
  * Calculate diversification score (0-1, higher is better)
  * Based on Herfindahl-Hirschman Index (HHI)
- * @param {Array} allocations - Array of allocation percentages (0-1)
- * @returns {number} Diversification score
  */
-export const calculateDiversification = (allocations) => {
+export const calculateDiversification = (allocations: number[]): number => {
     if (!allocations || allocations.length === 0) return 0;
     if (allocations.length === 1) return 0; // Single asset = no diversification
 
@@ -184,15 +218,23 @@ export const calculateDiversification = (allocations) => {
     return Math.max(0, Math.min(1, score));
 };
 
+interface NewCostBasisResult {
+    newAvgPrice: number;
+    totalQuantity: number;
+    totalCost: number;
+    isAveragingDown: boolean;
+    isAveragingUp: boolean;
+}
+
 /**
  * Calculate cost basis after buying more shares (averaging down/up)
- * @param {number} currentAvgPrice - Current average price
- * @param {number} currentQuantity - Current quantity
- * @param {number} newPrice - New purchase price
- * @param {number} newQuantity - New purchase quantity
- * @returns {Object} New cost basis details
  */
-export const calculateNewCostBasis = (currentAvgPrice, currentQuantity, newPrice, newQuantity) => {
+export const calculateNewCostBasis = (
+    currentAvgPrice: number,
+    currentQuantity: number,
+    newPrice: number,
+    newQuantity: number
+): NewCostBasisResult => {
     const currentCost = currentAvgPrice * currentQuantity;
     const newCost = newPrice * newQuantity;
     const totalCost = currentCost + newCost;
@@ -210,23 +252,27 @@ export const calculateNewCostBasis = (currentAvgPrice, currentQuantity, newPrice
 
 /**
  * Calculate position size as percentage of portfolio
- * @param {number} positionValue - Value of the position
- * @param {number} totalPortfolioValue - Total portfolio value
- * @returns {number} Position size as percentage (0-100)
  */
-export const calculatePositionSize = (positionValue, totalPortfolioValue) => {
+export const calculatePositionSize = (positionValue: number, totalPortfolioValue: number): number => {
     if (totalPortfolioValue === 0) return 0;
     return (positionValue / totalPortfolioValue) * 100;
 };
 
+interface RiskMetrics {
+    positionSize: number;
+    concentration: number;
+    isOverConcentrated: boolean;
+    estimatedRisk: number | null;
+}
+
 /**
  * Calculate risk metrics for a position
- * @param {number} positionValue - Value of position
- * @param {number} portfolioValue - Total portfolio value
- * @param {number} volatility - Historical volatility (optional)
- * @returns {Object} Risk metrics
  */
-export const calculateRiskMetrics = (positionValue, portfolioValue, volatility = 0) => {
+export const calculateRiskMetrics = (
+    positionValue: number,
+    portfolioValue: number,
+    volatility = 0
+): RiskMetrics => {
     const positionSize = calculatePositionSize(positionValue, portfolioValue);
     const concentration = positionSize / 100; // As decimal
 

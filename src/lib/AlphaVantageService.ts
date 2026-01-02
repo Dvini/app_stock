@@ -1,10 +1,22 @@
-import { cacheService } from './CacheService.js';
+import { cacheService } from './CacheService';
+
+interface DividendRecord {
+    exDate: string;
+    amount: number;
+    currency: string;
+}
 
 /**
  * Alpha Vantage API Service
  * Provides dividend data using TIME_SERIES_MONTHLY_ADJUSTED endpoint
  */
 class AlphaVantageService {
+    private baseUrl: string;
+    private apiKey: string;
+    private cacheDuration: number;
+    private requestDelay: number;
+    private lastRequestTime: number;
+
     constructor() {
         this.baseUrl = 'https://www.alphavantage.co/query';
         this.apiKey = 'LX0UJ2KOOVE23WMO';
@@ -15,9 +27,8 @@ class AlphaVantageService {
 
     /**
      * Wait to respect rate limiting (5 requests per minute)
-     * @private
      */
-    async _waitForRateLimit() {
+    private async _waitForRateLimit(): Promise<void> {
         const now = Date.now();
         const timeSinceLastRequest = now - this.lastRequestTime;
 
@@ -32,14 +43,12 @@ class AlphaVantageService {
 
     /**
      * Fetch dividend history for a stock using monthly adjusted data
-     * @param {string} symbol - Stock ticker symbol
-     * @returns {Promise<Array>} Array of dividend records
      */
-    async fetchDividends(symbol) {
+    async fetchDividends(symbol: string): Promise<DividendRecord[]> {
         const cacheKey = `av_dividends_${symbol}`;
 
         // Check cache
-        const cached = cacheService.get(cacheKey, this.cacheDuration);
+        const cached = cacheService.get<DividendRecord[]>(cacheKey, this.cacheDuration);
         if (cached) {
             console.log(`[AlphaVantageService] Using cached dividends for ${symbol}`);
             return cached;
@@ -75,9 +84,9 @@ class AlphaVantageService {
             }
 
             // Extract dividends from monthly data
-            const dividends = [];
+            const dividends: DividendRecord[] = [];
             for (const [date, values] of Object.entries(timeSeries)) {
-                const dividendAmount = parseFloat(values['7. dividend amount']);
+                const dividendAmount = parseFloat((values as any)['7. dividend amount']);
 
                 // Only include months where dividends were paid
                 if (dividendAmount > 0) {
@@ -90,7 +99,7 @@ class AlphaVantageService {
             }
 
             // Sort by date (newest first)
-            dividends.sort((a, b) => new Date(b.exDate) - new Date(a.exDate));
+            dividends.sort((a, b) => new Date(b.exDate).getTime() - new Date(a.exDate).getTime());
 
             // Cache the result
             cacheService.set(cacheKey, dividends, { ttl: this.cacheDuration });
@@ -106,9 +115,8 @@ class AlphaVantageService {
 
     /**
      * Determine currency based on symbol suffix
-     * @private
      */
-    _getCurrencyForSymbol(symbol) {
+    private _getCurrencyForSymbol(symbol: string): string {
         if (symbol.endsWith('.WA')) return 'PLN'; // Warsaw Stock Exchange
         if (symbol.endsWith('.PA')) return 'EUR'; // Paris Stock Exchange
         if (symbol.endsWith('.L')) return 'GBP'; // London Stock Exchange
@@ -118,11 +126,9 @@ class AlphaVantageService {
 
     /**
      * Fetch dividends for multiple symbols with rate limiting
-     * @param {Array<string>} symbols - Array of stock ticker symbols
-     * @returns {Promise<Object>} Object with symbol as key and dividends array as value
      */
-    async fetchMultipleDividends(symbols) {
-        const results = {};
+    async fetchMultipleDividends(symbols: string[]): Promise<Record<string, DividendRecord[]>> {
+        const results: Record<string, DividendRecord[]> = {};
 
         for (const symbol of symbols) {
             results[symbol] = await this.fetchDividends(symbol);
@@ -134,7 +140,7 @@ class AlphaVantageService {
     /**
      * Clear all Alpha Vantage cache
      */
-    clearCache() {
+    clearCache(): void {
         cacheService.invalidate(/^av_/);
         console.log('[AlphaVantageService] Cleared all Alpha Vantage cache');
     }

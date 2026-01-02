@@ -3,11 +3,62 @@
  */
 
 /**
- * Validate a stock ticker symbol
- * @param {string} ticker - Ticker to validate
- * @returns {{valid: boolean, error: string|null}}
+ * Validation result interface
  */
-export const validateTicker = (ticker) => {
+export interface ValidationResult<T = unknown> {
+    valid: boolean;
+    error: string | null;
+    value?: T;
+}
+
+/**
+ * Ticker validation result
+ */
+export interface TickerValidationResult extends ValidationResult<string> {
+    ticker?: string;
+}
+
+/**
+ * Amount validation options
+ */
+export interface AmountValidationOptions {
+    min?: number;
+    max?: number;
+    allowZero?: boolean;
+    allowNegative?: boolean;
+    label?: string;
+}
+
+/**
+ * Date validation options
+ */
+export interface DateValidationOptions {
+    allowFuture?: boolean;
+    allowPast?: boolean;
+    minDate?: string | Date | null;
+    maxDate?: string | Date | null;
+    label?: string;
+}
+
+/**
+ * Currency validation result
+ */
+export interface CurrencyValidationResult extends ValidationResult {
+    currency?: string;
+}
+
+/**
+ * Transaction validation result
+ */
+export interface TransactionValidationResult {
+    valid: boolean;
+    errors: Record<string, string>;
+}
+
+/**
+ * Validate a stock ticker symbol
+ */
+export const validateTicker = (ticker: string | undefined | null): TickerValidationResult => {
     if (!ticker || typeof ticker !== 'string') {
         return { valid: false, error: 'Ticker jest wymagany' };
     }
@@ -32,11 +83,11 @@ export const validateTicker = (ticker) => {
 
 /**
  * Validate an amount (quantity or money)
- * @param {number|string} amount - Amount to validate
- * @param {Object} options - Validation options
- * @returns {{valid: boolean, error: string|null, value: number|null}}
  */
-export const validateAmount = (amount, options = {}) => {
+export const validateAmount = (
+    amount: number | string | undefined | null,
+    options: AmountValidationOptions = {}
+): ValidationResult<number> => {
     const {
         min,
         max = Infinity,
@@ -49,29 +100,29 @@ export const validateAmount = (amount, options = {}) => {
     const effectiveMin = min !== undefined ? min : (allowNegative ? -Infinity : 0);
 
     if (amount === undefined || amount === null || amount === '') {
-        return { valid: false, error: `${label} jest wymagana`, value: null };
+        return { valid: false, error: `${label} jest wymagana`, value: undefined };
     }
 
     const num = typeof amount === 'string' ? parseFloat(amount.replace(',', '.')) : amount;
 
     if (isNaN(num)) {
-        return { valid: false, error: `${label} musi być liczbą`, value: null };
+        return { valid: false, error: `${label} musi być liczbą`, value: undefined };
     }
 
     if (!allowNegative && num < 0) {
-        return { valid: false, error: `${label} nie może być ujemna`, value: null };
+        return { valid: false, error: `${label} nie może być ujemna`, value: undefined };
     }
 
     if (!allowZero && num === 0) {
-        return { valid: false, error: `${label} musi być większa od zera`, value: null };
+        return { valid: false, error: `${label} musi być większa od zera`, value: undefined };
     }
 
     if (num < effectiveMin) {
-        return { valid: false, error: `${label} musi być większa lub równa ${effectiveMin}`, value: null };
+        return { valid: false, error: `${label} musi być większa lub równa ${effectiveMin}`, value: undefined };
     }
 
     if (num > max) {
-        return { valid: false, error: `${label} nie może przekraczać ${max}`, value: null };
+        return { valid: false, error: `${label} nie może przekraczać ${max}`, value: undefined };
     }
 
     return { valid: true, error: null, value: num };
@@ -79,11 +130,11 @@ export const validateAmount = (amount, options = {}) => {
 
 /**
  * Validate a date
- * @param {string|Date} date - Date to validate
- * @param {Object} options - Validation options
- * @returns {{valid: boolean, error: string|null, date: Date|null}}
  */
-export const validateDate = (date, options = {}) => {
+export const validateDate = (
+    date: string | Date | undefined | null,
+    options: DateValidationOptions = {}
+): ValidationResult<Date> => {
     const {
         allowFuture = false,
         allowPast = true,
@@ -93,43 +144,41 @@ export const validateDate = (date, options = {}) => {
     } = options;
 
     if (!date) {
-        return { valid: false, error: `${label} jest wymagana`, date: null };
+        return { valid: false, error: `${label} jest wymagana`, value: undefined };
     }
 
     const dateObj = date instanceof Date ? date : new Date(date);
 
     if (isNaN(dateObj.getTime())) {
-        return { valid: false, error: `${label} jest nieprawidłowa`, date: null };
+        return { valid: false, error: `${label} jest nieprawidłowa`, value: undefined };
     }
 
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
     if (!allowFuture && dateObj > now) {
-        return { valid: false, error: `${label} nie może być w przyszłości`, date: null };
+        return { valid: false, error: `${label} nie może być w przyszłości`, value: undefined };
     }
 
     if (!allowPast && dateObj < now) {
-        return { valid: false, error: `${label} nie może być w przeszłości`, date: null };
+        return { valid: false, error: `${label} nie może być w przeszłości`, value: undefined };
     }
 
     if (minDate && dateObj < new Date(minDate)) {
-        return { valid: false, error: `${label} jest zbyt wczesna`, date: null };
+        return { valid: false, error: `${label} jest zbyt wczesna`, value: undefined };
     }
 
     if (maxDate && dateObj > new Date(maxDate)) {
-        return { valid: false, error: `${label} jest zbyt późna`, date: null };
+        return { valid: false, error: `${label} jest zbyt późna`, value: undefined };
     }
 
-    return { valid: true, error: null, date: dateObj };
+    return { valid: true, error: null, value: dateObj };
 };
 
 /**
  * Validate a currency code
- * @param {string} currency - Currency code to validate
- * @returns {{valid: boolean, error: string|null}}
  */
-export const validateCurrency = (currency) => {
+export const validateCurrency = (currency: string | undefined | null): CurrencyValidationResult => {
     const validCurrencies = ['PLN', 'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CNY'];
 
     if (!currency || typeof currency !== 'string') {
@@ -146,12 +195,22 @@ export const validateCurrency = (currency) => {
 };
 
 /**
- * Validate a transaction object
- * @param {Object} transaction - Transaction to validate
- * @returns {{valid: boolean, errors: Object}}
+ * Transaction object for validation
  */
-export const validateTransaction = (transaction) => {
-    const errors = {};
+export interface TransactionInput {
+    type?: string;
+    ticker?: string;
+    amount?: number | string;
+    price?: number | string;
+    date?: string | Date;
+    currency?: string;
+}
+
+/**
+ * Validate a transaction object
+ */
+export const validateTransaction = (transaction: TransactionInput): TransactionValidationResult => {
+    const errors: Record<string, string> = {};
     let valid = true;
 
     // Validate type
@@ -161,10 +220,10 @@ export const validateTransaction = (transaction) => {
     }
 
     // Validate ticker (for buy/sell)
-    if (['buy', 'sell'].includes(transaction.type)) {
+    if (['buy', 'sell'].includes(transaction.type || '')) {
         const tickerValidation = validateTicker(transaction.ticker);
         if (!tickerValidation.valid) {
-            errors.ticker = tickerValidation.error;
+            errors.ticker = tickerValidation.error || 'Błąd walidacji tickera';
             valid = false;
         }
     }
@@ -176,19 +235,19 @@ export const validateTransaction = (transaction) => {
         label: 'Ilość'
     });
     if (!amountValidation.valid) {
-        errors.amount = amountValidation.error;
+        errors.amount = amountValidation.error || 'Błąd walidacji ilości';
         valid = false;
     }
 
     // Validate price (for buy/sell)
-    if (['buy', 'sell'].includes(transaction.type)) {
+    if (['buy', 'sell'].includes(transaction.type || '')) {
         const priceValidation = validateAmount(transaction.price, {
             min: 0,
             allowZero: false,
             label: 'Cena'
         });
         if (!priceValidation.valid) {
-            errors.price = priceValidation.error;
+            errors.price = priceValidation.error || 'Błąd walidacji ceny';
             valid = false;
         }
     }
@@ -198,7 +257,7 @@ export const validateTransaction = (transaction) => {
         allowFuture: false
     });
     if (!dateValidation.valid) {
-        errors.date = dateValidation.error;
+        errors.date = dateValidation.error || 'Błąd walidacji daty';
         valid = false;
     }
 
@@ -206,7 +265,7 @@ export const validateTransaction = (transaction) => {
     if (transaction.currency) {
         const currencyValidation = validateCurrency(transaction.currency);
         if (!currencyValidation.valid) {
-            errors.currency = currencyValidation.error;
+            errors.currency = currencyValidation.error || 'Błąd walidacji waluty';
             valid = false;
         }
     }
@@ -216,25 +275,21 @@ export const validateTransaction = (transaction) => {
 
 /**
  * Sanitize user input (remove dangerous characters)
- * @param {string} input - Input to sanitize
- * @returns {string} Sanitized input
  */
-export const sanitizeInput = (input) => {
+export const sanitizeInput = (input: unknown): string => {
     if (typeof input !== 'string') return '';
 
     // Remove HTML tags and dangerous characters
     return input
         .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/[<>\"'`]/g, '') // Remove dangerous chars
+        .replace(/[<>"'`]/g, '') // Remove dangerous chars
         .trim();
 };
 
 /**
  * Validate exchange rate
- * @param {number} rate - Exchange rate to validate
- * @returns {{valid: boolean, error: string|null}}
  */
-export const validateExchangeRate = (rate) => {
+export const validateExchangeRate = (rate: number | string | undefined | null): ValidationResult<number> => {
     const validation = validateAmount(rate, {
         min: 0,
         max: 1000,

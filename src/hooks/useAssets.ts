@@ -6,36 +6,23 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { useMemo } from 'react';
+import type { UseAssetsReturn } from '../types/hooks';
+import type { Asset } from '../types/database';
 
 /**
  * Custom hook to get user's assets from database
- * @returns {Object} Assets data and utilities
  */
-export const useAssets = () => {
+export const useAssets = (): UseAssetsReturn => {
     // Fetch all assets from database
     const allAssets = useLiveQuery(() => db.assets.toArray()) || [];
 
     // Filter and process assets
-    const assets = useMemo(() => {
+    const assets: Asset[] = useMemo(() => {
         return allAssets.filter(asset => {
             // Filter out sold assets (with epsilon for float errors)
             return asset.amount > 0.000001;
         });
     }, [allAssets]);
-
-    // Group assets by ticker (in case of multiple purchases)
-    const assetsByTicker = useMemo(() => {
-        const grouped = {};
-
-        assets.forEach(asset => {
-            if (!grouped[asset.ticker]) {
-                grouped[asset.ticker] = [];
-            }
-            grouped[asset.ticker].push(asset);
-        });
-
-        return grouped;
-    }, [assets]);
 
     // Get unique tickers
     const tickers = useMemo(() => {
@@ -49,11 +36,8 @@ export const useAssets = () => {
 
     return {
         assets,
-        assetsByTicker,
         tickers,
-        currencies,
-        hasAssets: assets.length > 0,
-        assetCount: assets.length
+        currencies
     };
 };
 

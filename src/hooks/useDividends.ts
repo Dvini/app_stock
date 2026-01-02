@@ -3,22 +3,45 @@
  * Manages dividend data, calculations, and statistics
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
+// @ts-ignore - will be migrated to TypeScript
 import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
+import type { Dividend } from '../types/database';
 
-export const useDividends = () => {
+interface DividendStats {
+    ytdTotal: number;
+    upcoming60Days: number;
+    yieldOnCost: number;
+    monthlyAverage: number;
+}
+
+interface UseDividendsReturn {
+    ytdTotal: number;
+    upcoming60Days: number;
+    yieldOnCost: number;
+    monthlyAverage: number;
+    calendar: Dividend[];
+    received: Dividend[];
+    addDividend: (dividendData: Partial<Dividend>) => Promise<void>;
+    deleteDividend: (id: number) => Promise<void>;
+    syncDividendsManually: () => Promise<{ added: number; skipped: number }>;
+    isLoading: boolean;
+    error: string | null;
+}
+
+export const useDividends = (): UseDividendsReturn => {
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
     // Live queries from database
     const dividends = useLiveQuery(() => db.dividends.toArray()) || [];
     const assets = useLiveQuery(() => db.assets.toArray()) || [];
 
     // Statistics state
-    const [stats, setStats] = useState({
+    const [stats, setStats] = useState<DividendStats>({
         ytdTotal: 0,
         upcoming60Days: 0,
         yieldOnCost: 0,
@@ -77,7 +100,7 @@ export const useDividends = () => {
 
                 // Calculate upcoming dividends
                 const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
-                const upcoming60Days = upcomingDividends.reduce((sum, d) => sum + (d.estimatedPLN || 0), 0);
+                const upcoming60Days = upcomingDividends.reduce((sum: number, d: any) => sum + (d.estimatedPLN || 0), 0);
 
                 setStats({
                     ytdTotal,
@@ -88,7 +111,7 @@ export const useDividends = () => {
 
             } catch (err) {
                 console.error('[useDividends] Error calculating stats:', err);
-                setError(err.message);
+                setError(err instanceof Error ? err.message : 'Unknown error');
             } finally {
                 setIsLoading(false);
             }
@@ -101,13 +124,13 @@ export const useDividends = () => {
     const received = useMemo(() => {
         return dividends
             .filter(d => d.status === 'received')
-            .sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)); // Most recent first
+            .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()); // Most recent first
     }, [dividends]);
 
     // Processed calendar (upcoming dividends)
     const calendar = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
-        const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0] || '';
+        const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
 
         return dividends
             .filter(d =>
@@ -115,37 +138,37 @@ export const useDividends = () => {
                 d.paymentDate >= today &&
                 d.paymentDate <= sixtyDaysLater
             )
-            .sort((a, b) => new Date(a.paymentDate) - new Date(b.paymentDate)); // Soonest first
+            .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()); // Soonest first
     }, [dividends]);
 
     /**
      * Add a new dividend
      */
-    const addDividend = async (dividendData) => {
+    const addDividend = useCallback(async (dividendData: Partial<Dividend>) => {
         try {
             await dividendService.addDividend(dividendData);
         } catch (err) {
             console.error('[useDividends] Error adding dividend:', err);
             throw err;
         }
-    };
+    }, []);
 
     /**
      * Delete a dividend
      */
-    const deleteDividend = async (id) => {
+    const deleteDividend = useCallback(async (id: number) => {
         try {
             await dividendService.deleteDividend(id);
         } catch (err) {
             console.error('[useDividends] Error deleting dividend:', err);
             throw err;
         }
-    };
+    }, []);
 
     /**
      * Manually trigger dividend sync (for refresh button)
      */
-    const syncDividendsManually = async () => {
+    const syncDividendsManually = useCallback(async () => {
         try {
             setIsLoading(true);
             const result = await dividendService.syncDividendsFromAPI();
@@ -159,7 +182,7 @@ export const useDividends = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     return {
         // Statistics
@@ -175,7 +198,7 @@ export const useDividends = () => {
         // Actions
         addDividend,
         deleteDividend,
-        syncDividendsManually, // NEW: Manual refresh
+        syncDividendsManually,
 
         // Status
         isLoading,

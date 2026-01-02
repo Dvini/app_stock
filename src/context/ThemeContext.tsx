@@ -1,12 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { ThemeContextValue } from '../types/context';
 
-const ThemeContext = createContext(null);
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export const ThemeProvider = ({ children }) => {
+interface ThemeProviderProps {
+    children: ReactNode;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Check system preference or localStorage
-    const [theme, setTheme] = useState(() => {
-        if (localStorage.getItem('theme')) {
-            return localStorage.getItem('theme');
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        const stored = localStorage.getItem('theme');
+        if (stored === 'light' || stored === 'dark') {
+            return stored;
         }
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     });
@@ -23,13 +29,13 @@ export const ThemeProvider = ({ children }) => {
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );
 };
 
-export const useTheme = () => {
+export const useTheme = (): ThemeContextValue => {
     const context = useContext(ThemeContext);
     if (!context) throw new Error("useTheme must be used within ThemeProvider");
     return context;

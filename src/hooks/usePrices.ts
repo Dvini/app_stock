@@ -3,36 +3,53 @@
  * Implements caching and automatic refresh
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchCurrentPrice, getCachedPrice } from '../lib/api';
+import type { PriceData } from '../types/api';
+
+interface UsePricesOptions {
+    refreshInterval?: number;
+    autoRefresh?: boolean;
+}
+
+interface UsePricesReturn {
+    prices: Record<string, PriceData>;
+    isLoading: boolean;
+    lastUpdate: Date | null;
+    errors: Record<string, string>;
+    getPrice: (ticker: string) => PriceData | null;
+    hasPrice: (ticker: string) => boolean;
+    refresh: () => Promise<void>;
+    hasPrices: boolean;
+}
 
 /**
  * Custom hook to fetch and manage prices for multiple tickers
- * @param {string[]} tickers - Array of ticker symbols
- * @param {Object} options - Configuration options
- * @returns {Object} Prices data and loading state
  */
-export const usePrices = (tickers = [], options = {}) => {
+export const usePrices = (
+    tickers: string[] = [],
+    options: UsePricesOptions = {}
+): UsePricesReturn => {
     const {
         refreshInterval = 15 * 60 * 1000, // 15 minutes
         autoRefresh = true
     } = options;
 
-    const [prices, setPrices] = useState({});
+    const [prices, setPrices] = useState<Record<string, PriceData>>({});
     const [isLoading, setIsLoading] = useState(false);
-    const [lastUpdate, setLastUpdate] = useState(null);
-    const [errors, setErrors] = useState({});
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Fetch prices for all tickers
-    const fetchPrices = async () => {
+    const fetchPrices = useCallback(async () => {
         if (tickers.length === 0) {
             setPrices({});
             return;
         }
 
         setIsLoading(true);
-        const newPrices = {};
-        const newErrors = {};
+        const newPrices: Record<string, PriceData> = {};
+        const newErrors: Record<string, string> = {};
 
         const promises = tickers.map(async (ticker) => {
             try {
@@ -52,7 +69,7 @@ export const usePrices = (tickers = [], options = {}) => {
                 return null;
             } catch (error) {
                 console.error(`Error fetching price for ${ticker}:`, error);
-                newErrors[ticker] = error.message;
+                newErrors[ticker] = error instanceof Error ? error.message : 'Unknown error';
                 return null;
             }
         });
@@ -60,7 +77,7 @@ export const usePrices = (tickers = [], options = {}) => {
         const results = await Promise.all(promises);
 
         results.forEach(res => {
-            if (res) {
+            if (res && 'ticker' in res) {
                 newPrices[res.ticker] = {
                     price: res.price,
                     currency: res.currency
@@ -72,7 +89,7 @@ export const usePrices = (tickers = [], options = {}) => {
         setErrors(newErrors);
         setLastUpdate(new Date());
         setIsLoading(false);
-    };
+    }, [tickers]);
 
     // Initial fetch and auto-refresh
     useEffect(() => {
@@ -82,22 +99,22 @@ export const usePrices = (tickers = [], options = {}) => {
             const interval = setInterval(fetchPrices, refreshInterval);
             return () => clearInterval(interval);
         }
-    }, [tickers.join(','), refreshInterval, autoRefresh]);
+    }, [fetchPrices, autoRefresh, refreshInterval]);
 
     // Get price for specific ticker
-    const getPrice = (ticker) => {
+    const getPrice = useCallback((ticker: string): PriceData | null => {
         return prices[ticker] || null;
-    };
+    }, [prices]);
 
     // Check if price is available
-    const hasPrice = (ticker) => {
+    const hasPrice = useCallback((ticker: string): boolean => {
         return !!prices[ticker];
-    };
+    }, [prices]);
 
     // Manual refresh
-    const refresh = () => {
+    const refresh = useCallback(() => {
         return fetchPrices();
-    };
+    }, [fetchPrices]);
 
     return {
         prices,

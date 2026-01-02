@@ -3,17 +3,37 @@
  * Handles currency conversion with caching
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchExchangeRates } from '../lib/api';
 import { useCurrency } from '../context/CurrencyContext';
+import type { CurrencyCode } from '../types/database';
+
+interface UseExchangeRatesOptions {
+    targetCurrency?: CurrencyCode;
+    refreshInterval?: number;
+    autoRefresh?: boolean;
+}
+
+interface UseExchangeRatesReturn {
+    rates: Partial<Record<CurrencyCode, number>>;
+    isLoading: boolean;
+    lastUpdate: Date | null;
+    error: Error | null;
+    targetCurrency: CurrencyCode;
+    getRate: (currency: CurrencyCode) => number | null;
+    convert: (amount: number, fromCurrency: CurrencyCode, toCurrency?: CurrencyCode) => number;
+    hasRate: (currency: CurrencyCode) => boolean;
+    refresh: () => Promise<void>;
+    hasRates: boolean;
+}
 
 /**
  * Custom hook to fetch and manage exchange rates
- * @param {string[]} currencies - Array of currency codes to fetch rates for
- * @param {Object} options - Configuration options
- * @returns {Object} Exchange rates and utilities
  */
-export const useExchangeRates = (currencies = [], options = {}) => {
+export const useExchangeRates = (
+    currencies: CurrencyCode[] = [],
+    options: UseExchangeRatesOptions = {}
+): UseExchangeRatesReturn => {
     const { baseCurrency: defaultBaseCurrency } = useCurrency();
     const {
         targetCurrency = defaultBaseCurrency,
@@ -21,18 +41,18 @@ export const useExchangeRates = (currencies = [], options = {}) => {
         autoRefresh = true
     } = options;
 
-    const [rates, setRates] = useState({});
+    const [rates, setRates] = useState<Partial<Record<CurrencyCode, number>>>({});
     const [isLoading, setIsLoading] = useState(false);
-    const [lastUpdate, setLastUpdate] = useState(null);
-    const [error, setError] = useState(null);
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const [error, setError] = useState<Error | null>(null);
 
     // Fetch exchange rates
-    const fetchRates = async () => {
+    const fetchRates = useCallback(async () => {
         // Filter out target currency (no need to fetch rate for same currency)
         const neededCurrencies = currencies.filter(c => c && c !== targetCurrency);
 
         if (neededCurrencies.length === 0) {
-            setRates({});
+            setRates({} as Record<CurrencyCode, number>);
             return;
         }
 
@@ -41,15 +61,15 @@ export const useExchangeRates = (currencies = [], options = {}) => {
 
         try {
             const fetchedRates = await fetchExchangeRates(neededCurrencies, targetCurrency);
-            setRates(fetchedRates);
+            setRates(fetchedRates as Record<CurrencyCode, number>);
             setLastUpdate(new Date());
         } catch (err) {
             console.error('Error fetching exchange rates:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err : new Error('Unknown error'));
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currencies, targetCurrency]);
 
     // Initial fetch and auto-refresh
     useEffect(() => {
@@ -59,37 +79,41 @@ export const useExchangeRates = (currencies = [], options = {}) => {
             const interval = setInterval(fetchRates, refreshInterval);
             return () => clearInterval(interval);
         }
-    }, [currencies.join(','), targetCurrency, refreshInterval, autoRefresh]);
+    }, [fetchRates, autoRefresh, refreshInterval]);
 
-    // Get rate for specific currency
-    const getRate = (currency) => {
+    // Get rate for specific currency  
+    const getRate = useCallback((currency: CurrencyCode): number | null => {
         if (currency === targetCurrency) return 1;
         return rates[currency] || null;
-    };
+    }, [rates, targetCurrency]);
 
     // Convert amount from one currency to target
-    const convert = (amount, fromCurrency) => {
-        if (fromCurrency === targetCurrency) return amount;
+    const convert = useCallback((
+        amount: number,
+        fromCurrency: CurrencyCode,
+        toCurrency: CurrencyCode = targetCurrency
+    ): number => {
+        if (fromCurrency === toCurrency) return amount;
 
         const rate = rates[fromCurrency];
         if (!rate) {
-            console.warn(`No exchange rate available for ${fromCurrency} -> ${targetCurrency}`);
+            console.warn(`No exchange rate available for ${fromCurrency} -> ${toCurrency}`);
             return amount; // Return original if no rate
         }
 
         return amount * rate;
-    };
+    }, [rates, targetCurrency]);
 
     // Check if rate is available
-    const hasRate = (currency) => {
+    const hasRate = useCallback((currency: CurrencyCode): boolean => {
         if (currency === targetCurrency) return true;
         return !!rates[currency];
-    };
+    }, [rates, targetCurrency]);
 
     // Manual refresh
-    const refresh = () => {
+    const refresh = useCallback(() => {
         return fetchRates();
-    };
+    }, [fetchRates]);
 
     return {
         rates,

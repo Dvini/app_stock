@@ -2,11 +2,31 @@
  * Centralized Cache Service for managing localStorage cache
  * Provides versioning, expiration, and pattern-based invalidation
  */
+
+interface CacheData<T = unknown> {
+    timestamp: number;
+    value: T;
+    ttl: number | null;
+    metadata: Record<string, unknown>;
+}
+
+interface CacheSetOptions {
+    ttl?: number;
+    metadata?: Record<string, unknown>;
+}
+
+interface CacheStats {
+    entries: number;
+    sizeBytes: number;
+    sizeKB: string;
+}
+
 class CacheService {
+    private prefix: string;
+    private version: string;
+
     /**
      * Create a new CacheService instance
-     * @param {string} prefix - Prefix for all cache keys
-     * @param {string} version - Cache version for invalidation
      */
     constructor(prefix = 'stock_cache_', version = 'v2') {
         this.prefix = prefix;
@@ -15,27 +35,22 @@ class CacheService {
 
     /**
      * Generate a versioned cache key
-     * @param {string} key - The base key
-     * @returns {string} Prefixed and versioned key
      */
-    _getCacheKey(key) {
+    private _getCacheKey(key: string): string {
         return `${this.prefix}${this.version}_${key}`;
     }
 
     /**
      * Get a value from cache if not expired
-     * @param {string} key - Cache key
-     * @param {number} maxAge - Maximum age in milliseconds (optional, uses stored TTL if not provided)
-     * @returns {any|null} Cached value or null if expired/not found
      */
-    get(key, maxAge = null) {
+    get<T = unknown>(key: string, maxAge: number | null = null): T | null {
         try {
             const cacheKey = this._getCacheKey(key);
             const cacheRaw = localStorage.getItem(cacheKey);
 
             if (!cacheRaw) return null;
 
-            const cache = JSON.parse(cacheRaw);
+            const cache = JSON.parse(cacheRaw) as CacheData<T>;
             const age = Date.now() - cache.timestamp;
             const effectiveMaxAge = maxAge || cache.ttl || Infinity;
 
@@ -54,16 +69,11 @@ class CacheService {
 
     /**
      * Set a value in cache with optional TTL
-     * @param {string} key - Cache key
-     * @param {any} value - Value to cache
-     * @param {Object} options - Additional options
-     * @param {number} options.ttl - Time to live in milliseconds
-     * @param {Object} options.metadata - Additional metadata to store
      */
-    set(key, value, options = {}) {
+    set<T = unknown>(key: string, value: T, options: CacheSetOptions = {}): void {
         try {
             const cacheKey = this._getCacheKey(key);
-            const cacheData = {
+            const cacheData: CacheData<T> = {
                 timestamp: Date.now(),
                 value: value,
                 ttl: options.ttl || null,
@@ -74,7 +84,7 @@ class CacheService {
         } catch (e) {
             console.error(`[CacheService] Error writing cache key "${key}":`, e);
             // Handle quota exceeded errors gracefully
-            if (e.name === 'QuotaExceededError') {
+            if (e instanceof Error && e.name === 'QuotaExceededError') {
                 console.warn('[CacheService] localStorage quota exceeded, clearing old cache');
                 this.clearOldest();
             }
@@ -83,12 +93,11 @@ class CacheService {
 
     /**
      * Invalidate cache entries matching a pattern
-     * @param {string|RegExp} pattern - Pattern to match keys against
      */
-    invalidate(pattern) {
+    invalidate(pattern: string | RegExp): void {
         try {
             const regex = pattern instanceof RegExp ? pattern : new RegExp(pattern);
-            const keysToRemove = [];
+            const keysToRemove: string[] = [];
 
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -107,9 +116,9 @@ class CacheService {
     /**
      * Clear all cache entries for this version
      */
-    clear() {
+    clear(): void {
         try {
-            const keysToRemove = [];
+            const keysToRemove: string[] = [];
             const versionPrefix = this.prefix + this.version;
 
             for (let i = 0; i < localStorage.length; i++) {
@@ -128,18 +137,17 @@ class CacheService {
 
     /**
      * Clear oldest cache entries (used when quota is exceeded)
-     * @param {number} count - Number of entries to remove (default: 10)
      */
-    clearOldest(count = 10) {
+    clearOldest(count = 10): void {
         try {
-            const entries = [];
+            const entries: Array<{ key: string; timestamp: number }> = [];
             const versionPrefix = this.prefix + this.version;
 
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && key.startsWith(versionPrefix)) {
                     try {
-                        const data = JSON.parse(localStorage.getItem(key));
+                        const data = JSON.parse(localStorage.getItem(key) || '{}') as CacheData;
                         entries.push({ key, timestamp: data.timestamp || 0 });
                     } catch (e) {
                         // Invalid entry, mark for removal
@@ -163,9 +171,8 @@ class CacheService {
 
     /**
      * Get cache statistics
-     * @returns {Object} Cache statistics
      */
-    getStats() {
+    getStats(): CacheStats {
         let totalEntries = 0;
         let totalSize = 0;
         const versionPrefix = this.prefix + this.version;
