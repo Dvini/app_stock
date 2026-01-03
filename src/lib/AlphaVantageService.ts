@@ -19,7 +19,8 @@ class AlphaVantageService {
 
     constructor() {
         this.baseUrl = 'https://www.alphavantage.co/query';
-        this.apiKey = 'LX0UJ2KOOVE23WMO';
+        // Use environment variable or demo key (demo key is public and rate-limited)
+        this.apiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || 'demo';
         this.cacheDuration = 24 * 60 * 60 * 1000; // 24 hours
         this.requestDelay = 12000; // 12 seconds between requests (5 requests per minute to stay safe)
         this.lastRequestTime = 0;
