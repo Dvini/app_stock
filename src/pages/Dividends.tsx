@@ -256,8 +256,6 @@ export const Dividends = () => {
 };
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tooltip, isLoading }) => {
-    const [showTooltip, setShowTooltip] = useState(false);
-
     const colorClasses = {
         emerald: 'text-emerald-400',
         blue: 'text-blue-400',
@@ -266,11 +264,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tool
     };
 
     return (
-        <div
-            className="bg-slate-900 rounded-2xl border border-slate-800 p-6 relative group"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-        >
+        <div className={cn("bg-slate-900 rounded-2xl border border-slate-800 p-6 relative", tooltip && "group cursor-help")}>
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs text-slate-500 uppercase font-bold">{label}</span>
                 {tooltip && <Info size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />}
@@ -286,9 +280,9 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tool
 
             <span className="text-xs text-slate-600">{sublabel}</span>
 
-            {showTooltip && tooltip && (
-                <div className="absolute left-full ml-2 top-0 bg-slate-800 border border-slate-700 rounded-xl p-4 w-72 z-50 shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200">
-                    <h4 className="font-bold mb-2 text-sm">{tooltip.title}</h4>
+            {tooltip && (
+                <div className="absolute top-full left-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    <p className="text-xs text-slate-400 font-bold mb-2 uppercase">{tooltip.title}</p>
                     <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-line">{tooltip.description}</p>
                     {tooltip.formula && (
                         <div className="bg-slate-900 px-3 py-2 rounded-lg mt-3">

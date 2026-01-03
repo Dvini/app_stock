@@ -218,6 +218,11 @@ export const Portfolio = () => {
                                     <WebGPUChart
                                         data={historyData}
                                         currency={selectedTicker === 'PORTFOLIO' ? (portfolioSummary.baseCurrency || 'PLN') : (assets.find(a => a.ticker === selectedTicker)?.currency || 'PLN')}
+                                        color={
+                                            (historyData[historyData.length - 1]?.price ?? 0) < 0
+                                                ? [0.9, 0.3, 0.3, 1.0]  // Red for loss
+                                                : [0.2, 0.8, 0.4, 1.0]  // Green for profit
+                                        }
                                     />
                                 )}
                             </div>
