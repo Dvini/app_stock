@@ -195,6 +195,7 @@ export const Simulator = () => {
                                     <input
                                         type="number"
                                         min="0"
+                                        step="0.01"
                                         value={price}
                                         onChange={(e) => setPrice(e.target.value)}
                                         placeholder="0.00"
