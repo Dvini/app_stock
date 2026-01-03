@@ -400,6 +400,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             <input
                                 type="number"
                                 min={isDeposit || isWithdraw ? "0.01" : "0"}
+                                step="0.01"
                                 value={price}
                                 onChange={e => setPrice(e.target.value)}
                                 placeholder="0.00"
@@ -411,6 +412,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Kurs PLN</label>
                                 <input
                                     type="number"
+                                    step="0.01"
                                     value={exchangeRate}
                                     onChange={e => setExchangeRate(e.target.value)}
                                     placeholder="4.00"
