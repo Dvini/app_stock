@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initDB } from './db/db';
@@ -74,6 +75,20 @@ function App() {
                     </Route>
                 </Routes>
             </BrowserRouter>
+            <Toaster
+                position="top-right"
+                expand={false}
+                richColors
+                closeButton
+                toastOptions={{
+                    style: {
+                        background: 'rgb(15 23 42)', // slate-950
+                        border: '1px solid rgb(51 65 85)', // slate-700
+                        color: 'rgb(241 245 249)', // slate-100
+                    },
+                    className: 'font-sans',
+                }}
+            />
         </ErrorBoundary>
     );
 }

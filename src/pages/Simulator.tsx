@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { POPULAR_TICKERS as tickers } from '../lib/tickers';
 import { fetchExchangeRates } from '../lib/api';
@@ -76,15 +77,15 @@ export const Simulator = () => {
         if (isNaN(numAmount) || isNaN(numPrice)) return;
 
         if (numAmount <= 0) {
-            alert("Ilość musi być większa od zera");
+            toast.error("Ilość musi być większa od zera");
             return;
         }
         if (!Number.isInteger(numAmount)) {
-            alert("Ilość musi być liczbą całkowitą");
+            toast.error("Ilość musi być liczbą całkowitą");
             return;
         }
         if (numPrice < 0) {
-            alert("Cena nie może być ujemna");
+            toast.error("Cena nie może być ujemna");
             return;
         }
 
