@@ -210,6 +210,9 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
         overscan: 5 // Number of items to render outside visible area
     });
 
+    // Grid column template for full-width responsive columns
+    const gridTemplate = "minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)";
+
     return (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
@@ -235,29 +238,36 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
                         Brak otrzymanych dywidend w historii.
                     </div>
                 ) : (
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-950 text-slate-400 text-xs uppercase sticky top-0 z-10">
-                            <tr>
-                                <th className="px-4 py-3">Data</th>
-                                <th className="px-4 py-3">Ticker</th>
-                                <th className="px-4 py-3 text-right">DPS</th>
-                                <th className="px-4 py-3 text-right">Kwota</th>
-                                <th className="px-4 py-3 text-right">Kurs NBP</th>
-                                <th className="px-4 py-3 text-right">Wartość PLN</th>
-                                <th className="px-4 py-3 text-center">Akcje</th>
-                            </tr>
-                        </thead>
-                        <tbody
+                    <div>
+                        {/* Header - fixed */}
+                        <div
+                            className="bg-slate-950 text-slate-400 text-xs uppercase sticky top-0 z-10 px-4 py-3"
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: gridTemplate,
+                                gap: '8px'
+                            }}
+                        >
+                            <div>Data</div>
+                            <div>Ticker</div>
+                            <div className="text-right">DPS</div>
+                            <div className="text-right">Kwota</div>
+                            <div className="text-right">Kurs NBP</div>
+                            <div className="text-right">Wartość PLN</div>
+                            <div className="text-center">Akcje</div>
+                        </div>
+
+                        {/* Virtualized rows */}
+                        <div
                             style={{
                                 height: `${rowVirtualizer.getTotalSize()}px`,
                                 position: 'relative'
                             }}
-                            className="divide-y divide-slate-800"
                         >
                             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                                 const div = received[virtualRow.index];
                                 return (
-                                    <tr
+                                    <div
                                         key={div.id}
                                         style={{
                                             position: 'absolute',
@@ -265,34 +275,38 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
                                             left: 0,
                                             width: '100%',
                                             height: `${virtualRow.size}px`,
-                                            transform: `translateY(${virtualRow.start}px)`
+                                            transform: `translateY(${virtualRow.start}px)`,
+                                            display: 'grid',
+                                            gridTemplateColumns: gridTemplate,
+                                            gap: '8px',
+                                            alignItems: 'center'
                                         }}
-                                        className="hover:bg-slate-800/50 transition-colors group"
+                                        className="hover:bg-slate-800/50 transition-colors px-4 py-3 border-b border-slate-800"
                                     >
-                                        <td className="px-4 py-3 text-slate-400 text-sm">{div.paymentDate}</td>
-                                        <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
-                                        <td className="px-4 py-3 text-right text-slate-300 font-mono text-sm">
+                                        <div className="text-slate-400 text-sm">{div.paymentDate}</div>
+                                        <div className="font-bold text-blue-400">{div.ticker}</div>
+                                        <div className="text-right text-slate-300 font-mono text-sm">
                                             {formatNumber(div.amountPerShare, 2, 4)}{' '}
                                             <span className="text-xs text-slate-500">{div.currency}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
+                                        </div>
+                                        <div className="text-right">
                                             {formatNumber(div.totalAmount)}{' '}
                                             <span className="text-xs text-slate-500">{div.currency}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-400 font-mono text-sm">
+                                        </div>
+                                        <div className="text-right text-slate-400 font-mono text-sm">
                                             {div.currency !== 'PLN' ? formatNumber(div.exchangeRate, 4, 4) : '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                                        </div>
+                                        <div className="text-right font-mono font-bold text-emerald-400">
                                             {formatNumber(div.valuePLN)} PLN
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-sm text-slate-500">
+                                        </div>
+                                        <div className="text-center text-sm text-slate-500">
                                             {div.sharesOwned}
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </div>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
