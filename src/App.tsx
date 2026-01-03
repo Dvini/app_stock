@@ -16,6 +16,13 @@ const Simulator = lazy(() => import('./pages/Simulator').then(m => ({ default: m
 const AI = lazy(() => import('./pages/AI').then(m => ({ default: m.AI })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
+// Reusable loading fallback for lazy-loaded routes
+const LoadingFallback = (
+    <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+);
+
 function App() {
     useEffect(() => {
         initDB();
@@ -38,37 +45,37 @@ function App() {
                         </CurrencyProvider>
                     }>
                         <Route index element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Dashboard />
                             </Suspense>
                         } />
                         <Route path="portfolio" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Portfolio />
                             </Suspense>
                         } />
                         <Route path="transactions" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Transactions />
                             </Suspense>
                         } />
                         <Route path="dividends" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Dividends />
                             </Suspense>
                         } />
                         <Route path="simulator" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Simulator />
                             </Suspense>
                         } />
                         <Route path="ai" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <AI />
                             </Suspense>
                         } />
                         <Route path="settings" element={
-                            <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>}>
+                            <Suspense fallback={LoadingFallback}>
                                 <Settings />
                             </Suspense>
                         } />

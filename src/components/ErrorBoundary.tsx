@@ -41,10 +41,8 @@ export class ErrorBoundary extends Component<Props, State> {
             stack: error.stack
         });
 
-        this.setState({
-            error,
-            errorInfo
-        });
+        // Only set errorInfo (error already set by getDerivedStateFromError)
+        this.setState({ errorInfo });
 
         // TODO: Send error to analytics/monitoring service (e.g., Sentry)
         // sendErrorToMonitoring(error, errorInfo);
@@ -56,9 +54,8 @@ export class ErrorBoundary extends Component<Props, State> {
             error: null,
             errorInfo: null
         });
-
-        // Reload the page to reset app state
-        window.location.reload();
+        // Note: Not reloading page to preserve unsaved data
+        // User can manually reload if needed
     };
 
     render(): ReactNode {

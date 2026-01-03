@@ -9,7 +9,6 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LoggerOptions {
     prefix?: string;
-    enabled?: boolean;
 }
 
 class Logger {

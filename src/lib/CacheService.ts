@@ -1,7 +1,11 @@
 /**
- * Centralized Cache Service for managing localStorage cache
- * Provides versioning, expiration, and pattern-based invalidation
+ * Cache Service - Manages localStorage caching with TTL support
+ * Handles cache expiration, size limits, and quota management
  */
+
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('CacheService');
 
 interface CacheData<T = unknown> {
     timestamp: number;
@@ -62,7 +66,7 @@ class CacheService {
             localStorage.removeItem(cacheKey);
             return null;
         } catch (e) {
-            console.warn(`[CacheService] Error reading cache key "${key}":`, e);
+            logger.warn(`Error reading cache key "${key}":`, e);
             return null;
         }
     }
@@ -87,16 +91,16 @@ class CacheService {
             // Don't cache entries larger than 500KB (prevents localStorage overflow)
             const MAX_ENTRY_SIZE_KB = 500;
             if (sizeKB > MAX_ENTRY_SIZE_KB) {
-                console.warn(`[CacheService] Entry "${key}" too large (${sizeKB.toFixed(1)}KB), skipping cache`);
+                logger.warn(`Entry "${key}" too large (${sizeKB.toFixed(1)}KB), skipping cache`);
                 return;
             }
 
             localStorage.setItem(cacheKey, serialized);
         } catch (e) {
-            console.error(`[CacheService] Error writing cache key "${key}":`, e);
+            logger.error(`Error writing cache key "${key}":`, e);
             // Handle quota exceeded errors gracefully
             if (e instanceof Error && e.name === 'QuotaExceededError') {
-                console.warn('[CacheService] localStorage quota exceeded, clearing old cache');
+                logger.warn('localStorage quota exceeded, clearing old cache');
                 this.clearOldest(20); // Clear more entries (was 10)
                 
                 // Try again after clearing
@@ -110,7 +114,7 @@ class CacheService {
                     };
                     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
                 } catch (retryError) {
-                    console.error('[CacheService] Failed to cache even after cleanup, skipping');
+                    logger.error('Failed to cache even after cleanup, skipping');
                 }
             }
         }
@@ -132,9 +136,9 @@ class CacheService {
             }
 
             keysToRemove.forEach(key => localStorage.removeItem(key));
-            console.log(`[CacheService] Invalidated ${keysToRemove.length} cache entries`);
+            logger.info(`Invalidated ${keysToRemove.length} cache entries`);
         } catch (e) {
-            console.error('[CacheService] Error invalidating cache:', e);
+            logger.error('Error invalidating cache:', e);
         }
     }
 
@@ -154,9 +158,9 @@ class CacheService {
             }
 
             keysToRemove.forEach(key => localStorage.removeItem(key));
-            console.log(`[CacheService] Cleared ${keysToRemove.length} cache entries`);
+            logger.info(`Cleared ${keysToRemove.length} cache entries`);
         } catch (e) {
-            console.error('[CacheService] Error clearing cache:', e);
+            logger.error('Error clearing cache:', e);
         }
     }
 
@@ -188,9 +192,9 @@ class CacheService {
             const toRemove = entries.slice(0, count);
             toRemove.forEach(entry => localStorage.removeItem(entry.key));
 
-            console.log(`[CacheService] Removed ${toRemove.length} oldest cache entries`);
+            logger.info(`Removed ${toRemove.length} oldest cache entries`);
         } catch (e) {
-            console.error('[CacheService] Error clearing oldest cache:', e);
+            logger.error('Error clearing oldest cache:', e);
         }
     }
 
@@ -225,12 +229,12 @@ class CacheService {
             keysToRemove.forEach(key => localStorage.removeItem(key));
             
             if (keysToRemove.length > 0) {
-                console.log(`[CacheService] Cleaned up ${keysToRemove.length} expired cache entries`);
+                logger.info(`Cleaned up ${keysToRemove.length} expired cache entries`);
             }
             
             return keysToRemove.length;
         } catch (e) {
-            console.error('[CacheService] Error cleaning up cache:', e);
+            logger.error('Error cleaning up cache:', e);
             return 0;
         }
     }
