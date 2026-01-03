@@ -69,6 +69,7 @@ class CacheService {
 
     /**
      * Set a value in cache with optional TTL
+     * Maximum entry size: 500KB to prevent localStorage overflow
      */
     set<T = unknown>(key: string, value: T, options: CacheSetOptions = {}): void {
         try {
@@ -80,13 +81,37 @@ class CacheService {
                 metadata: options.metadata || {}
             };
 
-            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            const serialized = JSON.stringify(cacheData);
+            const sizeKB = new Blob([serialized]).size / 1024;
+            
+            // Don't cache entries larger than 500KB (prevents localStorage overflow)
+            const MAX_ENTRY_SIZE_KB = 500;
+            if (sizeKB > MAX_ENTRY_SIZE_KB) {
+                console.warn(`[CacheService] Entry "${key}" too large (${sizeKB.toFixed(1)}KB), skipping cache`);
+                return;
+            }
+
+            localStorage.setItem(cacheKey, serialized);
         } catch (e) {
             console.error(`[CacheService] Error writing cache key "${key}":`, e);
             // Handle quota exceeded errors gracefully
             if (e instanceof Error && e.name === 'QuotaExceededError') {
                 console.warn('[CacheService] localStorage quota exceeded, clearing old cache');
-                this.clearOldest();
+                this.clearOldest(20); // Clear more entries (was 10)
+                
+                // Try again after clearing
+                try {
+                    const cacheKey = this._getCacheKey(key);
+                    const cacheData: CacheData<T> = {
+                        timestamp: Date.now(),
+                        value: value,
+                        ttl: options.ttl || null,
+                        metadata: options.metadata || {}
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                } catch (retryError) {
+                    console.error('[CacheService] Failed to cache even after cleanup, skipping');
+                }
             }
         }
     }

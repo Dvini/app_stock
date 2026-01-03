@@ -238,16 +238,20 @@ class ApiService {
      * Get historical price data for charting
      */
     async getHistory(ticker: string, range: string = '1mo', interval: string = '1d'): Promise<HistoryData | null> {
+        // Don't cache very long ranges - they're too large and overflow localStorage
+        const shouldCache = !['5y', '10y', 'max'].includes(range);
         const cacheKey = `history_${ticker}_${range}_${interval}`;
 
         // Shorter cache for intraday data
         const cacheDuration = range === '1d' ? 5 * 60 * 1000 : this.cacheDuration;
 
-        // 1. Check cache
-        const cached = cacheService.get<HistoryData>(cacheKey, cacheDuration);
-        if (cached) {
-            console.log(`[ApiService] Using cached history for ${ticker} (${range}, ${interval})`);
-            return cached;
+        // 1. Check cache (only for reasonable ranges)
+        if (shouldCache) {
+            const cached = cacheService.get<HistoryData>(cacheKey, cacheDuration);
+            if (cached) {
+                console.log(`[ApiService] Using cached history for ${ticker} (${range}, ${interval})`);
+                return cached;
+            }
         }
 
         // 2. Fetch from API
@@ -280,8 +284,12 @@ class ApiService {
             const currency = result.meta.currency || 'PLN';
             const historyData: HistoryData = { data: cleanData, currency: currency as CurrencyCode };
 
-            // 3. Cache the result
-            cacheService.set(cacheKey, historyData, { ttl: cacheDuration });
+            // 3. Cache the result (only for reasonable ranges to avoid localStorage overflow)
+            if (shouldCache) {
+                cacheService.set(cacheKey, historyData, { ttl: cacheDuration });
+            } else {
+                console.log(`[ApiService] Skipping cache for ${ticker} (${range}) - range too large`);
+            }
 
             console.log(`[ApiService] Fetched ${cleanData.length} history points for ${ticker}`);
             return historyData;
