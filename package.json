@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.80",
+    "cheerio": "^1.1.2",
     "clsx": "^2.1.1",
     "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.2.0",

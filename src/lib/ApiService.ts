@@ -31,6 +31,13 @@ interface RateData {
     to: CurrencyCode;
 }
 
+interface DividendRecord {
+    exDate: string;
+    amount: number;
+    currency: string;
+}
+
+
 /**
  * API Service for fetching stock data from Yahoo Finance
  * Implements caching, retry logic, and error handling
@@ -350,6 +357,73 @@ class ApiService {
         } catch (error) {
             console.error(`[ApiService] Failed to fetch historical rate for ${pair} on ${dateStr}:`, error);
             return null;
+        }
+    }
+
+    /**
+     * Fetch dividends for a stock from Yahoo Finance
+     * Uses Yahoo Finance API to get dividend history
+     */
+    async fetchDividends(ticker: string): Promise<DividendRecord[]> {
+        const cacheKey = `yahoo_dividends_${ticker}`;
+
+        // Check cache
+        const cached = cacheService.get<DividendRecord[]>(cacheKey, this.cacheDuration * 16); // 4 hours for dividends
+        if (cached) {
+            console.log(`[ApiService] Using cached dividends for ${ticker}`);
+            return cached;
+        }
+
+        try {
+            // Yahoo Finance dividend endpoint requires period parameters
+            // Fetch last 5 years of dividend data
+            const endDate = Math.floor(Date.now() / 1000);
+            const startDate = endDate - (5 * 365 * 24 * 60 * 60); // 5 years ago
+
+            const targetUrl = `${this.baseUrl}${ticker}?period1=${startDate}&period2=${endDate}&interval=1d&events=div`;
+            console.log(`[ApiService] Fetching dividends for ${ticker}...`);
+
+            const response = await this.fetchWithBackup(targetUrl);
+            const data = await response.json();
+
+            const result = data.chart?.result?.[0];
+            if (!result || !result.events?.dividends) {
+                console.log(`[ApiService] No dividend data found for ${ticker}`);
+                return [];
+            }
+
+            const dividendsObj = result.events.dividends;
+            const dividends: DividendRecord[] = [];
+
+            // Determine currency
+            const currency = result.meta?.currency || 'USD';
+
+            // Convert dividends object to array
+            for (const [timestamp, divData] of Object.entries(dividendsObj)) {
+                const date = new Date(parseInt(timestamp) * 1000);
+                const isoDate = date.toISOString().split('T')[0];
+                
+                if (isoDate && typeof divData === 'object' && divData !== null && 'amount' in divData) {
+                    dividends.push({
+                        exDate: isoDate,
+                        amount: (divData as { amount: number }).amount,
+                        currency: currency
+                    });
+                }
+            }
+
+            // Sort by date (newest first)
+            dividends.sort((a, b) => new Date(b.exDate).getTime() - new Date(a.exDate).getTime());
+
+            // Cache the result
+            cacheService.set(cacheKey, dividends, { ttl: this.cacheDuration * 16 });
+
+            console.log(`[ApiService] Fetched ${dividends.length} dividends for ${ticker}`);
+            return dividends;
+
+        } catch (error) {
+            console.error(`[ApiService] Failed to fetch dividends for ${ticker}:`, error);
+            return [];
         }
     }
 

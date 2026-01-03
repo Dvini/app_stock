@@ -1,6 +1,8 @@
 import { db } from '../db/db';
 import { nbpService } from './NBPService';
 import { alphaVantageService } from './AlphaVantageService';
+import { stooqService } from './StooqService';
+import { apiService } from './ApiService';
 import { TIME_CONSTANTS } from '../utils/constants';
 import type { Transaction, Dividend, Asset, CurrencyCode } from '../types/database';
 
@@ -339,12 +341,12 @@ class DividendService {
     }
 
     /**
-     * Synchronize dividends from Alpha Vantage API
-     * Fetches dividend data for all owned stocks and populates the database
+     * Synchronize dividends from multiple sources with fallback mechanism
+     * Priority: Alpha Vantage → Yahoo Finance → Stooq (for Polish stocks)
      */
     async syncDividendsFromAPI(): Promise<SyncStatistics> {
         try {
-            console.log('[DividendService] Starting dividend synchronization from Alpha Vantage...');
+            console.log('[DividendService] Starting dividend synchronization with multi-source fallback...');
 
             // Get all unique tickers from transactions
             const transactions = await db.transactions.orderBy('date').toArray(); // CRITICAL: Sort chronologically
@@ -357,18 +359,51 @@ class DividendService {
 
             console.log(`[DividendService] Found ${tickers.length} unique tickers:`, tickers);
 
-            // Fetch dividends for all tickers
-            const dividendsData = await alphaVantageService.fetchMultipleDividends(tickers);
-
             let added = 0;
             let skipped = 0;
 
-            // Process each ticker's dividends
-            for (const [ticker, dividends] of Object.entries(dividendsData)) {
-                if (!dividends || dividends.length === 0) {
-                    console.log(`[DividendService] No dividends found for ${ticker}`);
+            // Process each ticker with fallback logic
+            for (const ticker of tickers) {
+                console.log(`\n[DividendService] Processing ticker: ${ticker}`);
+                
+                let dividends: Array<{ exDate: string; amount: number; currency: string }> = [];
+                let source = '';
+
+                // 1. Try Alpha Vantage first
+                console.log(`[DividendService] Trying Alpha Vantage for ${ticker}...`);
+                dividends = await alphaVantageService.fetchDividends(ticker);
+                if (dividends.length > 0) {
+                    source = 'Alpha Vantage';
+                    console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Alpha Vantage`);
+                }
+
+                // 2. Fallback to Yahoo Finance if Alpha Vantage returns empty
+                if (dividends.length === 0) {
+                    console.log(`[DividendService] Alpha Vantage returned no data, trying Yahoo Finance for ${ticker}...`);
+                    dividends = await apiService.fetchDividends(ticker);
+                    if (dividends.length > 0) {
+                        source = 'Yahoo Finance';
+                        console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Yahoo Finance`);
+                    }
+                }
+
+                // 3. Fallback to Stooq for Polish stocks (.WA suffix)
+                if (dividends.length === 0 && ticker.toUpperCase().endsWith('.WA')) {
+                    console.log(`[DividendService] Yahoo Finance returned no data, trying Stooq for Polish stock ${ticker}...`);
+                    dividends = await stooqService.fetchDividends(ticker);
+                    if (dividends.length > 0) {
+                        source = 'Stooq';
+                        console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Stooq`);
+                    }
+                }
+
+                // No dividends found from any source
+                if (dividends.length === 0) {
+                    console.log(`[DividendService] ✗ No dividends found for ${ticker} from any source`);
                     continue;
                 }
+
+                console.log(`[DividendService] Using ${source} data for ${ticker}`);
 
                 // OPTIMIZATION: Fetch all existing dividends for this ticker once
                 const existingDividends = await db.dividends
@@ -423,7 +458,7 @@ class DividendService {
                     });
 
                     added++;
-                    console.log(`[DividendService] Added dividend: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`);
+                    console.log(`[DividendService] Added dividend from ${source}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`);
                 }
             }
 
