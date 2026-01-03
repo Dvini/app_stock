@@ -170,6 +170,47 @@ class CacheService {
     }
 
     /**
+     * Clean up all expired cache entries
+     * Should be called on app startup
+     */
+    cleanup(): number {
+        try {
+            const keysToRemove: string[] = [];
+            const versionPrefix = this.prefix + this.version;
+            const now = Date.now();
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(versionPrefix)) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key) || '{}') as CacheData;
+                        const age = now - data.timestamp;
+                        const ttl = data.ttl || Infinity;
+
+                        if (age >= ttl) {
+                            keysToRemove.push(key);
+                        }
+                    } catch (e) {
+                        // Invalid entry, mark for removal
+                        keysToRemove.push(key);
+                    }
+                }
+            }
+
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            if (keysToRemove.length > 0) {
+                console.log(`[CacheService] Cleaned up ${keysToRemove.length} expired cache entries`);
+            }
+            
+            return keysToRemove.length;
+        } catch (e) {
+            console.error('[CacheService] Error cleaning up cache:', e);
+            return 0;
+        }
+    }
+
+    /**
      * Get cache statistics
      */
     getStats(): CacheStats {

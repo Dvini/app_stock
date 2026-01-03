@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Info, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
@@ -182,80 +183,123 @@ export const Dividends = () => {
                     </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">Historia wypłaconych dywidend</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs text-slate-500">Suma wszystkich wypłat</p>
-                            <p className="text-2xl font-bold text-emerald-400 font-mono">
-                                {formatNumber(totalReceivedPLN)} PLN
-                            </p>
-                        </div>
-                    </div>
-                    <div className="overflow-auto flex-1 custom-scrollbar">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-950 text-slate-400 text-xs uppercase sticky top-0 z-10">
-                                <tr>
-                                    <th className="px-4 py-3">Data</th>
-                                    <th className="px-4 py-3">Ticker</th>
-                                    <th className="px-4 py-3 text-right">DPS</th>
-                                    <th className="px-4 py-3 text-right">Kwota</th>
-                                    <th className="px-4 py-3 text-right">Kurs NBP</th>
-                                    <th className="px-4 py-3 text-right">Wartość PLN</th>
-                                    <th className="px-4 py-3 text-center">Akcje</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {isLoading ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-4">
-                                            <SkeletonLoader rows={5} />
-                                        </td>
-                                    </tr>
-                                ) : received.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">
-                                            Brak otrzymanych dywidend w historii.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    received.map((div) => (
-                                        <tr key={div.id} className="hover:bg-slate-800/50 transition-colors group">
-                                            <td className="px-4 py-3 text-slate-400 text-sm">{div.paymentDate}</td>
-                                            <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
-                                            <td className="px-4 py-3 text-right text-slate-300 font-mono text-sm">
-                                                {formatNumber(div.amountPerShare, 2, 4)}{' '}
-                                                <span className="text-xs text-slate-500">{div.currency}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                {formatNumber(div.totalAmount)}{' '}
-                                                <span className="text-xs text-slate-500">{div.currency}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-400 font-mono text-sm">
-                                                {div.currency !== 'PLN' ? formatNumber(div.exchangeRate, 4, 4) : '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
-                                                {formatNumber(div.valuePLN)} PLN
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-sm text-slate-500">
-                                                {div.sharesOwned}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <VirtualizedDividendsTable
+                    received={received}
+                    isLoading={isLoading}
+                    totalReceivedPLN={totalReceivedPLN}
+                />
             </div>
         </div>
     );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tooltip, isLoading }) => {
+// Virtualized table component for efficient rendering of large dividend lists
+interface VirtualizedDividendsTableProps {
+    received: any[];
+    isLoading: boolean;
+    totalReceivedPLN: number;
+}
+
+const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ received, isLoading, totalReceivedPLN }) => {
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: received.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 50, // Estimated row height in pixels
+        overscan: 5 // Number of items to render outside visible area
+    });
+
+    return (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
+                <div>
+                    <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Historia wypłaconych dywidend</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-slate-500">Suma wszystkich wypłat</p>
+                    <p className="text-2xl font-bold text-emerald-400 font-mono">
+                        {formatNumber(totalReceivedPLN)} PLN
+                    </p>
+                </div>
+            </div>
+
+            <div ref={parentRef} className="overflow-auto flex-1 custom-scrollbar">
+                {isLoading ? (
+                    <div className="px-4 py-4">
+                        <SkeletonLoader rows={5} />
+                    </div>
+                ) : received.length === 0 ? (
+                    <div className="px-6 py-8 text-center text-slate-500 italic">
+                        Brak otrzymanych dywidend w historii.
+                    </div>
+                ) : (
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-950 text-slate-400 text-xs uppercase sticky top-0 z-10">
+                            <tr>
+                                <th className="px-4 py-3">Data</th>
+                                <th className="px-4 py-3">Ticker</th>
+                                <th className="px-4 py-3 text-right">DPS</th>
+                                <th className="px-4 py-3 text-right">Kwota</th>
+                                <th className="px-4 py-3 text-right">Kurs NBP</th>
+                                <th className="px-4 py-3 text-right">Wartość PLN</th>
+                                <th className="px-4 py-3 text-center">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody
+                            style={{
+                                height: `${rowVirtualizer.getTotalSize()}px`,
+                                position: 'relative'
+                            }}
+                            className="divide-y divide-slate-800"
+                        >
+                            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                const div = received[virtualRow.index];
+                                return (
+                                    <tr
+                                        key={div.id}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: `${virtualRow.size}px`,
+                                            transform: `translateY(${virtualRow.start}px)`
+                                        }}
+                                        className="hover:bg-slate-800/50 transition-colors group"
+                                    >
+                                        <td className="px-4 py-3 text-slate-400 text-sm">{div.paymentDate}</td>
+                                        <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
+                                        <td className="px-4 py-3 text-right text-slate-300 font-mono text-sm">
+                                            {formatNumber(div.amountPerShare, 2, 4)}{' '}
+                                            <span className="text-xs text-slate-500">{div.currency}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {formatNumber(div.totalAmount)}{' '}
+                                            <span className="text-xs text-slate-500">{div.currency}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-400 font-mono text-sm">
+                                            {div.currency !== 'PLN' ? formatNumber(div.exchangeRate, 4, 4) : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                                            {formatNumber(div.valuePLN)} PLN
+                                        </td>
+                                        <td className="px-4 py-3 text-center text-sm text-slate-500">
+                                            {div.sharesOwned}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const StatCard = React.memo<StatCardProps>(({ label, value, sublabel, color, tooltip, isLoading }) => {
     const colorClasses = {
         emerald: 'text-emerald-400',
         blue: 'text-blue-400',
@@ -293,4 +337,4 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, color, tool
             )}
         </div>
     );
-};
+});

@@ -3,7 +3,7 @@
  * Manages dividend data, calculations, and statistics
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 // @ts-ignore - will be migrated to TypeScript
@@ -120,26 +120,26 @@ export const useDividends = (): UseDividendsReturn => {
         calculateStats();
     }, [dividends.length, assets.length]); // Recalculate when dividends or assets change
 
-    // Processed received dividends
-    const received = useMemo(() => {
-        return dividends
-            .filter(d => d.status === 'received')
-            .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()); // Most recent first
-    }, [dividends]);
+    // Processed received dividends - optimized query directly from Dexie
+    const received = useLiveQuery(() => 
+        db.dividends
+            .where('status')
+            .equals('received')
+            .reverse() // Reverse for descending order
+            .sortBy('paymentDate') // Most recent first
+    ) || [];
 
-    // Processed calendar (upcoming dividends)
-    const calendar = useMemo(() => {
+    // Processed calendar (upcoming dividends) - optimized query
+    const calendar = useLiveQuery(() => {
         const today = new Date().toISOString().split('T')[0] || '';
         const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
-
-        return dividends
-            .filter(d =>
-                d.status === 'expected' &&
-                d.paymentDate >= today &&
-                d.paymentDate <= sixtyDaysLater
-            )
-            .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()); // Soonest first
-    }, [dividends]);
+        
+        return db.dividends
+            .where('status')
+            .equals('expected')
+            .and(d => d.paymentDate >= today && d.paymentDate <= sixtyDaysLater)
+            .sortBy('paymentDate'); // Soonest first
+    }) || [];
 
     /**
      * Add a new dividend

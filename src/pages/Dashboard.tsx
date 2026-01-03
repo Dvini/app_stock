@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePortfolio } from '../hooks/usePortfolio';
@@ -333,7 +333,7 @@ export const Dashboard = () => {
     );
 };
 
-const AssetItem: React.FC<AssetItemProps> = ({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
+const AssetItem = React.memo<AssetItemProps>(({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
     <div
         onClick={onClick}
         className={cn(
@@ -379,4 +379,4 @@ const AssetItem: React.FC<AssetItemProps> = ({ ticker, price, currency, pl, amou
             )}
         </div>
     </div>
-);
+));

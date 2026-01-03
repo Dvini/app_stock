@@ -68,23 +68,24 @@ export interface UsePortfolioReturn {
 export const usePortfolio = (): UsePortfolioReturn => {
     const { baseCurrency } = useCurrency();
 
+
     // Use specialized hooks
     const { assets, tickers, currencies } = useAssets();
-    const { prices, isLoading: isLoadingPrices } = usePrices(tickers);
-
+    
     // Watchlist and transactions
     const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
     const transactions = useLiveQuery(() => db.transactions.orderBy('date').reverse().limit(10).toArray()) || [];
     const allCash = useLiveQuery(() => db.cash.toArray()) || [];
     const currentCash = allCash.find(c => c.currency === 'PLN')?.amount || 0;
 
-    // Get watchlist tickers for prices
-    const watchlistTickers = useMemo(() => {
-        return watchlist.map(w => w.ticker);
-    }, [watchlist]);
+    // Combine asset and watchlist tickers for single usePrices call
+    const allTickers = useMemo(() => {
+        const watchlistTickers = watchlist.map(w => w.ticker);
+        return [...new Set([...tickers, ...watchlistTickers])]; // Deduplicate
+    }, [tickers, watchlist]);
 
-    // Fetch prices for watchlist too
-    const { prices: watchlistPrices } = usePrices(watchlistTickers);
+    // Fetch prices for all tickers at once (optimization: single call instead of two)
+    const { prices, isLoading: isLoadingPrices } = usePrices(allTickers);
 
     // Determine currencies needed for exchange rates
     const neededCurrencies = useMemo(() => {
@@ -152,14 +153,14 @@ export const usePortfolio = (): UsePortfolioReturn => {
     // Process watchlist
     const processedWatchlist = useMemo(() => {
         return watchlist.map(item => {
-            const priceData = watchlistPrices[item?.ticker];
+            const priceData = prices[item?.ticker]; // Use unified prices object
             return {
                 ...item,
                 price: priceData?.price || '---',
                 currency: (priceData?.currency || item?.currency || 'PLN') as CurrencyCode
             };
         });
-    }, [watchlist, watchlistPrices]);
+    }, [watchlist, prices]); // Updated dependency
 
     // Portfolio summary with currency breakdown
     const portfolioSummary = useMemo(() => {
