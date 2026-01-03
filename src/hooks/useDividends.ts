@@ -187,6 +187,24 @@ export const useDividends = (): UseDividendsReturn => {
             const now = Date.now();
             localStorage.setItem('dividends_lastSync', now.toString());
             console.log(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
+            
+            // Recalculate stats immediately after sync (prevents double loading state)
+            const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
+                dividendService.calculateYTDTotal(),
+                dividendService.calculateYieldOnCost(),
+                dividendService.calculateMonthlyAverage()
+            ]);
+
+            const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
+            const upcoming60Days = upcomingDividends.reduce((sum: number, d: any) => sum + (d.estimatedPLN || 0), 0);
+
+            setStats({
+                ytdTotal,
+                upcoming60Days,
+                yieldOnCost: yoc,
+                monthlyAverage
+            });
+            
             return result;
         } catch (err) {
             console.error('[useDividends] Manual sync failed:', err);
@@ -194,7 +212,7 @@ export const useDividends = (): UseDividendsReturn => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [assets]);
 
     return {
         // Statistics
