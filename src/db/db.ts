@@ -47,6 +47,15 @@ export class StockTrackerDatabase extends Dexie {
             watchlist: '++id, ticker, dateAdded, currency',
             dividends: '++id, ticker, recordDate, paymentDate, status, [status+paymentDate]' // Compound index for filtering
         });
+
+        // Version 6: Add compound indexes for optimized queries
+        this.version(6).stores({
+            assets: '++id, ticker, type, amount, avgPrice, currency',
+            transactions: '++id, date, type, ticker, [ticker+date], [ticker+type], amount, price, total, currency, exchangeRate',
+            cash: 'currency, amount',
+            watchlist: '++id, ticker, dateAdded, currency',
+            dividends: '++id, ticker, recordDate, [ticker+recordDate], paymentDate, status, [status+paymentDate]'
+        });
     }
 }
 

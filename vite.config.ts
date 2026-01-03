@@ -9,5 +9,12 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src')
     }
+  },
+  build: {
+    minify: 'esbuild',
+    target: 'esnext'
+  },
+  esbuild: {
+    drop: ['console', 'debugger'], // Remove console.* and debugger in production
   }
 })
