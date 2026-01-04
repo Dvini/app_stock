@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Save, Upload, Trash2, Cpu, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Save, Upload, Trash2, Cpu, AlertTriangle } from 'lucide-react';
 import { exportData, importData, clearData } from '../lib/dataManagement';
 // @ts-ignore - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
@@ -47,11 +47,6 @@ const SettingRow: React.FC<SettingRowProps> = ({ icon: Icon, label, description,
 export const Settings = () => {
     const { currentModel, changeModel } = useAI();
     const [importStatus, setImportStatus] = useState('');
-
-    // Dividend settings - single control via frequency
-    const [dividendFrequency, setDividendFrequency] = useState(() => {
-        return localStorage.getItem('settings_dividends_frequency') || 'daily';
-    });
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -136,27 +131,6 @@ export const Settings = () => {
                     </SettingRow>
                 </Section>
             )}
-
-            {/* Dividends Settings */}
-            <Section title="Dywidendy">
-                <SettingRow
-                    icon={RefreshCw}
-                    label="Częstotliwość synchronizacji"
-                    description="Jak często automatycznie pobierać dane o dywidendach z API. Wybierz 'Wyłączona' aby pobierać tylko ręcznie."
-                >
-                    <select
-                        value={dividendFrequency}
-                        onChange={(e) => {
-                            setDividendFrequency(e.target.value);
-                            localStorage.setItem('settings_dividends_frequency', e.target.value);
-                        }}
-                        className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 min-w-[140px]"
-                    >
-                        <option value="daily">1x dziennie</option>
-                        <option value="manual">Wyłączona</option>
-                    </select>
-                </SettingRow>
-            </Section>
 
             <Section title="Zarządzanie Danymi">
                 <SettingRow

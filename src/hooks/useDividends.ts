@@ -55,40 +55,32 @@ export const useDividends = (): UseDividendsReturn => {
             setError(null);
 
             try {
-                // Check auto-sync settings (now controlled by frequency only)
-                const frequency = localStorage.getItem('settings_dividends_frequency') || 'daily';
+                // Smart sync logic: sync if table is empty OR >24h since last sync
+                const lastSync = localStorage.getItem('dividends_lastSync');
+                const now = Date.now();
+                const dayInMs = DIVIDEND_CONSTANTS.DAILY_SYNC_INTERVAL_MS;
+                
+                const shouldSync = !lastSync || (now - parseInt(lastSync)) > dayInMs;
 
-                // Smart sync logic - only sync if frequency is not 'manual'
-                if (frequency !== 'manual') {
-                    // Initial sync if dividends table is empty
-                    if (dividends.length === 0 && assets.length > 0) {
-                        console.log('[useDividends] Empty dividends table, triggering initial sync...');
-                        try {
-                            const result = await dividendService.syncDividendsFromAPI();
-                            console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
-                        } catch (syncError) {
-                            console.error('[useDividends] Initial sync failed:', syncError);
-                        }
-                    } else {
-                        // Check if enough time has passed based on frequency
-                        const lastSync = localStorage.getItem('dividends_lastSync');
-                        const now = Date.now();
-
-                        // Daily sync interval
-                        const syncInterval = DIVIDEND_CONSTANTS.DAILY_SYNC_INTERVAL_MS;
-
-                        const shouldSync = !lastSync || (now - parseInt(lastSync)) > syncInterval;
-
-                        if (shouldSync) {
-                            console.log(`[useDividends] ${frequency} sync due, triggering...`);
-                            try {
-                                const result = await dividendService.syncDividendsFromAPI();
-                                console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
-                                localStorage.setItem('dividends_lastSync', now.toString());
-                            } catch (syncError) {
-                                console.error('[useDividends] Auto-sync failed:', syncError);
-                            }
-                        }
+                // Initial sync if dividends table is empty
+                if (dividends.length === 0 && assets.length > 0) {
+                    console.log('[useDividends] Empty dividends table, triggering initial sync...');
+                    try {
+                        const result = await dividendService.syncDividendsFromAPI();
+                        console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
+                        localStorage.setItem('dividends_lastSync', now.toString());
+                    } catch (syncError) {
+                        console.error('[useDividends] Initial sync failed:', syncError);
+                    }
+                } else if (shouldSync) {
+                    // Periodic sync if >24h since last sync
+                    console.log('[useDividends] 24h sync interval passed, triggering auto-sync...');
+                    try {
+                        const result = await dividendService.syncDividendsFromAPI();
+                        console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
+                        localStorage.setItem('dividends_lastSync', now.toString());
+                    } catch (syncError) {
+                        console.error('[useDividends] Auto-sync failed:', syncError);
                     }
                 }
 
