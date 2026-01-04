@@ -1,4 +1,4 @@
-# 📈 Stock Portfolio App
+﻿# 📈 Stock Portfolio App
 
 Kompleksowa aplikacja do zarządzania portfelem inwestycyjnym z zaawansowanymi funkcjami analizy, monitorowania dywidend i symulacji transakcji.
 
@@ -49,6 +49,34 @@ Kompleksowa aplikacja do zarządzania portfelem inwestycyjnym z zaawansowanymi f
 
 ---
 
+## 📚 Documentation
+
+Kompletna dokumentacja techniczna i użytkownika:
+
+### For Developers
+
+| Document | Description |
+|----------|-------------|
+| [📖 DOCUMENTATION.md](DOCUMENTATION.md) | Complete technical documentation with architecture, data models, and API reference |
+| [🔄 PROCESS_FLOWS.md](PROCESS_FLOWS.md) | Detailed flowcharts for key processes (dividends, transactions, prices) |
+| [🛠️ API_REFERENCE.md](API_REFERENCE.md) | Complete API documentation for all services, hooks, and utilities |
+
+### For End Users
+
+| Document | Description |
+|----------|-------------|
+| [📘 USER_MANUAL.md](USER_MANUAL.md) | Comprehensive user guide in Polish with screenshots and FAQ |
+
+### Quick Links
+
+- **Architecture Overview** → [DOCUMENTATION.md#system-architecture](DOCUMENTATION.md#system-architecture)
+- **Database Schema** → [DOCUMENTATION.md#data-models--database-schema](DOCUMENTATION.md#data-models--database-schema)
+- **Dividend Sync Flow** → [PROCESS_FLOWS.md#dividend-synchronization](PROCESS_FLOWS.md#dividend-synchronization)
+- **Transaction Flow** → [PROCESS_FLOWS.md#transaction-processing](PROCESS_FLOWS.md#transaction-processing)
+- **Service APIs** → [API_REFERENCE.md#services](API_REFERENCE.md#services)
+- **Getting Started Guide** → [USER_MANUAL.md#pierwsze-kroki](USER_MANUAL.md#pierwsze-kroki)
+
+---
 ## 🚀 Getting Started
 
 ### **Prerequisites**
