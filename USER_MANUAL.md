@@ -315,17 +315,23 @@ Tutaj widzisz **całą historię** swoich transakcji, posortowaną chronologiczn
 
 ---
 
-### Edycja/Usuwanie Transakcji
+### Przeglądanie Transakcji
 
-**Jak usunąć transakcję:**
-1. Znajdź transakcję w tabeli
-2. Kliknij ikonę **🗑️ (Trash)** po prawej stronie
-3. Potwierdź usunięcie
+Strona transakcji służy do **przeglądania historii** wszystkich dotychczasowych operacji.
 
-> **⚠️ UWAGA:** Usunięcie transakcji **automatycznie zaktualizuje** Twoje aktywa i gotówkę!
+> **💡 Wskazówka:** Transakcje są wyświetlane w kolejności od najnowszych do najstarszych.
 
-**Przykład:**
-- Usunięcie transakcji "Kupno 10 AAPL" → Usunie 10 akcji AAPL z portfela + zwróci gotówkę
+**Co widzisz w tabeli:**
+- **Data** - Data wykonania transakcji
+- **Typ** - Kupno, Sprzedaż, Depozyt lub Wypłata
+- **Ticker** - Symbol akcji (dla transakcji kupna/sprzedaży)
+- **Ilość** - Liczba zakupionych/sprzedanych akcji
+- **Cena** - Cena za jednostkę w walucie transakcji
+- **Wartość** - Całkowita wartość transakcji
+- **Kurs Waluty** - Kurs wymiany NBP (dla transakcji w walutach obcych)
+- **Wartość (PLN)** - Wartość transakcji przeliczona na PLN
+
+> **ℹ️ UWAGA:** Obecnie aplikacja nie obsługuje bezpośredniej edycji ani usuwania transakcji z poziomu tej strony. Historia transakcji służy jako stały rejestr wszystkich operacji.
 
 ---
 
@@ -695,7 +701,7 @@ stocktracker-backup-2024-01-04.json
 ### Transakcje
 
 **Q: Jak edytować transakcję?**  
-**A:** Obecnie: usuń starą → dodaj nową (funkcja edycji w planach).
+**A:** Obecnie aplikacja nie obsługuje edycji ani usuwania transakcji. Historia transakcji służy jako stały rejestr operacji. W razie pomyłki, najlepiej dodać korygującą transakcję.
 
 ---
 

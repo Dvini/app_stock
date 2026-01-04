@@ -663,10 +663,10 @@ src/
 - **Multi-timeframe:** 1D, 1W, 1M, 3M, 1Y, MAX
 
 #### Transactions Page
-- **Chronological History:** All transactions sorted by date
-- **Filters:** By type (buy/sell/deposit/withdraw)
-- **Search:** By ticker or date
-- **CRUD Operations:** Add, edit, delete transactions
+- **Chronological History:** All transactions sorted by date (reverse chronological)
+- **Read-Only View:** Immutable transaction history for audit purposes
+- **Detailed Information:** Date, type, ticker, quantity, price, exchange rate, PLN value
+- **Transaction Types:** Buy, Sell, Deposit, Withdraw
 
 #### Dividends Page
 - **Statistics:** YTD total, YoC%, monthly average
