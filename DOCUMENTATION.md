@@ -851,7 +851,7 @@ graph LR
 
 ### Contact & Support
 
-**Developer:** Wojtek  
+**Developer:** Divi  
 **Repository:** (Your repo URL)  
 **Issues:** (Your issues URL)
 
