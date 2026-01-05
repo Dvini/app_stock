@@ -37,8 +37,8 @@ export const AI = () => {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)] animate-in fade-in zoom-in duration-500">
-            <header className="mb-6 flex justify-between items-start">
+        <div className="flex flex-col flex-1 animate-in fade-in zoom-in duration-500">
+            <header className="mb-6 flex justify-between items-start flex-shrink-0">
                 <div>
                     <h1 className="text-3xl font-extrabold tracking-tight">Finansowy Asystent AI</h1>
                     <p className="text-slate-400 text-sm mt-1">
@@ -136,8 +136,15 @@ interface MessageContentProps {
 }
 
 const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
-    let parts = content.split(/(\\|\\|\\|CHART_START\\|\\|\\|[\s\S]*?\\|\\|\\|CHART_END\\|\\|\\|)/g);
+    // Check if content contains chart markers
+    const hasChartMarkers = content.includes('|||CHART_START|||');
 
+    // Only split if there are actual chart markers
+    let parts: string[] = hasChartMarkers
+        ? content.split(/(\\|\\|\\|CHART_START\\|\\|\\|[\s\S]*?\\|\\|\\|CHART_END\\|\\|\\|)/g)
+        : [content]; // Keep content as single part if no markers
+
+    // Handle markdown code blocks with chart JSON
     if (parts.length === 1 && (content.includes('```json') || content.includes('```')) && (content.includes('"type": "pie"') || content.includes('"type": "area"'))) {
         const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
         const newParts: string[] = [];
