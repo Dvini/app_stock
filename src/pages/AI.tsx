@@ -136,44 +136,88 @@ interface MessageContentProps {
 }
 
 const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
-    // Check if content contains chart markers
-    const hasChartMarkers = content.includes('|||CHART_START|||');
+    // Step 1: Remove <think> tags from content
+    let processedContent = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-    // Only split if there are actual chart markers
-    let parts: string[] = hasChartMarkers
-        ? content.split(/(\\|\\|\\|CHART_START\\|\\|\\|[\s\S]*?\\|\\|\\|CHART_END\\|\\|\\|)/g)
-        : [content]; // Keep content as single part if no markers
+    // Step 2: Split content into lines and detect standalone JSON chart objects
+    const lines = processedContent.split('\n');
+    const parts: Array<{ type: 'text' | 'chart', content: string }> = [];
+    let currentTextBlock = '';
 
-    // Handle markdown code blocks with chart JSON
-    if (parts.length === 1 && (content.includes('```json') || content.includes('```')) && (content.includes('"type": "pie"') || content.includes('"type": "area"'))) {
-        const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
-        const newParts: string[] = [];
-        let lastIndex = 0;
-        let match;
+    for (const line of lines) {
+        const trimmedLine = line.trim();
 
-        while ((match = markdownRegex.exec(content)) !== null) {
-            if (match.index > lastIndex) {
-                newParts.push(content.substring(lastIndex, match.index));
+        // Try to detect standalone JSON chart object on this line
+        if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+            try {
+                const jsonObj = JSON.parse(trimmedLine);
+                if (jsonObj.type && ['pie', 'bar', 'line', 'area'].includes(jsonObj.type) && jsonObj.data) {
+                    // This is a chart JSON - save any accumulated text first
+                    if (currentTextBlock.trim()) {
+                        parts.push({ type: 'text', content: currentTextBlock });
+                        currentTextBlock = '';
+                    }
+                    // Add the chart
+                    parts.push({ type: 'chart', content: trimmedLine });
+                    continue;
+                }
+            } catch (e) {
+                // Not valid JSON, treat as text
             }
-            newParts.push(`|||CHART_START|||${match[1]}|||CHART_END|||`);
-            lastIndex = markdownRegex.lastIndex;
-        }
-        if (lastIndex < content.length) {
-            newParts.push(content.substring(lastIndex));
         }
 
-        if (newParts.length > 0) {
-            parts = newParts;
+        // Accumulate as text
+        currentTextBlock += line + '\n';
+    }
+
+    // Add any remaining text
+    if (currentTextBlock.trim()) {
+        parts.push({ type: 'text', content: currentTextBlock });
+    }
+
+    // Step 3: If no charts found via line detection, check for markdown code blocks
+    if (parts.every(p => p.type === 'text')) {
+        const fullText = parts.map(p => p.content).join('');
+        const hasChartType = fullText.includes('"type": "pie"') || fullText.includes('"type": "area"') ||
+            fullText.includes('"type": "bar"') || fullText.includes('"type": "line"');
+
+        if ((fullText.includes('```json') || fullText.includes('```')) && hasChartType) {
+            const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
+            const newParts: Array<{ type: 'text' | 'chart', content: string }> = [];
+            let lastIndex = 0;
+            let match;
+
+            while ((match = markdownRegex.exec(fullText)) !== null) {
+                if (match.index > lastIndex) {
+                    const textPart = fullText.substring(lastIndex, match.index);
+                    if (textPart.trim()) {
+                        newParts.push({ type: 'text', content: textPart });
+                    }
+                }
+                newParts.push({ type: 'chart', content: match[1]?.trim() || match[0] });
+                lastIndex = markdownRegex.lastIndex;
+            }
+            if (lastIndex < fullText.length) {
+                const textPart = fullText.substring(lastIndex);
+                if (textPart.trim()) {
+                    newParts.push({ type: 'text', content: textPart });
+                }
+            }
+
+            if (newParts.length > 0) {
+                parts.length = 0; // Clear array
+                parts.push(...newParts); // Add new parts
+            }
         }
     }
 
+    // Step 4: Render parts
     return (
         <div className="space-y-4">
             {parts.map((part, index) => {
-                if (part.startsWith('|||CHART_START|||')) {
+                if (part.type === 'chart') {
                     try {
-                        let jsonStr = part.replace('|||CHART_START|||', '').replace('|||CHART_END|||', '').trim();
-                        jsonStr = jsonStr.replace(/\/\/.*$/gm, '');
+                        let jsonStr = part.content.replace(/\/\/.*$/gm, '').trim();
                         const chartData = JSON.parse(jsonStr);
 
                         if (chartData.type === 'pie') {
@@ -187,7 +231,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                             );
                         }
 
-                        if (chartData.type === 'area') {
+                        if (chartData.type === 'area' || chartData.type === 'line') {
                             return (
                                 <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
                                     {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
@@ -197,15 +241,27 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                                 </div>
                             );
                         }
+
+                        if (chartData.type === 'bar') {
+                            return (
+                                <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
+                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    <div className="h-64 w-full">
+                                        <PieChart data={chartData.data} />
+                                    </div>
+                                </div>
+                            );
+                        }
                     } catch (e) {
                         console.error("Chart Render Error", e);
                         return <div key={index} className="text-red-400 text-xs p-2 border border-red-900 bg-red-900/10 rounded">Błąd renderowania wykresu</div>;
                     }
                 }
-                if (!part.trim()) return null;
+
+                if (!part.content.trim()) return null;
                 return (
                     <div key={index} className="whitespace-pre-wrap">
-                        {part}
+                        {part.content}
                     </div>
                 );
             })}

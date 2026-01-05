@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
 import { usePortfolio } from '../hooks/usePortfolio';
+import { useDividends } from '../hooks/useDividends';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -34,12 +35,26 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
     const [currentModel, setCurrentModel] = useState(localStorage.getItem('selected_llm_model') || "Qwen3-1.7B-q4f16_1-MLC");
     const engine = useRef<any>(null);
 
-    const { portfolioSummary, assets } = usePortfolio();
-    const portfolioDataRef = useRef({ portfolioSummary, assets });
+    const { portfolioSummary, assets, transactions, watchlist } = usePortfolio();
+    const { ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar } = useDividends();
+
+    const portfolioDataRef = useRef({
+        portfolioSummary,
+        assets,
+        transactions,
+        watchlist,
+        dividends: { ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar }
+    });
 
     useEffect(() => {
-        portfolioDataRef.current = { portfolioSummary, assets };
-    }, [portfolioSummary, assets]);
+        portfolioDataRef.current = {
+            portfolioSummary,
+            assets,
+            transactions,
+            watchlist,
+            dividends: { ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar }
+        };
+    }, [portfolioSummary, assets, transactions, watchlist, ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar]);
 
     const loadModel = async (modelId: string) => {
         try {
@@ -190,13 +205,58 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
 
         try {
             const portfolioData = portfolioDataRef.current;
-            const portfolioContext = `
-Current Portfolio:
-- Total Value: ${portfolioData.portfolioSummary?.totalValue || 'N/A'} ${portfolioData.portfolioSummary?.baseCurrency || 'PLN'}
-- Number of Assets: ${portfolioData.assets?.length || 0}
-- Assets: ${portfolioData.assets?.map((a: any) => `${a.ticker} (${a.amount} shares)`).join(', ') || 'None'}
+            const { portfolioSummary: summary, assets, transactions, watchlist, dividends } = portfolioData;
 
-You are a financial assistant. Use the portfolio data above to answer user questions. If asked to create a chart, respond with a JSON object in this format: {"chart_type": "pie"|"bar"|"line", "data": [...], "title": "...", "currency": "PLN"}
+            // Build comprehensive portfolio context
+            const portfolioContext = `
+=== PORTFOLIO SUMMARY ===
+Total Value: ${summary?.totalValue || 'N/A'} ${summary?.baseCurrency || 'PLN'}
+Total P/L: ${summary?.totalPL || 'N/A'} (${summary?.totalPLPercent || 'N/A'})
+Cash Balance: ${summary?.cash || 'N/A'} ${summary?.baseCurrency || 'PLN'}
+Number of Assets: ${assets?.length || 0}
+
+=== ASSETS DETAILS ===
+${assets?.map((a: any) => `${a.ticker}: ${a.amount} shares @ ${a.avgPrice?.toFixed(2)} ${a.currency}
+  Current Price: ${a.price !== null ? a.price.toFixed(2) : 'N/A'} ${a.currency}
+  Value: ${a.value} ${a.currency}
+  P/L: ${a.pl}`).join('\n') || 'No assets'}
+
+=== CURRENCY BREAKDOWN ===
+${summary?.breakdown?.map((b: any) => `${b.currency}: ${b.value.toFixed(2)} (P/L: ${b.pl >= 0 ? '+' : ''}${b.pl.toFixed(2)})`).join(', ') || 'N/A'}
+
+=== RECENT TRANSACTIONS (Last 30) ===
+${transactions?.slice(0, 30).map((t: any) => `${t.date}: ${t.type.toUpperCase()} ${t.ticker || 'CASH'} ${t.amount ? `- ${t.amount} @ ${t.price} ${t.currency}` : `- ${t.price} ${t.currency}`}`).join('\n') || 'No transactions'}
+
+=== DIVIDEND STATISTICS ===
+YTD Total Received: ${dividends?.ytdTotal?.toFixed(2) || '0'} PLN
+Upcoming (60 days): ${dividends?.upcoming60Days?.toFixed(2) || '0'} PLN
+Yield on Cost: ${dividends?.yieldOnCost?.toFixed(2) || '0'}%
+Monthly Average: ${dividends?.monthlyAverage?.toFixed(2) || '0'} PLN
+
+=== UPCOMING DIVIDENDS ===
+${dividends?.calendar?.filter((d: any) => d.status === 'expected')?.slice(0, 10)?.map((d: any) => `${d.paymentDate}: ${d.ticker} - ${d.amount?.toFixed(2)} ${d.currency}`).join('\n') || 'No upcoming dividends'}
+
+=== WATCHLIST ===
+${watchlist?.map((w: any) => `${w.ticker}: ${w.price} ${w.currency}`).join(', ') || 'No watchlist items'}
+
+=== INSTRUCTIONS ===
+You are a financial assistant with access to the user's complete portfolio data above.
+
+When answering questions:
+- Use specific numbers and data from the portfolio
+- Be concise but informative
+- Answer in Polish (user's language)
+- Provide insights about portfolio performance, diversification, and trends
+
+For charts, respond with JSON in this EXACT format:
+{"type": "pie"|"bar"|"area"|"line", "data": [{"label": "...", "value": 123}, ...], "title": "Chart Title", "currency": "PLN"}
+
+IMPORTANT: Use "type" not "chart_type"!
+
+Chart types:
+- pie: for allocation/distribution (e.g., asset allocation by ticker)
+- bar: for comparisons (e.g., P/L by asset)
+- area/line: for time series (not currently supported, use bar instead)
 `;
 
             const fullPrompt = portfolioContext + "\n\nUser: " + content;
