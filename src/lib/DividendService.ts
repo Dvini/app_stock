@@ -96,10 +96,14 @@ class DividendService {
      */
     private _calculateSharesOnDate(transactions: Transaction[], ticker: string, date: string): number {
         let shares = 0;
+        const recordDate = new Date(date);
 
         for (const tx of transactions) {
             if (tx.ticker !== ticker) continue;
-            if (tx.date > date) break; // Stop if transaction is after record date
+            
+            // Compare dates properly (not as strings)
+            const txDate = new Date(tx.date);
+            if (txDate > recordDate) break; // Stop if transaction is after record date
 
             if (tx.type === 'buy' || tx.type === 'Kupno') {
                 shares += tx.amount;
@@ -480,6 +484,64 @@ class DividendService {
             console.log(`[DividendService] Deleted dividend ID: ${id}`);
         } catch (error) {
             console.error('[DividendService] Failed to delete dividend:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Recalculate dividends for a specific ticker after transaction changes
+     * This updates sharesOwned, totalAmount, and valuePLN for all dividends of the ticker
+     */
+    async recalculateDividendsForTicker(ticker: string): Promise<number> {
+        try {
+            console.log(`[DividendService] Recalculating dividends for ${ticker}...`);
+
+            // Get all transactions sorted chronologically
+            const transactions = await db.transactions.orderBy('date').toArray();
+
+            // Get all dividends for this ticker
+            const dividends = await db.dividends.where('ticker').equals(ticker).toArray();
+
+            if (dividends.length === 0) {
+                console.log(`[DividendService] No dividends found for ${ticker}`);
+                return 0;
+            }
+
+            let updated = 0;
+
+            // Update each dividend
+            for (const dividend of dividends) {
+                // Recalculate shares owned on record date
+                const sharesOwned = this._calculateSharesOnDate(transactions, ticker, dividend.recordDate);
+
+                // If shares owned is now 0, delete the dividend
+                if (sharesOwned === 0) {
+                    await db.dividends.delete(dividend.id!);
+                    console.log(`[DividendService] Deleted dividend ${dividend.id} (no shares owned on ${dividend.recordDate})`);
+                    updated++;
+                    continue;
+                }
+
+                // Recalculate values
+                const totalAmount = sharesOwned * dividend.amountPerShare;
+                const valuePLN = totalAmount * (dividend.exchangeRate || 1.0);
+
+                // Update the dividend
+                await db.dividends.update(dividend.id!, {
+                    sharesOwned,
+                    totalAmount,
+                    valuePLN
+                });
+
+                console.log(`[DividendService] Updated dividend ${dividend.id}: ${sharesOwned} shares, ${totalAmount} ${dividend.currency}`);
+                updated++;
+            }
+
+            console.log(`[DividendService] Recalculated ${updated} dividends for ${ticker}`);
+            return updated;
+
+        } catch (error) {
+            console.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
             throw error;
         }
     }

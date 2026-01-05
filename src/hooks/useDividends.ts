@@ -110,13 +110,15 @@ export const useDividends = (): UseDividendsReturn => {
         };
 
         calculateStats();
-    }, [dividends.length, assets.length]); // Recalculate when dividends or assets change
+    }, [dividends, assets.length]); // Recalculate when dividends or assets change (full array dependency to detect updates)
 
     // Processed received dividends - optimized query directly from Dexie
+    // Filter out dividends where user didn't own shares (sharesOwned = 0 or undefined)
     const received = useLiveQuery(() => 
         db.dividends
             .where('status')
             .equals('received')
+            .and(d => (d.sharesOwned || 0) > 0) // Filter out dividends with 0 shares
             .reverse() // Reverse for descending order
             .sortBy('paymentDate') // Most recent first
     ) || [];

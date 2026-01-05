@@ -4,6 +4,7 @@ import { db } from '../db/db';
 import { searchTickers } from '../lib/tickers';
 import { fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { nbpService } from '../lib/NBPService';
+import { dividendService } from '../lib/DividendService';
 import { formatNumber } from '../utils/formatters';
 import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
 
@@ -186,6 +187,16 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                         currency: currency,
                         type: 'stock'
                     });
+                }
+
+                // Recalculate dividends after buy/sell transaction
+                try {
+                    console.log(`[AddTransactionModal] Recalculating dividends for ${txTicker}...`);
+                    await dividendService.recalculateDividendsForTicker(txTicker);
+                    console.log(`[AddTransactionModal] Dividend recalculation complete for ${txTicker}`);
+                } catch (error) {
+                    console.error('[AddTransactionModal] Failed to recalculate dividends:', error);
+                    // Don't fail the transaction if dividend recalculation fails
                 }
             }
 
