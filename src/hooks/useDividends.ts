@@ -48,6 +48,27 @@ export const useDividends = (): UseDividendsReturn => {
         monthlyAverage: 0
     });
 
+    // Run migration once on mount to fix existing dividend statuses
+    useEffect(() => {
+        const runMigration = async () => {
+            const migrationKey = 'dividends_statusMigration_v1';
+            const hasRun = localStorage.getItem(migrationKey);
+            
+            if (!hasRun) {
+                try {
+                    console.log('[useDividends] Running one-time dividend status migration...');
+                    const result = await dividendService.migrateDividendStatus();
+                    console.log(`[useDividends] Migration complete: ${result.updated} updated, ${result.skipped} skipped`);
+                    localStorage.setItem(migrationKey, 'true');
+                } catch (error) {
+                    console.error('[useDividends] Migration failed:', error);
+                }
+            }
+        };
+        
+        runMigration();
+    }, []); // Run once on mount
+
     // Calculate statistics with smart auto-sync
     useEffect(() => {
         const calculateStats = async () => {

@@ -447,6 +447,10 @@ class DividendService {
                     const totalAmount = sharesOwned * div.amount;
                     const valuePLN = totalAmount * exchangeRate;
 
+                    // Determine status based on payment date
+                    const today = new Date().toISOString().split('T')[0]!;
+                    const status = div.exDate > today ? 'expected' : 'received';
+
                     // Add to database
                     await db.dividends.add({
                         ticker,
@@ -458,7 +462,7 @@ class DividendService {
                         exchangeRate,
                         valuePLN,
                         sharesOwned,
-                        status: 'received' // Assuming all historical dividends are received
+                        status
                     });
 
                     added++;
@@ -542,6 +546,43 @@ class DividendService {
 
         } catch (error) {
             console.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Migration: Update status of existing dividends based on payment date
+     * This fixes dividends that were added before the status logic was implemented
+     */
+    async migrateDividendStatus(): Promise<{ updated: number; skipped: number }> {
+        try {
+            console.log('[DividendService] Starting dividend status migration...');
+            
+            const today = new Date().toISOString().split('T')[0]!;
+            const allDividends = await db.dividends.toArray();
+            
+            let updated = 0;
+            let skipped = 0;
+
+            for (const dividend of allDividends) {
+                // Determine correct status based on payment date
+                const correctStatus = dividend.paymentDate > today ? 'expected' : 'received';
+                
+                // Update if status is incorrect
+                if (dividend.status !== correctStatus) {
+                    await db.dividends.update(dividend.id!, { status: correctStatus });
+                    console.log(`[DividendService] Updated ${dividend.ticker} (${dividend.paymentDate}): ${dividend.status} → ${correctStatus}`);
+                    updated++;
+                } else {
+                    skipped++;
+                }
+            }
+
+            console.log(`[DividendService] Migration complete: ${updated} updated, ${skipped} already correct`);
+            return { updated, skipped };
+
+        } catch (error) {
+            console.error('[DividendService] Failed to migrate dividend status:', error);
             throw error;
         }
     }
