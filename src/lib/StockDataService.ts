@@ -22,7 +22,7 @@ class StockDataService {
     async getPrices(tickers: string[]): Promise<Map<string, StockPrice>> {
         const prices = new Map<string, StockPrice>();
 
-        const promises = tickers.map(async (ticker) => {
+        const promises = tickers.map(async ticker => {
             try {
                 const priceData = await apiService.getCurrentPrice(ticker);
                 if (priceData) {
@@ -81,14 +81,14 @@ class StockDataService {
     /**
      * Get all data needed for portfolio calculations
      */
-    async getPortfolioData(tickers: string[], currencies: CurrencyCode[]): Promise<{
+    async getPortfolioData(
+        tickers: string[],
+        currencies: CurrencyCode[]
+    ): Promise<{
         prices: Map<string, StockPrice>;
         rates: ExchangeRates;
     }> {
-        const [prices, rates] = await Promise.all([
-            this.getPrices(tickers),
-            this.getExchangeRates(currencies)
-        ]);
+        const [prices, rates] = await Promise.all([this.getPrices(tickers), this.getExchangeRates(currencies)]);
 
         return { prices, rates };
     }

@@ -19,12 +19,7 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
         const { transactions, range, excludeCash, returnNative } = e.data;
 
         // Perform heavy calculation in worker thread
-        const result = await calculatePortfolioHistory(
-            transactions,
-            range,
-            excludeCash,
-            returnNative
-        );
+        const result = await calculatePortfolioHistory(transactions, range, excludeCash, returnNative);
 
         // Send result back to main thread
         self.postMessage({ success: true, data: result });

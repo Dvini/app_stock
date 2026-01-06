@@ -26,10 +26,7 @@ interface UsePricesReturn {
 /**
  * Custom hook to fetch and manage prices for multiple tickers
  */
-export const usePrices = (
-    tickers: string[] = [],
-    options: UsePricesOptions = {}
-): UsePricesReturn => {
+export const usePrices = (tickers: string[] = [], options: UsePricesOptions = {}): UsePricesReturn => {
     const {
         refreshInterval = 15 * 60 * 1000, // 15 minutes
         autoRefresh = true
@@ -51,7 +48,7 @@ export const usePrices = (
         const newPrices: Record<string, PriceData> = {};
         const newErrors: Record<string, string> = {};
 
-        const promises = tickers.map(async (ticker) => {
+        const promises = tickers.map(async ticker => {
             try {
                 // Try cache first
                 const cached = getCachedPrice(ticker);
@@ -102,14 +99,20 @@ export const usePrices = (
     }, [fetchPrices, autoRefresh, refreshInterval]);
 
     // Get price for specific ticker
-    const getPrice = useCallback((ticker: string): PriceData | null => {
-        return prices[ticker] || null;
-    }, [prices]);
+    const getPrice = useCallback(
+        (ticker: string): PriceData | null => {
+            return prices[ticker] || null;
+        },
+        [prices]
+    );
 
     // Check if price is available
-    const hasPrice = useCallback((ticker: string): boolean => {
-        return !!prices[ticker];
-    }, [prices]);
+    const hasPrice = useCallback(
+        (ticker: string): boolean => {
+            return !!prices[ticker];
+        },
+        [prices]
+    );
 
     // Manual refresh
     const refresh = useCallback(() => {

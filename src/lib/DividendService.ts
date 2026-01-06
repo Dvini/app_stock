@@ -48,13 +48,11 @@ class DividendService {
             const dividends = await db.dividends.toArray();
 
             // Get all transactions to calculate share ownership on record dates
-            const transactions = await db.transactions
-                .orderBy('date')
-                .toArray();
+            const transactions = await db.transactions.orderBy('date').toArray();
 
             // Process each dividend to ensure accurate share counts
             const processed = await Promise.all(
-                dividends.map(async (dividend) => {
+                dividends.map(async dividend => {
                     // Calculate shares owned on record date
                     const sharesOnRecordDate = this._calculateSharesOnDate(
                         transactions,
@@ -100,7 +98,7 @@ class DividendService {
 
         for (const tx of transactions) {
             if (tx.ticker !== ticker) continue;
-            
+
             // Compare dates properly (not as strings)
             const txDate = new Date(tx.date);
             if (txDate > recordDate) break; // Stop if transaction is after record date
@@ -135,12 +133,7 @@ class DividendService {
             // Get all expected dividends from database within 60 days
             const upcomingDividends = await db.dividends
                 .where('paymentDate')
-                .between(
-                    today.toISOString().split('T')[0]!,
-                    sixtyDaysLater.toISOString().split('T')[0]!,
-                    true,
-                    true
-                )
+                .between(today.toISOString().split('T')[0]!, sixtyDaysLater.toISOString().split('T')[0]!, true, true)
                 .and(d => d.status === 'expected')
                 .toArray();
 
@@ -239,7 +232,6 @@ class DividendService {
 
             console.log(`[DividendService] Added dividend for ${ticker}: ${amountPerShare} ${currency} (ID: ${id})`);
             return id;
-
         } catch (error) {
             console.error('[DividendService] Failed to add dividend:', error);
             throw error;
@@ -253,10 +245,7 @@ class DividendService {
     async calculateYieldOnCost(): Promise<number> {
         try {
             // Get all buy transactions
-            const buyTransactions = await db.transactions
-                .where('type')
-                .equals('Kupno')
-                .toArray();
+            const buyTransactions = await db.transactions.where('type').equals('Kupno').toArray();
 
             // Calculate total cost basis (in PLN)
             let totalCostPLN = 0;
@@ -287,7 +276,6 @@ class DividendService {
             const yoc = (annualDividendsPLN / totalCostPLN) * 100;
 
             return yoc;
-
         } catch (error) {
             console.error('[DividendService] Failed to calculate YoC:', error);
             return 0;
@@ -313,7 +301,6 @@ class DividendService {
             const monthlyAverage = totalPLN / TIME_CONSTANTS.MONTHS_PER_YEAR;
 
             return monthlyAverage;
-
         } catch (error) {
             console.error('[DividendService] Failed to calculate monthly average:', error);
             return 0;
@@ -337,7 +324,6 @@ class DividendService {
             const totalPLN = ytdDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
 
             return totalPLN;
-
         } catch (error) {
             console.error('[DividendService] Failed to calculate YTD total:', error);
             return 0;
@@ -369,7 +355,7 @@ class DividendService {
             // Process each ticker with fallback logic
             for (const ticker of tickers) {
                 console.log(`\n[DividendService] Processing ticker: ${ticker}`);
-                
+
                 let dividends: Array<{ exDate: string; amount: number; currency: string }> = [];
                 let source = '';
 
@@ -383,7 +369,9 @@ class DividendService {
 
                 // 2. Fallback to Yahoo Finance if Alpha Vantage returns empty
                 if (dividends.length === 0) {
-                    console.log(`[DividendService] Alpha Vantage returned no data, trying Yahoo Finance for ${ticker}...`);
+                    console.log(
+                        `[DividendService] Alpha Vantage returned no data, trying Yahoo Finance for ${ticker}...`
+                    );
                     dividends = await apiService.fetchDividends(ticker);
                     if (dividends.length > 0) {
                         source = 'Yahoo Finance';
@@ -393,7 +381,9 @@ class DividendService {
 
                 // 3. Fallback to Stooq for Polish stocks (.WA suffix)
                 if (dividends.length === 0 && ticker.toUpperCase().endsWith('.WA')) {
-                    console.log(`[DividendService] Yahoo Finance returned no data, trying Stooq for Polish stock ${ticker}...`);
+                    console.log(
+                        `[DividendService] Yahoo Finance returned no data, trying Stooq for Polish stock ${ticker}...`
+                    );
                     dividends = await stooqService.fetchDividends(ticker);
                     if (dividends.length > 0) {
                         source = 'Stooq';
@@ -410,9 +400,7 @@ class DividendService {
                 console.log(`[DividendService] Using ${source} data for ${ticker}`);
 
                 // OPTIMIZATION: Fetch all existing dividends for this ticker once
-                const existingDividends = await db.dividends
-                    .where('ticker').equals(ticker)
-                    .toArray();
+                const existingDividends = await db.dividends.where('ticker').equals(ticker).toArray();
 
                 // Create a Map for O(1) lookup by recordDate
                 const existingMap = new Map(existingDividends.map(d => [d.recordDate, d]));
@@ -466,13 +454,14 @@ class DividendService {
                     });
 
                     added++;
-                    console.log(`[DividendService] Added dividend from ${source}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`);
+                    console.log(
+                        `[DividendService] Added dividend from ${source}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`
+                    );
                 }
             }
 
             console.log(`[DividendService] Sync complete: ${added} added, ${skipped} skipped`);
             return { added, skipped };
-
         } catch (error) {
             console.error('[DividendService] Failed to sync dividends:', error);
             throw error;
@@ -521,7 +510,9 @@ class DividendService {
                 // If shares owned is now 0, delete the dividend
                 if (sharesOwned === 0) {
                     await db.dividends.delete(dividend.id!);
-                    console.log(`[DividendService] Deleted dividend ${dividend.id} (no shares owned on ${dividend.recordDate})`);
+                    console.log(
+                        `[DividendService] Deleted dividend ${dividend.id} (no shares owned on ${dividend.recordDate})`
+                    );
                     updated++;
                     continue;
                 }
@@ -537,13 +528,14 @@ class DividendService {
                     valuePLN
                 });
 
-                console.log(`[DividendService] Updated dividend ${dividend.id}: ${sharesOwned} shares, ${totalAmount} ${dividend.currency}`);
+                console.log(
+                    `[DividendService] Updated dividend ${dividend.id}: ${sharesOwned} shares, ${totalAmount} ${dividend.currency}`
+                );
                 updated++;
             }
 
             console.log(`[DividendService] Recalculated ${updated} dividends for ${ticker}`);
             return updated;
-
         } catch (error) {
             console.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
             throw error;
@@ -557,21 +549,23 @@ class DividendService {
     async migrateDividendStatus(): Promise<{ updated: number; skipped: number }> {
         try {
             console.log('[DividendService] Starting dividend status migration...');
-            
+
             const today = new Date().toISOString().split('T')[0]!;
             const allDividends = await db.dividends.toArray();
-            
+
             let updated = 0;
             let skipped = 0;
 
             for (const dividend of allDividends) {
                 // Determine correct status based on payment date
                 const correctStatus = dividend.paymentDate > today ? 'expected' : 'received';
-                
+
                 // Update if status is incorrect
                 if (dividend.status !== correctStatus) {
                     await db.dividends.update(dividend.id!, { status: correctStatus });
-                    console.log(`[DividendService] Updated ${dividend.ticker} (${dividend.paymentDate}): ${dividend.status} → ${correctStatus}`);
+                    console.log(
+                        `[DividendService] Updated ${dividend.ticker} (${dividend.paymentDate}): ${dividend.status} → ${correctStatus}`
+                    );
                     updated++;
                 } else {
                     skipped++;
@@ -580,7 +574,6 @@ class DividendService {
 
             console.log(`[DividendService] Migration complete: ${updated} updated, ${skipped} already correct`);
             return { updated, skipped };
-
         } catch (error) {
             console.error('[DividendService] Failed to migrate dividend status:', error);
             throw error;

@@ -21,7 +21,11 @@ class NBPService {
     /**
      * Get historical exchange rate for a specific date
      */
-    async getHistoricalRate(currency: string, dateStr: string, table: 'A' | 'B' = 'A'): Promise<NBPRateResponse | null> {
+    async getHistoricalRate(
+        currency: string,
+        dateStr: string,
+        table: 'A' | 'B' = 'A'
+    ): Promise<NBPRateResponse | null> {
         // Validate currency
         if (!currency || currency === 'PLN') {
             return { rate: 1.0, date: dateStr };
@@ -73,7 +77,6 @@ class NBPService {
 
             console.log(`[NBPService] Fetched historical rate for ${currency} on ${dateStr}: ${rate}`);
             return rateData;
-
         } catch (error) {
             console.error(`[NBPService] Failed to fetch historical rate for ${currency} on ${dateStr}:`, error);
             return null;
@@ -83,7 +86,12 @@ class NBPService {
     /**
      * Get rate from previous day (for weekends/holidays)
      */
-    private async _getRateFromPreviousDay(currency: string, dateStr: string, table: 'A' | 'B', maxAttempts = 5): Promise<NBPRateResponse | null> {
+    private async _getRateFromPreviousDay(
+        currency: string,
+        dateStr: string,
+        table: 'A' | 'B',
+        maxAttempts = 5
+    ): Promise<NBPRateResponse | null> {
         const date = new Date(dateStr);
 
         for (let i = 1; i <= maxAttempts; i++) {
@@ -116,7 +124,10 @@ class NBPService {
                     }
                 }
             } catch (error) {
-                console.warn(`[NBPService] Failed to fetch from ${prevDateStr}:`, error instanceof Error ? error.message : 'Unknown error');
+                console.warn(
+                    `[NBPService] Failed to fetch from ${prevDateStr}:`,
+                    error instanceof Error ? error.message : 'Unknown error'
+                );
             }
         }
 
@@ -168,7 +179,6 @@ class NBPService {
 
             console.log(`[NBPService] Fetched current rate for ${currency}: ${rate} (effective: ${date})`);
             return rateData;
-
         } catch (error) {
             console.error(`[NBPService] Failed to fetch current rate for ${currency}:`, error);
             return null;
@@ -179,7 +189,11 @@ class NBPService {
      * Get average rate from specific NBP table
      * Alias for getCurrentRate and getHistoricalRate with table parameter
      */
-    async getAverageRate(currency: string, date: string | null = null, table: 'A' | 'B' = 'A'): Promise<NBPRateResponse | null> {
+    async getAverageRate(
+        currency: string,
+        date: string | null = null,
+        table: 'A' | 'B' = 'A'
+    ): Promise<NBPRateResponse | null> {
         if (date) {
             return this.getHistoricalRate(currency, date, table);
         }

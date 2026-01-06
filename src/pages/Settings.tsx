@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Save, Upload, Trash2, Cpu, AlertTriangle } from 'lucide-react';
 import { exportData, importData, clearData } from '../lib/dataManagement';
-// @ts-ignore - will be migrated to TypeScript
+// @ts-expect-error - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
 
 interface SectionProps {
@@ -14,9 +14,7 @@ const Section: React.FC<SectionProps> = ({ title, children }) => (
         <div className="bg-slate-800/50 p-4 border-b border-slate-800">
             <h3 className="font-bold text-slate-200">{title}</h3>
         </div>
-        <div className="p-6 space-y-6">
-            {children}
-        </div>
+        <div className="p-6 space-y-6">{children}</div>
     </div>
 );
 
@@ -38,9 +36,7 @@ const SettingRow: React.FC<SettingRowProps> = ({ icon: Icon, label, description,
                 <p className="text-xs text-slate-500 mt-1 max-w-md">{description}</p>
             </div>
         </div>
-        <div className="shrink-0">
-            {children}
-        </div>
+        <div className="shrink-0">{children}</div>
     </div>
 );
 
@@ -52,40 +48,44 @@ export const Settings = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (window.confirm("UWAGA: Importowanie nadpisze wszystkie obecne dane! Czy na pewno chcesz kontynuować?")) {
+        if (window.confirm('UWAGA: Importowanie nadpisze wszystkie obecne dane! Czy na pewno chcesz kontynuować?')) {
             try {
                 await importData(file);
                 setImportStatus('Sukces! Odśwież stronę.');
                 setTimeout(() => window.location.reload(), 1500);
-            } catch (err) {
+            } catch {
                 setImportStatus('Błąd importu!');
             }
         }
     };
 
     const handleClear = async () => {
-        if (window.confirm("CZY NA PEWNO? Ta operacja usunie trwale wszystkie dane z portfela (transakcje, aktywa, historię).")) {
+        if (
+            window.confirm(
+                'CZY NA PEWNO? Ta operacja usunie trwale wszystkie dane z portfela (transakcje, aktywa, historię).'
+            )
+        ) {
             await clearData();
             window.location.reload();
         }
     };
 
     const availableModels = [
-        "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-        "Qwen2.5-3B-Instruct-q4f16_1-MLC",
-        "Qwen2.5-7B-Instruct-q4f16_1-MLC",
-        "Qwen3-0.6B-q4f16_1-MLC",
-        "Qwen3-1.7B-q4f16_1-MLC",
-        "Qwen3-4B-q4f16_1-MLC",
-        "Qwen3-8B-q4f16_1-MLC",
-        "gemma-3-1b-it-q4f32_1-MLC",
-        "gemma-3-4b-it-q4f16_1-MLC",
-        "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-        "Llama-3.2-3B-Instruct-q4f16_1-MLC",
-        "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-        "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
-        "gemma-2-2b-it-q4f16_1-MLC",
-        "Phi-3.5-mini-instruct-q4f16_1-MLC"
+        'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+        'Qwen2.5-3B-Instruct-q4f16_1-MLC',
+        'Qwen2.5-7B-Instruct-q4f16_1-MLC',
+        'Qwen3-0.6B-q4f16_1-MLC',
+        'Qwen3-1.7B-q4f16_1-MLC',
+        'Qwen3-4B-q4f16_1-MLC',
+        'Qwen3-8B-q4f16_1-MLC',
+        'gemma-3-1b-it-q4f32_1-MLC',
+        'gemma-3-4b-it-q4f16_1-MLC',
+        'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+        'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+        'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+        'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC',
+        'gemma-2-2b-it-q4f16_1-MLC',
+        'Phi-3.5-mini-instruct-q4f16_1-MLC'
     ];
 
     const getModelLabel = (id: string): string => {
@@ -108,7 +108,10 @@ export const Settings = () => {
     };
 
     return (
-        <div data-testid="settings-page" className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20">
+        <div
+            data-testid="settings-page"
+            className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20"
+        >
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
 
             {/* AI Settings */}
@@ -121,11 +124,13 @@ export const Settings = () => {
                     >
                         <select
                             value={currentModel}
-                            onChange={(e) => changeModel(e.target.value)}
+                            onChange={e => changeModel(e.target.value)}
                             className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 max-w-[250px] md:max-w-xs"
                         >
                             {availableModels.map(m => (
-                                <option key={m} value={m}>{getModelLabel(m)}</option>
+                                <option key={m} value={m}>
+                                    {getModelLabel(m)}
+                                </option>
                             ))}
                         </select>
                     </SettingRow>

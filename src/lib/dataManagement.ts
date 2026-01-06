@@ -80,15 +80,17 @@ export const exportData = async (): Promise<boolean> => {
                             timestamp: cached.timestamp
                         });
                     }
-                } catch (e) {
+                } catch {
                     console.warn(`Failed to parse cache key: ${key}`);
                 }
             }
 
             // Extract price/chart cache
-            if (key.startsWith('stock_cache_v2_price_') ||
+            if (
+                key.startsWith('stock_cache_v2_price_') ||
                 key.startsWith('stock_cache_v2_chart_') ||
-                key.startsWith('stock_cache_v2_av_dividends_')) {
+                key.startsWith('stock_cache_v2_av_dividends_')
+            ) {
                 try {
                     const item = localStorage.getItem(key);
                     if (item) {
@@ -99,7 +101,7 @@ export const exportData = async (): Promise<boolean> => {
                             timestamp: cached.timestamp
                         });
                     }
-                } catch (e) {
+                } catch {
                     console.warn(`Failed to parse cache key: ${key}`);
                 }
             }
@@ -135,10 +137,12 @@ export const exportData = async (): Promise<boolean> => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        console.log(`[Export] v2.0 exported: ${dividends.length} dividends, ${exchangeRates.length} rates, ${priceHistory.length} cache items`);
+        console.log(
+            `[Export] v2.0 exported: ${dividends.length} dividends, ${exchangeRates.length} rates, ${priceHistory.length} cache items`
+        );
         return true;
     } catch (error) {
-        console.error("Export failed:", error);
+        console.error('Export failed:', error);
         return false;
     }
 };
@@ -146,7 +150,7 @@ export const exportData = async (): Promise<boolean> => {
 export const importData = async (file: File): Promise<boolean> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = async (e) => {
+        reader.onload = async e => {
             try {
                 const result = e.target?.result;
                 if (typeof result !== 'string') {
@@ -168,7 +172,7 @@ export const importData = async (file: File): Promise<boolean> => {
 
                 resolve(true);
             } catch (error) {
-                console.error("Import failed:", error);
+                console.error('Import failed:', error);
                 reject(error);
             }
         };
@@ -180,7 +184,7 @@ export const importData = async (file: File): Promise<boolean> => {
 // Import v1.0 (legacy)
 const importV1 = async (data: ImportDataV1): Promise<void> => {
     if (!data.assets || !data.transactions) {
-        throw new Error("Invalid v1.0 backup file format");
+        throw new Error('Invalid v1.0 backup file format');
     }
 
     await db.transaction('rw', db.assets, db.transactions, db.watchlist, db.cash, async () => {
@@ -203,26 +207,23 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
     const { data } = imported;
 
     if (!data || !data.assets || !data.transactions) {
-        throw new Error("Invalid v2.0 backup file format");
+        throw new Error('Invalid v2.0 backup file format');
     }
 
     // Clear and import database tables
-    await db.transaction('rw',
-        [db.assets, db.transactions, db.watchlist, db.cash, db.dividends],
-        async () => {
-            await db.assets.clear();
-            await db.transactions.clear();
-            await db.watchlist.clear();
-            await db.cash.clear();
-            await db.dividends.clear();
+    await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
+        await db.assets.clear();
+        await db.transactions.clear();
+        await db.watchlist.clear();
+        await db.cash.clear();
+        await db.dividends.clear();
 
-            await db.assets.bulkAdd(data.assets);
-            await db.transactions.bulkAdd(data.transactions);
-            if (data.watchlist) await db.watchlist.bulkAdd(data.watchlist);
-            if (data.cash) await db.cash.bulkAdd(data.cash);
-            if (data.dividends) await db.dividends.bulkAdd(data.dividends);
-        }
-    );
+        await db.assets.bulkAdd(data.assets);
+        await db.transactions.bulkAdd(data.transactions);
+        if (data.watchlist) await db.watchlist.bulkAdd(data.watchlist);
+        if (data.cash) await db.cash.bulkAdd(data.cash);
+        if (data.dividends) await db.dividends.bulkAdd(data.dividends);
+    });
 
     // Restore cache from backup
     if (data.exchangeRates) {
@@ -266,20 +267,17 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
 
 export const clearData = async (): Promise<boolean> => {
     try {
-        await db.transaction('rw',
-            [db.assets, db.transactions, db.watchlist, db.cash, db.dividends],
-            async () => {
-                await db.assets.clear();
-                await db.transactions.clear();
-                await db.watchlist.clear();
-                await db.cash.clear();
-                await db.dividends.clear();
-            }
-        );
+        await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
+            await db.assets.clear();
+            await db.transactions.clear();
+            await db.watchlist.clear();
+            await db.cash.clear();
+            await db.dividends.clear();
+        });
         console.log('[ClearData] All data cleared including dividends');
         return true;
     } catch (error) {
-        console.error("Clear failed:", error);
+        console.error('Clear failed:', error);
         return false;
     }
 };

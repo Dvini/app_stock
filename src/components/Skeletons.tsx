@@ -14,14 +14,7 @@ interface SkeletonProps {
  * Base Skeleton component - simple animated placeholder
  */
 export const Skeleton: React.FC<SkeletonProps> = ({ className }) => {
-    return (
-        <div
-            className={cn(
-                "animate-pulse bg-slate-800 rounded",
-                className
-            )}
-        />
-    );
+    return <div className={cn('animate-pulse bg-slate-800 rounded', className)} />;
 };
 
 /**
@@ -48,11 +41,21 @@ export const CardSkeleton: React.FC = () => {
 export const TableRowSkeleton: React.FC = () => {
     return (
         <tr className="border-b border-slate-800">
-            <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-            <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-            <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-            <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-            <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+            <td className="px-4 py-3">
+                <Skeleton className="h-4 w-20" />
+            </td>
+            <td className="px-4 py-3">
+                <Skeleton className="h-4 w-16" />
+            </td>
+            <td className="px-4 py-3">
+                <Skeleton className="h-4 w-24" />
+            </td>
+            <td className="px-4 py-3">
+                <Skeleton className="h-4 w-24" />
+            </td>
+            <td className="px-4 py-3">
+                <Skeleton className="h-4 w-20" />
+            </td>
         </tr>
     );
 };

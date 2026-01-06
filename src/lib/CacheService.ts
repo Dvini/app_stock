@@ -87,7 +87,7 @@ class CacheService {
 
             const serialized = JSON.stringify(cacheData);
             const sizeKB = new Blob([serialized]).size / 1024;
-            
+
             // Don't cache entries larger than 500KB (prevents localStorage overflow)
             const MAX_ENTRY_SIZE_KB = 500;
             if (sizeKB > MAX_ENTRY_SIZE_KB) {
@@ -102,7 +102,7 @@ class CacheService {
             if (e instanceof Error && e.name === 'QuotaExceededError') {
                 logger.warn('localStorage quota exceeded, clearing old cache');
                 this.clearOldest(20); // Clear more entries (was 10)
-                
+
                 // Try again after clearing
                 try {
                     const cacheKey = this._getCacheKey(key);
@@ -113,7 +113,7 @@ class CacheService {
                         metadata: options.metadata || {}
                     };
                     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-                } catch (retryError) {
+                } catch {
                     logger.error('Failed to cache even after cleanup, skipping');
                 }
             }
@@ -178,7 +178,7 @@ class CacheService {
                     try {
                         const data = JSON.parse(localStorage.getItem(key) || '{}') as CacheData;
                         entries.push({ key, timestamp: data.timestamp || 0 });
-                    } catch (e) {
+                    } catch {
                         // Invalid entry, mark for removal
                         entries.push({ key, timestamp: 0 });
                     }
@@ -219,7 +219,7 @@ class CacheService {
                         if (age >= ttl) {
                             keysToRemove.push(key);
                         }
-                    } catch (e) {
+                    } catch {
                         // Invalid entry, mark for removal
                         keysToRemove.push(key);
                     }
@@ -227,11 +227,11 @@ class CacheService {
             }
 
             keysToRemove.forEach(key => localStorage.removeItem(key));
-            
+
             if (keysToRemove.length > 0) {
                 logger.info(`Cleaned up ${keysToRemove.length} expired cache entries`);
             }
-            
+
             return keysToRemove.length;
         } catch (e) {
             logger.error('Error cleaning up cache:', e);

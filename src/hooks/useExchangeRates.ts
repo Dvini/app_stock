@@ -81,34 +81,39 @@ export const useExchangeRates = (
         }
     }, [fetchRates, autoRefresh, refreshInterval]);
 
-    // Get rate for specific currency  
-    const getRate = useCallback((currency: CurrencyCode): number | null => {
-        if (currency === targetCurrency) return 1;
-        return rates[currency] || null;
-    }, [rates, targetCurrency]);
+    // Get rate for specific currency
+    const getRate = useCallback(
+        (currency: CurrencyCode): number | null => {
+            if (currency === targetCurrency) return 1;
+            return rates[currency] || null;
+        },
+        [rates, targetCurrency]
+    );
 
     // Convert amount from one currency to target
-    const convert = useCallback((
-        amount: number,
-        fromCurrency: CurrencyCode,
-        toCurrency: CurrencyCode = targetCurrency
-    ): number => {
-        if (fromCurrency === toCurrency) return amount;
+    const convert = useCallback(
+        (amount: number, fromCurrency: CurrencyCode, toCurrency: CurrencyCode = targetCurrency): number => {
+            if (fromCurrency === toCurrency) return amount;
 
-        const rate = rates[fromCurrency];
-        if (!rate) {
-            console.warn(`No exchange rate available for ${fromCurrency} -> ${toCurrency}`);
-            return amount; // Return original if no rate
-        }
+            const rate = rates[fromCurrency];
+            if (!rate) {
+                console.warn(`No exchange rate available for ${fromCurrency} -> ${toCurrency}`);
+                return amount; // Return original if no rate
+            }
 
-        return amount * rate;
-    }, [rates, targetCurrency]);
+            return amount * rate;
+        },
+        [rates, targetCurrency]
+    );
 
     // Check if rate is available
-    const hasRate = useCallback((currency: CurrencyCode): boolean => {
-        if (currency === targetCurrency) return true;
-        return !!rates[currency];
-    }, [rates, targetCurrency]);
+    const hasRate = useCallback(
+        (currency: CurrencyCode): boolean => {
+            if (currency === targetCurrency) return true;
+            return !!rates[currency];
+        },
+        [rates, targetCurrency]
+    );
 
     // Manual refresh
     const refresh = useCallback(() => {

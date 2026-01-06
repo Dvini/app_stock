@@ -159,7 +159,7 @@ export const POPULAR_TICKERS: Ticker[] = [
 
     // --- FRANCE (CAC 40 + Others) ---
     createTicker('MC.PA', 'LVMH Moët Hennessy', 'FR'),
-    createTicker('OR.PA', 'L\'Oréal', 'FR'),
+    createTicker('OR.PA', "L'Oréal", 'FR'),
     createTicker('RMS.PA', 'Hermès International', 'FR'),
     createTicker('TTE.PA', 'TotalEnergies', 'FR'),
     createTicker('SAN.PA', 'Sanofi', 'FR'),
@@ -252,7 +252,7 @@ export const POPULAR_TICKERS: Ticker[] = [
     createTicker('SXR8.DE', 'iShares Core S&P 500', 'UCITS ETF'),
     createTicker('QDVE.DE', 'iShares S&P 500 IT Sector', 'UCITS ETF'),
     createTicker('VUSA.L', 'Vanguard S&P 500 UCITS', 'UCITS ETF'),
-    createTicker('CSPX.L', 'iShares Core S&P 500', 'UCITS ETF'),
+    createTicker('CSPX.L', 'iShares Core S&P 500', 'UCITS ETF')
 ];
 
 export const searchTickers = (query: string): Ticker[] => {
@@ -260,19 +260,19 @@ export const searchTickers = (query: string): Ticker[] => {
     const q = query.toUpperCase();
 
     // Improved search: Priority exact match, then startsWith, then includes
-    return POPULAR_TICKERS.filter(t =>
-        t.symbol.includes(q) || t.name.toUpperCase().includes(q)
-    ).sort((a, b) => {
-        // Sort logic: Exact startsWith symbol gets priority
-        const aStarts = a.symbol.startsWith(q);
-        const bStarts = b.symbol.startsWith(q);
+    return POPULAR_TICKERS.filter(t => t.symbol.includes(q) || t.name.toUpperCase().includes(q))
+        .sort((a, b) => {
+            // Sort logic: Exact startsWith symbol gets priority
+            const aStarts = a.symbol.startsWith(q);
+            const bStarts = b.symbol.startsWith(q);
 
-        // Exact match bubble to top
-        if (a.symbol === q && b.symbol !== q) return -1;
-        if (b.symbol === q && a.symbol !== q) return 1;
+            // Exact match bubble to top
+            if (a.symbol === q && b.symbol !== q) return -1;
+            if (b.symbol === q && a.symbol !== q) return 1;
 
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return 0;
-    }).slice(0, 15); // Increased limit slightly
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return 0;
+        })
+        .slice(0, 15); // Increased limit slightly
 };

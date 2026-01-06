@@ -94,14 +94,12 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, onReset }) => {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-3xl font-bold text-white text-center mb-4">
-                    Ups! Coś poszło nie tak
-                </h1>
+                <h1 className="text-3xl font-bold text-white text-center mb-4">Ups! Coś poszło nie tak</h1>
 
                 {/* Description */}
                 <p className="text-slate-400 text-center mb-8">
-                    Aplikacja napotkała nieoczekiwany błąd. Nie martw się - Twoje dane są bezpieczne.
-                    Spróbuj odświeżyć stronę.
+                    Aplikacja napotkała nieoczekiwany błąd. Nie martw się - Twoje dane są bezpieczne. Spróbuj odświeżyć
+                    stronę.
                 </p>
 
                 {/* Error details (only in dev) */}
@@ -127,7 +125,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, onReset }) => {
                         Odśwież Stronę
                     </button>
                     <button
-                        onClick={() => window.location.href = '/'}
+                        onClick={() => (window.location.href = '/')}
                         className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all"
                     >
                         Wróć do Strony Głównej

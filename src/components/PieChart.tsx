@@ -27,10 +27,7 @@ export const PieChart: React.FC<PieChartProps> = ({ data, colors = [] }) => {
     const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
     // Default colors if not provided
-    const defaultColors = [
-        '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-        '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
-    ];
+    const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
     const chartColors = colors.length ? colors : defaultColors;
 
     useEffect(() => {
@@ -74,7 +71,7 @@ export const PieChart: React.FC<PieChartProps> = ({ data, colors = [] }) => {
 
             ctx.clearRect(0, 0, w, h);
 
-            slices.forEach((slice) => {
+            slices.forEach(slice => {
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY); // Needed for correct fill, but we'll mask center for donut
                 ctx.arc(centerX, centerY, radius, slice.start, slice.end);
@@ -194,7 +191,9 @@ export const PieChart: React.FC<PieChartProps> = ({ data, colors = [] }) => {
                         {new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(tooltip.value)}
                     </div>
                     {tooltip.pl && (
-                        <div className={`text-xs mt-1 font-bold ${tooltip.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <div
+                            className={`text-xs mt-1 font-bold ${tooltip.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}
+                        >
                             {tooltip.pl}
                         </div>
                     )}

@@ -25,18 +25,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }, [theme]);
 
     const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+        setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
     };
 
-    return (
-        <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
-            {children}
-        </ThemeContext.Provider>
-    );
+    return <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = (): ThemeContextValue => {
     const context = useContext(ThemeContext);
-    if (!context) throw new Error("useTheme must be used within ThemeProvider");
+    if (!context) throw new Error('useTheme must be used within ThemeProvider');
     return context;
 };

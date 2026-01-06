@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-// @ts-ignore - will be migrated to TypeScript
+// @ts-expect-error - will be migrated to TypeScript
 import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
 import type { Dividend } from '../types/database';
@@ -53,19 +53,21 @@ export const useDividends = (): UseDividendsReturn => {
         const runMigration = async () => {
             const migrationKey = 'dividends_statusMigration_v1';
             const hasRun = localStorage.getItem(migrationKey);
-            
+
             if (!hasRun) {
                 try {
                     console.log('[useDividends] Running one-time dividend status migration...');
                     const result = await dividendService.migrateDividendStatus();
-                    console.log(`[useDividends] Migration complete: ${result.updated} updated, ${result.skipped} skipped`);
+                    console.log(
+                        `[useDividends] Migration complete: ${result.updated} updated, ${result.skipped} skipped`
+                    );
                     localStorage.setItem(migrationKey, 'true');
                 } catch (error) {
                     console.error('[useDividends] Migration failed:', error);
                 }
             }
         };
-        
+
         runMigration();
     }, []); // Run once on mount
 
@@ -80,8 +82,8 @@ export const useDividends = (): UseDividendsReturn => {
                 const lastSync = localStorage.getItem('dividends_lastSync');
                 const now = Date.now();
                 const dayInMs = DIVIDEND_CONSTANTS.DAILY_SYNC_INTERVAL_MS;
-                
-                const shouldSync = !lastSync || (now - parseInt(lastSync)) > dayInMs;
+
+                const shouldSync = !lastSync || now - parseInt(lastSync) > dayInMs;
 
                 // Initial sync if dividends table is empty
                 if (dividends.length === 0 && assets.length > 0) {
@@ -98,7 +100,9 @@ export const useDividends = (): UseDividendsReturn => {
                     console.log('[useDividends] 24h sync interval passed, triggering auto-sync...');
                     try {
                         const result = await dividendService.syncDividendsFromAPI();
-                        console.log(`[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`);
+                        console.log(
+                            `[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`
+                        );
                         localStorage.setItem('dividends_lastSync', now.toString());
                     } catch (syncError) {
                         console.error('[useDividends] Auto-sync failed:', syncError);
@@ -113,7 +117,10 @@ export const useDividends = (): UseDividendsReturn => {
 
                 // Calculate upcoming dividends
                 const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
-                const upcoming60Days = upcomingDividends.reduce((sum: number, d: any) => sum + (d.estimatedPLN || 0), 0);
+                const upcoming60Days = upcomingDividends.reduce(
+                    (sum: number, d: any) => sum + (d.estimatedPLN || 0),
+                    0
+                );
 
                 setStats({
                     ytdTotal,
@@ -121,7 +128,6 @@ export const useDividends = (): UseDividendsReturn => {
                     yieldOnCost: yoc,
                     monthlyAverage
                 });
-
             } catch (err) {
                 console.error('[useDividends] Error calculating stats:', err);
                 setError(err instanceof Error ? err.message : 'Unknown error');
@@ -135,26 +141,29 @@ export const useDividends = (): UseDividendsReturn => {
 
     // Processed received dividends - optimized query directly from Dexie
     // Filter out dividends where user didn't own shares (sharesOwned = 0 or undefined)
-    const received = useLiveQuery(() => 
-        db.dividends
-            .where('status')
-            .equals('received')
-            .and(d => (d.sharesOwned || 0) > 0) // Filter out dividends with 0 shares
-            .reverse() // Reverse for descending order
-            .sortBy('paymentDate') // Most recent first
-    ) || [];
+    const received =
+        useLiveQuery(
+            () =>
+                db.dividends
+                    .where('status')
+                    .equals('received')
+                    .and(d => (d.sharesOwned || 0) > 0) // Filter out dividends with 0 shares
+                    .reverse() // Reverse for descending order
+                    .sortBy('paymentDate') // Most recent first
+        ) || [];
 
     // Processed calendar (upcoming dividends) - optimized query
-    const calendar = useLiveQuery(() => {
-        const today = new Date().toISOString().split('T')[0] || '';
-        const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
-        
-        return db.dividends
-            .where('status')
-            .equals('expected')
-            .and(d => d.paymentDate >= today && d.paymentDate <= sixtyDaysLater)
-            .sortBy('paymentDate'); // Soonest first
-    }) || [];
+    const calendar =
+        useLiveQuery(() => {
+            const today = new Date().toISOString().split('T')[0] || '';
+            const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
+
+            return db.dividends
+                .where('status')
+                .equals('expected')
+                .and(d => d.paymentDate >= today && d.paymentDate <= sixtyDaysLater)
+                .sortBy('paymentDate'); // Soonest first
+        }) || [];
 
     /**
      * Add a new dividend
@@ -162,10 +171,15 @@ export const useDividends = (): UseDividendsReturn => {
     const addDividend = useCallback(async (dividendData: Partial<Dividend>) => {
         try {
             // Validate required fields
-            if (!dividendData.ticker || !dividendData.recordDate || !dividendData.paymentDate || dividendData.amountPerShare === undefined) {
+            if (
+                !dividendData.ticker ||
+                !dividendData.recordDate ||
+                !dividendData.paymentDate ||
+                dividendData.amountPerShare === undefined
+            ) {
                 throw new Error('Missing required dividend fields');
             }
-            
+
             await dividendService.addDividend({
                 ticker: dividendData.ticker,
                 recordDate: dividendData.recordDate,
@@ -202,7 +216,7 @@ export const useDividends = (): UseDividendsReturn => {
             const now = Date.now();
             localStorage.setItem('dividends_lastSync', now.toString());
             console.log(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
-            
+
             // Recalculate stats immediately after sync (prevents double loading state)
             const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
                 dividendService.calculateYTDTotal(),
@@ -219,7 +233,7 @@ export const useDividends = (): UseDividendsReturn => {
                 yieldOnCost: yoc,
                 monthlyAverage
             });
-            
+
             return result;
         } catch (err) {
             console.error('[useDividends] Manual sync failed:', err);

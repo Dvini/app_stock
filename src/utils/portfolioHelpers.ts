@@ -12,11 +12,7 @@ import { formatNumber } from './formatters';
  * @param currency - Currency code (default: PLN)
  * @returns Formatted string like "+123.45 PLN (5.67%)"
  */
-export const formatProfitLoss = (
-    value: number,
-    percent: number,
-    currency: string = 'PLN'
-): string => {
+export const formatProfitLoss = (value: number, percent: number, currency: string = 'PLN'): string => {
     const sign = value > 0 ? '+' : '';
     return `${sign}${formatNumber(value)} ${currency} (${formatNumber(percent)}%)`;
 };
@@ -39,11 +35,7 @@ export const calculatePercentChange = (current: number, original: number): numbe
  * @param includeSymbol - Whether to include currency symbol (default: true)
  * @returns Formatted string
  */
-export const formatCurrencyValue = (
-    value: number,
-    currency: string = 'PLN',
-    includeSymbol: boolean = true
-): string => {
+export const formatCurrencyValue = (value: number, currency: string = 'PLN', includeSymbol: boolean = true): string => {
     const formatted = formatNumber(value);
     return includeSymbol ? `${formatted} ${currency}` : formatted;
 };
@@ -57,7 +49,7 @@ export const getProfitLossState = (value: number) => {
     const isGain = value > 0;
     const isLoss = value < 0;
     const colorClass = isGain ? 'text-emerald-400' : isLoss ? 'text-rose-400' : 'text-slate-400';
-    
+
     return {
         isGain,
         isLoss,

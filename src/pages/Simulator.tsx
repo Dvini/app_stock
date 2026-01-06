@@ -61,11 +61,13 @@ export const Simulator = () => {
                     setPlnRate(rates[currentCurrency]);
                 }
             } catch (e) {
-                console.warn("Failed to fetch simulator rate", e);
+                console.warn('Failed to fetch simulator rate', e);
             }
         };
         fetchRate();
-        return () => { active = false; };
+        return () => {
+            active = false;
+        };
     }, [currentCurrency]);
 
     const handleCalculate = () => {
@@ -77,15 +79,15 @@ export const Simulator = () => {
         if (isNaN(numAmount) || isNaN(numPrice)) return;
 
         if (numAmount <= 0) {
-            toast.error("Ilość musi być większa od zera");
+            toast.error('Ilość musi być większa od zera');
             return;
         }
         if (!Number.isInteger(numAmount)) {
-            toast.error("Ilość musi być liczbą całkowitą");
+            toast.error('Ilość musi być liczbą całkowitą');
             return;
         }
         if (numPrice < 0) {
-            toast.error("Cena nie może być ujemna");
+            toast.error('Cena nie może być ujemna');
             return;
         }
 
@@ -100,14 +102,14 @@ export const Simulator = () => {
 
         if (mode === 'BUY') {
             newQty = currentQty + numAmount;
-            const totalCost = (currentQty * currentAvg) + (numAmount * numPrice);
+            const totalCost = currentQty * currentAvg + numAmount * numPrice;
             newAvg = totalCost / newQty;
             cashChange = -(numAmount * numPrice);
             diff = newAvg - currentAvg;
         } else {
             newQty = currentQty - numAmount;
             newAvg = currentAvg;
-            cashChange = (numAmount * numPrice);
+            cashChange = numAmount * numPrice;
             diff = 0;
         }
 
@@ -121,7 +123,7 @@ export const Simulator = () => {
             diff,
             cashChange,
             totalValueImpact: 0,
-            projectedValue: (newQty * numPrice),
+            projectedValue: newQty * numPrice,
             currency: currentCurrency
         });
     };
@@ -138,7 +140,9 @@ export const Simulator = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
                     <div className="mb-8">
-                        <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">Rodzaj Operacji</label>
+                        <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                            Rodzaj Operacji
+                        </label>
                         <div className="bg-slate-800 p-1 rounded-xl flex">
                             <button
                                 onClick={() => setMode('BUY')}
@@ -157,40 +161,53 @@ export const Simulator = () => {
 
                     <div className="space-y-6">
                         <div>
-                            <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">Wybierz Ticker</label>
+                            <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                                Wybierz Ticker
+                            </label>
                             <select
                                 value={selectedTicker}
-                                onChange={(e) => setSelectedTicker(e.target.value)}
+                                onChange={e => setSelectedTicker(e.target.value)}
                                 className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
                             >
                                 <option value="">-- Wybierz Spółkę --</option>
                                 <optgroup label="Twoje Aktywa">
-                                    {assets.map(a => <option key={a.ticker} value={a.ticker}>{a.ticker} (Posiadasz: {a.amount})</option>)}
+                                    {assets.map(a => (
+                                        <option key={a.ticker} value={a.ticker}>
+                                            {a.ticker} (Posiadasz: {a.amount})
+                                        </option>
+                                    ))}
                                 </optgroup>
                                 <optgroup label="Wszystkie">
-                                    {tickers.filter(t => !assets.find(a => a.ticker === t.symbol)).map(t => (
-                                        <option key={t.symbol} value={t.symbol}>{t.symbol} - {t.name}</option>
-                                    ))}
+                                    {tickers
+                                        .filter(t => !assets.find(a => a.ticker === t.symbol))
+                                        .map(t => (
+                                            <option key={t.symbol} value={t.symbol}>
+                                                {t.symbol} - {t.name}
+                                            </option>
+                                        ))}
                                 </optgroup>
                             </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">Ilość</label>
+                                <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                                    Ilość
+                                </label>
                                 <input
                                     type="number"
                                     min="1"
                                     step="1"
                                     value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
+                                    onChange={e => setAmount(e.target.value)}
                                     placeholder="0"
                                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
                                 />
                             </div>
                             <div>
                                 <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
-                                    Cena Symulowana {currentCurrency && <span className="text-blue-400">({currentCurrency})</span>}
+                                    Cena Symulowana{' '}
+                                    {currentCurrency && <span className="text-blue-400">({currentCurrency})</span>}
                                 </label>
                                 <div className="relative">
                                     <input
@@ -198,7 +215,7 @@ export const Simulator = () => {
                                         min="0"
                                         step="0.01"
                                         value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
+                                        onChange={e => setPrice(e.target.value)}
                                         placeholder="0.00"
                                         className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
                                     />
@@ -241,23 +258,35 @@ export const Simulator = () => {
                                         <div>
                                             {Math.abs(result.diff) > 0.001 && (
                                                 <>
-                                                    <span className="text-2xl font-mono text-slate-500 line-through mr-2">{formatNumber(result.oldAvg)}</span>
+                                                    <span className="text-2xl font-mono text-slate-500 line-through mr-2">
+                                                        {formatNumber(result.oldAvg)}
+                                                    </span>
                                                     <ArrowRight className="inline w-4 h-4 text-slate-600 mx-2" />
                                                 </>
                                             )}
-                                            <span className={`text-3xl font-mono font-bold ${Math.abs(result.diff) < 0.001 ? 'text-white' : (result.diff < 0 ? 'text-emerald-400' : 'text-rose-400')}`}>
+                                            <span
+                                                className={`text-3xl font-mono font-bold ${Math.abs(result.diff) < 0.001 ? 'text-white' : result.diff < 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                                            >
                                                 {formatNumber(result.newAvg)}
                                             </span>
                                         </div>
                                         {mode === 'BUY' && Math.abs(result.diff) > 0.001 && (
-                                            <div className={`text-sm ${result.diff < 0 ? 'text-emerald-500' : 'text-rose-500'} flex items-center font-bold`}>
-                                                {result.diff < 0 ? <TrendingDown className="w-4 h-4 mr-1" /> : <TrendingUp className="w-4 h-4 mr-1" />}
+                                            <div
+                                                className={`text-sm ${result.diff < 0 ? 'text-emerald-500' : 'text-rose-500'} flex items-center font-bold`}
+                                            >
+                                                {result.diff < 0 ? (
+                                                    <TrendingDown className="w-4 h-4 mr-1" />
+                                                ) : (
+                                                    <TrendingUp className="w-4 h-4 mr-1" />
+                                                )}
                                                 {formatNumber(Math.abs(result.diff))} zmiana
                                             </div>
                                         )}
                                     </div>
                                     {mode === 'BUY' && result.oldQty > 0 && Math.abs(result.diff) > 0.001 && (
-                                        <div className="text-xs text-slate-500 mt-2">Uśrednianie {result.diff < 0 ? 'w dół' : 'w górę'}</div>
+                                        <div className="text-xs text-slate-500 mt-2">
+                                            Uśrednianie {result.diff < 0 ? 'w dół' : 'w górę'}
+                                        </div>
                                     )}
                                 </div>
 
@@ -266,16 +295,24 @@ export const Simulator = () => {
                                         <div className="text-slate-400 text-xs uppercase mb-1">Nowa Ilość</div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-xl font-mono text-white">{result.newQty}</span>
-                                            <span className={`text-xs px-1.5 py-0.5 rounded ${mode === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                                {mode === 'BUY' ? '+' : '-'}{Math.abs(result.newQty - result.oldQty)}
+                                            <span
+                                                className={`text-xs px-1.5 py-0.5 rounded ${mode === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                                            >
+                                                {mode === 'BUY' ? '+' : '-'}
+                                                {Math.abs(result.newQty - result.oldQty)}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
                                         <div className="text-slate-400 text-xs uppercase mb-1">Wpływ na Gotówkę</div>
-                                        <div className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                            {result.cashChange > 0 ? '+' : ''}{formatNumber(result.cashChange)}
-                                            <span className="text-sm font-normal text-slate-500 ml-1">{result.currency}</span>
+                                        <div
+                                            className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                                        >
+                                            {result.cashChange > 0 ? '+' : ''}
+                                            {formatNumber(result.cashChange)}
+                                            <span className="text-sm font-normal text-slate-500 ml-1">
+                                                {result.currency}
+                                            </span>
                                         </div>
                                         {result.currency !== 'PLN' && plnRate && Math.abs(result.cashChange) > 0 && (
                                             <div className="text-xs text-slate-500 mt-1">
@@ -286,10 +323,14 @@ export const Simulator = () => {
                                 </div>
 
                                 <div className="mt-auto bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
-                                    <div className="text-blue-300 text-xs uppercase mb-1">Nowa Wartość Pozycji (Estymacja)</div>
+                                    <div className="text-blue-300 text-xs uppercase mb-1">
+                                        Nowa Wartość Pozycji (Estymacja)
+                                    </div>
                                     <div className="text-2xl font-bold text-white font-mono">
                                         {formatNumber(result.projectedValue)}
-                                        <span className="text-sm font-normal text-blue-400 ml-1">{result.currency}</span>
+                                        <span className="text-sm font-normal text-blue-400 ml-1">
+                                            {result.currency}
+                                        </span>
                                     </div>
                                 </div>
                             </div>

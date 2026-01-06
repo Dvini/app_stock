@@ -27,32 +27,41 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                 });
             } else {
                 // Optional: Alert user it's already there
-                console.log("Ticker already in watchlist or portfolio");
+                console.log('Ticker already in watchlist or portfolio');
             }
 
             if (onAdded) onAdded();
             onClose();
         } catch (error) {
-            console.error("Failed to add to watchlist", error);
+            console.error('Failed to add to watchlist', error);
         }
     };
 
     return (
-        <div data-testid="add-watchlist-modal" className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div
+            data-testid="add-watchlist-modal"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4"
+        >
             <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <Star className="text-yellow-400 fill-yellow-400" size={24} />
                         Dodaj do Obserwowanych
                     </h2>
-                    <button data-testid="close-modal-button" onClick={onClose} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                    <button
+                        data-testid="close-modal-button"
+                        onClick={onClose}
+                        className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                    >
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="space-y-4">
                     <div className="relative">
-                        <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Znajdź instrument</label>
+                        <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">
+                            Znajdź instrument
+                        </label>
                         <input
                             data-testid="watchlist-ticker-input"
                             type="text"
@@ -68,7 +77,7 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
 
                         {showSuggestions && ticker.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0">
-                                {searchTickers(ticker).map((t) => (
+                                {searchTickers(ticker).map(t => (
                                     <div
                                         key={t.symbol}
                                         onClick={() => handleAdd(t.symbol)}
@@ -78,18 +87,20 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                                             <div>
                                                 <div className="flex items-center space-x-2">
                                                     <span className="font-bold text-white">{t.symbol}</span>
-                                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">{t.region}</span>
+                                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                                                        {t.region}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">{t.name}</span>
+                                                <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
+                                                    {t.name}
+                                                </span>
                                             </div>
                                             <PlusButton />
                                         </div>
                                     </div>
                                 ))}
                                 {searchTickers(ticker).length === 0 && (
-                                    <div className="px-4 py-3 text-xs text-slate-500 italic">
-                                        Brak wyników.
-                                    </div>
+                                    <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>
                                 )}
                             </div>
                         )}

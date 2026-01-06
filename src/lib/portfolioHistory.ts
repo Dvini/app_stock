@@ -41,10 +41,13 @@ export const calculatePortfolioHistory = async (
     // Safety: don't go before 1970 or invalid dates
     if (isNaN(startDate.getTime())) startDate = new Date(new Date().setMonth(now.getMonth() - 1));
 
-    const uniqueTickers = [...new Set(transactions.map(t => t.ticker).filter((t): t is string => t !== undefined && t !== 'CASH'))];
+    const uniqueTickers = [
+        ...new Set(transactions.map(t => t.ticker).filter((t): t is string => t !== undefined && t !== 'CASH'))
+    ];
 
     let apiRange = range;
-    if (range === 'max') apiRange = '10y'; // 'max' often fails via proxy, 10y is usually sufficient
+    if (range === 'max')
+        apiRange = '10y'; // 'max' often fails via proxy, 10y is usually sufficient
     else if (range === '5y') apiRange = '5y';
     else if (['1y', 'ytd', '1mo', '5d', '1d'].includes(range)) apiRange = '1y';
     else apiRange = '1y';
@@ -113,7 +116,6 @@ export const calculatePortfolioHistory = async (
                     entry.qty += tx.amount;
                     entry.avgPrice = (oldVal + newVal) / entry.qty;
                 }
-
             } else if (tx.type === 'Sprzedaż') {
                 const ticker = tx.ticker;
                 if (ticker) {

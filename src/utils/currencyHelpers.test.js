@@ -4,11 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-    FALLBACK_RATES,
-    getExchangeRateWithFallback,
-    isValidRate
-} from './currencyHelpers';
+import { FALLBACK_RATES, getExchangeRateWithFallback, isValidRate } from './currencyHelpers';
 
 describe('currencyHelpers', () => {
     describe('FALLBACK_RATES', () => {

@@ -9,7 +9,7 @@ export const API_CONFIG = {
     HISTORY_CACHE_DURATION_MS: 15 * 60 * 1000, // 15 minutes
     INTRADAY_CACHE_DURATION_MS: 5 * 60 * 1000, // 5 minutes for 1d data
     MAX_RETRIES: 2,
-    RETRY_DELAY_MS: 1000,
+    RETRY_DELAY_MS: 1000
 };
 
 // Time-related constants (for general use)
@@ -32,10 +32,7 @@ export const DIVIDEND_CONSTANTS = {
 // Yahoo Finance API
 export const YAHOO_API = {
     BASE_URL: 'https://query1.finance.yahoo.com/v8/finance/chart/',
-    PROXY_URLS: [
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
-    ]
+    PROXY_URLS: ['https://corsproxy.io/?', 'https://api.allorigins.win/raw?url=']
 };
 
 // Supported currencies
@@ -96,7 +93,7 @@ export const CHART_RANGES = {
     '6M': { label: '6 Miesięcy', value: '6mo', interval: '1d' },
     '1Y': { label: '1 Rok', value: '1y', interval: '1d' },
     '5Y': { label: '5 Lat', value: '5y', interval: '1wk' },
-    'MAX': { label: 'Max', value: 'max', interval: '1mo' }
+    MAX: { label: 'Max', value: 'max', interval: '1mo' }
 };
 
 // Transaction types
@@ -119,7 +116,7 @@ export const ASSET_TYPES = {
 export const RISK_THRESHOLDS = {
     MAX_POSITION_SIZE_PERCENT: 20, // Max 20% in single position
     MAX_SECTOR_CONCENTRATION_PERCENT: 40, // Max 40% in single sector
-    MIN_DIVERSIFICATION_ASSETS: 5, // Minimum 5 assets for diversification
+    MIN_DIVERSIFICATION_ASSETS: 5 // Minimum 5 assets for diversification
 };
 
 // Chart colors
@@ -129,7 +126,7 @@ export const CHART_COLORS = {
     NEUTRAL: '#6b7280', // gray-500
     PRIMARY: '#3b82f6', // blue-500
     GRID: '#e5e7eb', // gray-200
-    AXIS: '#9ca3af', // gray-400
+    AXIS: '#9ca3af' // gray-400
 };
 
 // UI Configuration

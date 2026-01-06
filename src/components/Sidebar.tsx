@@ -25,10 +25,10 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label }) => (
         to={to}
         className={({ isActive }) =>
             cn(
-                "w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200",
+                'w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200',
                 isActive
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             )
         }
     >

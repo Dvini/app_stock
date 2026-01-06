@@ -37,7 +37,6 @@ interface DividendRecord {
     currency: string;
 }
 
-
 /**
  * API Service for fetching stock data from Yahoo Finance
  * Implements caching, retry logic, and error handling
@@ -53,10 +52,7 @@ class ApiService {
      * Create a new ApiService instance
      */
     constructor(options: ApiServiceOptions = {}) {
-        this.proxyUrls = options.proxyUrls || [
-            'https://corsproxy.io/?',
-            'https://api.allorigins.win/raw?url='
-        ];
+        this.proxyUrls = options.proxyUrls || ['https://corsproxy.io/?', 'https://api.allorigins.win/raw?url='];
         this.baseUrl = options.baseUrl || 'https://query1.finance.yahoo.com/v8/finance/chart/';
         this.cacheDuration = options.cacheDuration || 15 * 60 * 1000; // 15 minutes
         this.maxRetries = options.maxRetries || 2;
@@ -158,7 +154,6 @@ class ApiService {
 
             console.warn(`[ApiService] No price data found for ${ticker}`);
             return null;
-
         } catch (error) {
             console.error(`[ApiService] Failed to fetch price for ${ticker}:`, error);
             return null;
@@ -227,7 +222,6 @@ class ApiService {
 
             console.log(`[ApiService] Fetched ${results.filter(r => r).length} exchange rates`);
             return rates;
-
         } catch (error) {
             console.error('[ApiService] Failed to fetch exchange rates:', error);
             return rates; // Return whatever we have cached
@@ -293,7 +287,6 @@ class ApiService {
 
             console.log(`[ApiService] Fetched ${cleanData.length} history points for ${ticker}`);
             return historyData;
-
         } catch (error) {
             console.error(`[ApiService] Failed to fetch history for ${ticker}:`, error);
             return null;
@@ -316,7 +309,7 @@ class ApiService {
         // 2. Calculate timestamp range
         const dateObj = new Date(dateStr);
         const startTimestamp = Math.floor(dateObj.getTime() / 1000);
-        const endTimestamp = startTimestamp + (4 * 24 * 60 * 60); // +4 days buffer for weekends
+        const endTimestamp = startTimestamp + 4 * 24 * 60 * 60; // +4 days buffer for weekends
 
         const pair = `${currency}PLN=X`;
 
@@ -345,8 +338,8 @@ class ApiService {
             }
 
             if (validPrice) {
-                const rateData: RateData = { 
-                    rate: validPrice, 
+                const rateData: RateData = {
+                    rate: validPrice,
                     date: dateStr,
                     from: currency as CurrencyCode,
                     to: 'PLN'
@@ -361,7 +354,6 @@ class ApiService {
 
             console.warn(`[ApiService] No valid price found for ${pair} on ${dateStr}`);
             return null;
-
         } catch (error) {
             console.error(`[ApiService] Failed to fetch historical rate for ${pair} on ${dateStr}:`, error);
             return null;
@@ -386,7 +378,7 @@ class ApiService {
             // Yahoo Finance dividend endpoint requires period parameters
             // Fetch last 5 years of dividend data
             const endDate = Math.floor(Date.now() / 1000);
-            const startDate = endDate - (5 * 365 * 24 * 60 * 60); // 5 years ago
+            const startDate = endDate - 5 * 365 * 24 * 60 * 60; // 5 years ago
 
             const targetUrl = `${this.baseUrl}${ticker}?period1=${startDate}&period2=${endDate}&interval=1d&events=div`;
             console.log(`[ApiService] Fetching dividends for ${ticker}...`);
@@ -410,7 +402,7 @@ class ApiService {
             for (const [timestamp, divData] of Object.entries(dividendsObj)) {
                 const date = new Date(parseInt(timestamp) * 1000);
                 const isoDate = date.toISOString().split('T')[0];
-                
+
                 if (isoDate && typeof divData === 'object' && divData !== null && 'amount' in divData) {
                     dividends.push({
                         exDate: isoDate,
@@ -428,7 +420,6 @@ class ApiService {
 
             console.log(`[ApiService] Fetched ${dividends.length} dividends for ${ticker}`);
             return dividends;
-
         } catch (error) {
             console.error(`[ApiService] Failed to fetch dividends for ${ticker}:`, error);
             return [];

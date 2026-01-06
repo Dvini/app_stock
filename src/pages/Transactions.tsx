@@ -7,12 +7,18 @@ export const Transactions = () => {
     const transactions = useLiveQuery(() => db.transactions.reverse().toArray()) || [];
 
     return (
-        <div data-testid="transactions-page" className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+        <div
+            data-testid="transactions-page"
+            className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col"
+        >
             <header className="flex justify-between items-center shrink-0">
                 <h1 className="text-3xl font-extrabold tracking-tight">Historia Transakcji</h1>
             </header>
 
-            <div data-testid="transactions-table" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
+            <div
+                data-testid="transactions-table"
+                className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1"
+            >
                 <table className="w-full text-left">
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
@@ -35,13 +41,23 @@ export const Transactions = () => {
                             </tr>
                         ) : (
                             transactions.map(tx => (
-                                <tr key={tx.id} data-testid={`transaction-row-${tx.id}`} className="hover:bg-slate-800/50 transition-colors">
+                                <tr
+                                    key={tx.id}
+                                    data-testid={`transaction-row-${tx.id}`}
+                                    className="hover:bg-slate-800/50 transition-colors"
+                                >
                                     <td className="px-6 py-4 text-slate-400">{tx.date}</td>
                                     <td className="px-6 py-4 font-medium">
-                                        <span className={cn("px-2 py-1 rounded-md text-xs uppercase",
-                                            tx.type === 'Kupno' ? 'bg-emerald-500/10 text-emerald-400' :
-                                                tx.type === 'Sprzedaż' ? 'bg-rose-500/10 text-rose-400' : 'bg-blue-500/10 text-blue-400'
-                                        )}>
+                                        <span
+                                            className={cn(
+                                                'px-2 py-1 rounded-md text-xs uppercase',
+                                                tx.type === 'Kupno'
+                                                    ? 'bg-emerald-500/10 text-emerald-400'
+                                                    : tx.type === 'Sprzedaż'
+                                                      ? 'bg-rose-500/10 text-rose-400'
+                                                      : 'bg-blue-500/10 text-blue-400'
+                                            )}
+                                        >
                                             {tx.type}
                                         </span>
                                     </td>
@@ -50,10 +66,14 @@ export const Transactions = () => {
                                         {['Kupno', 'Sprzedaż'].includes(tx.type) ? formatQuantity(tx.amount) : '-'}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {formatNumber(tx.price)} <span className="text-xs text-slate-500">{tx.currency || 'PLN'}</span>
+                                        {formatNumber(tx.price)}{' '}
+                                        <span className="text-xs text-slate-500">{tx.currency || 'PLN'}</span>
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">
-                                        {formatNumber(tx.total)} <span className="text-xs font-normal text-slate-500">{tx.currency || 'PLN'}</span>
+                                        {formatNumber(tx.total)}{' '}
+                                        <span className="text-xs font-normal text-slate-500">
+                                            {tx.currency || 'PLN'}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 text-right text-slate-400 font-mono text-xs">
                                         {tx.currency && tx.currency !== 'PLN' && tx.exchangeRate

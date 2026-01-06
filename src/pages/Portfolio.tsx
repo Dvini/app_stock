@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
-// @ts-ignore - will be migrated
+// @ts-expect-error - will be migrated
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { PieChart } from '../components/PieChart';
-// @ts-ignore - will be migrated
+// @ts-expect-error - will be migrated
 import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { db } from '../db/db';
@@ -32,11 +32,13 @@ export const Portfolio = () => {
     const [historyRange, setHistoryRange] = useState<HistoryRange>('max');
     const [selectedTicker, setSelectedTicker] = useState('PORTFOLIO');
 
-    const pieData = assets.map(a => ({
-        label: a.ticker,
-        value: a.valueBase,
-        pl: a.pl
-    })).sort((a, b) => b.value - a.value);
+    const pieData = assets
+        .map(a => ({
+            label: a.ticker,
+            value: a.valueBase,
+            pl: a.pl
+        }))
+        .sort((a, b) => b.value - a.value);
 
     useEffect(() => {
         if (viewMode !== 'history') return;
@@ -60,7 +62,7 @@ export const Portfolio = () => {
 
                 setHistoryData(plData);
             } catch (e) {
-                console.error("History calc failed", e);
+                console.error('History calc failed', e);
             }
             setHistoryLoading(false);
         };
@@ -71,7 +73,10 @@ export const Portfolio = () => {
     }, [transactions.length, viewMode, historyRange, selectedTicker]);
 
     return (
-        <div data-testid="portfolio-page" className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+        <div
+            data-testid="portfolio-page"
+            className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col"
+        >
             <header className="flex justify-between items-center shrink-0">
                 <h1 className="text-3xl font-extrabold tracking-tight">Twój Portfel</h1>
                 <button
@@ -85,7 +90,10 @@ export const Portfolio = () => {
             </header>
 
             <div data-testid="portfolio-summary-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <div data-testid="total-value-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
+                <div
+                    data-testid="total-value-card"
+                    className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help"
+                >
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Całkowita</p>
                     <div className="flex items-baseline gap-2 mt-1">
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
@@ -96,13 +104,25 @@ export const Portfolio = () => {
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">W oryginalnych walutach:</p>
                             <div className="space-y-2">
                                 {portfolioSummary.breakdown.map(b => (
-                                    <div key={b.currency} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
+                                    <div
+                                        key={b.currency}
+                                        className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0"
+                                    >
                                         <div className="flex flex-col">
-                                            <span className="text-slate-300 font-medium">{formatNumber(b.value)} <span className="text-xs text-slate-500">{b.currency}</span></span>
+                                            <span className="text-slate-300 font-medium">
+                                                {formatNumber(b.value)}{' '}
+                                                <span className="text-xs text-slate-500">{b.currency}</span>
+                                            </span>
                                         </div>
                                         {b.pl !== 0 && (
-                                            <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
-                                                {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
+                                            <span
+                                                className={cn(
+                                                    'text-xs font-bold',
+                                                    b.pl > 0 ? 'text-emerald-400' : 'text-rose-400'
+                                                )}
+                                            >
+                                                {b.pl > 0 ? '+' : ''}
+                                                {formatNumber(b.pl)}
                                             </span>
                                         )}
                                     </div>
@@ -111,53 +131,86 @@ export const Portfolio = () => {
                         </div>
                     )}
                 </div>
-                <div data-testid="pl-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
+                <div
+                    data-testid="pl-card"
+                    className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help"
+                >
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wynik (P/L)</p>
-                    <div className={cn("text-2xl font-bold mt-1 flex items-center gap-2", portfolioSummary.totalPL.includes('-') ? "text-rose-400" : "text-emerald-400")}>
+                    <div
+                        className={cn(
+                            'text-2xl font-bold mt-1 flex items-center gap-2',
+                            portfolioSummary.totalPL.includes('-') ? 'text-rose-400' : 'text-emerald-400'
+                        )}
+                    >
                         {portfolioSummary.totalPL}
-                        <span className="text-sm font-normal text-slate-500">
-                            ({portfolioSummary.totalPLPercent})
-                        </span>
+                        <span className="text-sm font-normal text-slate-500">({portfolioSummary.totalPLPercent})</span>
                     </div>
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.some(b => b.pl !== 0) && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="text-xs text-slate-400 font-bold mb-2 uppercase">Wynik wg walut:</p>
                             <div className="space-y-2">
-                                {portfolioSummary.breakdown.filter(b => b.pl !== 0).map(b => (
-                                    <div key={b.currency} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
-                                        <div className="flex flex-col">
-                                            <span className="text-slate-300 font-medium">{b.currency}</span>
+                                {portfolioSummary.breakdown
+                                    .filter(b => b.pl !== 0)
+                                    .map(b => (
+                                        <div
+                                            key={b.currency}
+                                            className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-1 last:border-0 last:pb-0"
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="text-slate-300 font-medium">{b.currency}</span>
+                                            </div>
+                                            <span
+                                                className={cn(
+                                                    'text-xs font-bold',
+                                                    b.pl > 0 ? 'text-emerald-400' : 'text-rose-400'
+                                                )}
+                                            >
+                                                {b.pl > 0 ? '+' : ''}
+                                                {formatNumber(b.pl)}
+                                            </span>
                                         </div>
-                                        <span className={cn("text-xs font-bold", b.pl > 0 ? "text-emerald-400" : "text-rose-400")}>
-                                            {b.pl > 0 ? '+' : ''}{formatNumber(b.pl)}
-                                        </span>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
                         </div>
                     )}
                 </div>
                 <div data-testid="cash-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Gotówka</p>
-                    <h2 className="text-2xl font-bold mt-1">{portfolioSummary.cash} <span className="text-sm font-normal text-slate-500">{portfolioSummary.baseCurrency}</span></h2>
+                    <h2 className="text-2xl font-bold mt-1">
+                        {portfolioSummary.cash}{' '}
+                        <span className="text-sm font-normal text-slate-500">{portfolioSummary.baseCurrency}</span>
+                    </h2>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[450px] shrink-0">
-                <div data-testid="portfolio-chart-section" className="lg:col-span-3 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative overflow-hidden">
+                <div
+                    data-testid="portfolio-chart-section"
+                    className="lg:col-span-3 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative overflow-hidden"
+                >
                     <div className="flex justify-between items-center mb-4 z-10">
                         <div data-testid="view-mode-selector" className="flex bg-slate-800 p-1 rounded-lg">
                             <button
                                 data-testid="view-history-button"
                                 onClick={() => setViewMode('history')}
-                                className={cn("px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all", viewMode === 'history' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200")}
+                                className={cn(
+                                    'px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all',
+                                    viewMode === 'history'
+                                        ? 'bg-slate-700 text-white shadow'
+                                        : 'text-slate-400 hover:text-slate-200'
+                                )}
                             >
                                 <LineIcon size={16} /> Historia
                             </button>
                             <button
                                 data-testid="view-pie-button"
                                 onClick={() => setViewMode('pie')}
-                                className={cn("px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all", viewMode === 'pie' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200")}
+                                className={cn(
+                                    'px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all',
+                                    viewMode === 'pie'
+                                        ? 'bg-slate-700 text-white shadow'
+                                        : 'text-slate-400 hover:text-slate-200'
+                                )}
                             >
                                 <PieIcon size={16} /> Alokacja %
                             </button>
@@ -172,7 +225,11 @@ export const Portfolio = () => {
                                     className="bg-slate-800 text-slate-200 text-sm font-bold rounded-lg px-3 py-2 outline-none border border-slate-700"
                                 >
                                     <option value="PORTFOLIO">Cały Portfel</option>
-                                    {assets.map(a => <option key={a.ticker} value={a.ticker}>{a.ticker}</option>)}
+                                    {assets.map(a => (
+                                        <option key={a.ticker} value={a.ticker}>
+                                            {a.ticker}
+                                        </option>
+                                    ))}
                                 </select>
                                 <div data-testid="history-range-selector" className="flex bg-slate-800 rounded-lg p-1">
                                     {[
@@ -187,7 +244,10 @@ export const Portfolio = () => {
                                             key={r.v}
                                             data-testid={`history-range-${r.v}`}
                                             onClick={() => setHistoryRange(r.v)}
-                                            className={cn("px-3 py-1 rounded text-xs font-bold", historyRange === r.v ? "bg-slate-600 text-white" : "text-slate-400")}
+                                            className={cn(
+                                                'px-3 py-1 rounded text-xs font-bold',
+                                                historyRange === r.v ? 'bg-slate-600 text-white' : 'text-slate-400'
+                                            )}
                                         >
                                             {r.l}
                                         </button>
@@ -206,9 +266,21 @@ export const Portfolio = () => {
                                 <div className="ml-8 hidden md:block space-y-2 max-h-full overflow-y-auto custom-scrollbar pr-2">
                                     {pieData.map((d, i) => (
                                         <div key={d.label} className="flex items-center gap-2 text-sm">
-                                            <div className="w-3 h-3 rounded-full" style={{ background: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }} />
+                                            <div
+                                                className="w-3 h-3 rounded-full"
+                                                style={{
+                                                    background: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][
+                                                        i % 5
+                                                    ]
+                                                }}
+                                            />
                                             <span className="font-bold text-slate-300 w-16">{d.label}</span>
-                                            <span className="text-slate-500">{(d.value / pieData.reduce((a, b) => a + b.value, 0) * 100).toFixed(1)}%</span>
+                                            <span className="text-slate-500">
+                                                {((d.value / pieData.reduce((a, b) => a + b.value, 0)) * 100).toFixed(
+                                                    1
+                                                )}
+                                                %
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
@@ -222,11 +294,15 @@ export const Portfolio = () => {
                                 ) : (
                                     <WebGPUChart
                                         data={historyData}
-                                        currency={selectedTicker === 'PORTFOLIO' ? (portfolioSummary.baseCurrency || 'PLN') : (assets.find(a => a.ticker === selectedTicker)?.currency || 'PLN')}
+                                        currency={
+                                            selectedTicker === 'PORTFOLIO'
+                                                ? portfolioSummary.baseCurrency || 'PLN'
+                                                : assets.find(a => a.ticker === selectedTicker)?.currency || 'PLN'
+                                        }
                                         color={
                                             (historyData[historyData.length - 1]?.price ?? 0) < 0
-                                                ? [0.9, 0.3, 0.3, 1.0]  // Red for loss
-                                                : [0.2, 0.8, 0.4, 1.0]  // Green for profit
+                                                ? [0.9, 0.3, 0.3, 1.0] // Red for loss
+                                                : [0.2, 0.8, 0.4, 1.0] // Green for profit
                                         }
                                     />
                                 )}
@@ -236,7 +312,10 @@ export const Portfolio = () => {
                 </div>
             </div>
 
-            <div data-testid="portfolio-assets-table" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
+            <div
+                data-testid="portfolio-assets-table"
+                className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1"
+            >
                 <table className="w-full text-left">
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
@@ -257,27 +336,47 @@ export const Portfolio = () => {
                             </tr>
                         ) : (
                             assets.map(asset => (
-                                <tr key={asset.ticker} data-testid={`asset-row-${asset.ticker}`} className="hover:bg-slate-800/50 transition-colors">
+                                <tr
+                                    key={asset.ticker}
+                                    data-testid={`asset-row-${asset.ticker}`}
+                                    className="hover:bg-slate-800/50 transition-colors"
+                                >
                                     <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
                                     <td className="px-6 py-4 text-right">{formatQuantity(asset.amount)}</td>
                                     <td className="px-6 py-4 text-right font-medium text-slate-300">
-                                        {asset.price !== null ? formatNumber(asset.price) : '---'} <span className="text-xs text-slate-500">{asset.currency}</span>
-                                        {asset.isRealData && <span className="text-[10px] text-emerald-500 ml-1">●</span>}
+                                        {asset.price !== null ? formatNumber(asset.price) : '---'}{' '}
+                                        <span className="text-xs text-slate-500">{asset.currency}</span>
+                                        {asset.isRealData && (
+                                            <span className="text-[10px] text-emerald-500 ml-1">●</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right text-slate-500">
                                         {formatNumber(asset.avgPrice)} <span className="text-xs">{asset.currency}</span>
                                     </td>
-                                    <td className={cn("px-6 py-4 text-right font-medium", asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400')}>
+                                    <td
+                                        className={cn(
+                                            'px-6 py-4 text-right font-medium',
+                                            asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'
+                                        )}
+                                    >
                                         {asset.pl}
                                         <div className="text-[10px] text-slate-500 font-normal">
                                             {formatNumber(asset.plValue * asset.rate)} {portfolioSummary.baseCurrency}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">
-                                        <div>{asset.value} <span className="text-xs font-normal text-slate-500">{asset.currency}</span></div>
+                                        <div>
+                                            {asset.value}{' '}
+                                            <span className="text-xs font-normal text-slate-500">{asset.currency}</span>
+                                        </div>
                                         {asset.currency !== portfolioSummary.baseCurrency && (
                                             <div className="text-[10px] text-slate-400">
-                                                ~{asset.valueBase.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {portfolioSummary.baseCurrency}
+                                                ~
+                                                {asset.valueBase.toLocaleString('pl-PL', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2
+                                                })}{' '}
+                                                {portfolioSummary.baseCurrency}
                                             </div>
                                         )}
                                     </td>
@@ -288,9 +387,7 @@ export const Portfolio = () => {
                 </table>
             </div>
 
-            {showAddModal && (
-                <AddTransactionModal onClose={() => setShowAddModal(false)} />
-            )}
+            {showAddModal && <AddTransactionModal onClose={() => setShowAddModal(false)} />}
         </div>
     );
 };

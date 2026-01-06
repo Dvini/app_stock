@@ -74,7 +74,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             for (let i = 0; i <= ySteps; i++) {
                 const yRatio = i / ySteps;
                 const y = padding.top + chartH * yRatio;
-                const val = maxVal - (rangeVal * yRatio);
+                const val = maxVal - rangeVal * yRatio;
 
                 ctx.beginPath();
                 ctx.moveTo(padding.left, y);
@@ -112,7 +112,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             const gradientRight = w - padding.right;
             const gradientWidth = gradientRight - gradientLeft;
 
-            const getColor = (val: number) => val >= 0 ? '#10b981' : '#f43f5e';
+            const getColor = (val: number) => (val >= 0 ? '#10b981' : '#f43f5e');
 
             const strokeGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
             const fillGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
@@ -121,11 +121,15 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             const isAllNegative = maxVal < 0;
 
             if (isAllPositive) {
-                strokeGradient.addColorStop(0, '#10b981'); strokeGradient.addColorStop(1, '#10b981');
-                fillGradient.addColorStop(0, '#10b981'); fillGradient.addColorStop(1, '#10b981');
+                strokeGradient.addColorStop(0, '#10b981');
+                strokeGradient.addColorStop(1, '#10b981');
+                fillGradient.addColorStop(0, '#10b981');
+                fillGradient.addColorStop(1, '#10b981');
             } else if (isAllNegative) {
-                strokeGradient.addColorStop(0, '#f43f5e'); strokeGradient.addColorStop(1, '#f43f5e');
-                fillGradient.addColorStop(0, '#f43f5e'); fillGradient.addColorStop(1, '#f43f5e');
+                strokeGradient.addColorStop(0, '#f43f5e');
+                strokeGradient.addColorStop(1, '#f43f5e');
+                fillGradient.addColorStop(0, '#f43f5e');
+                fillGradient.addColorStop(1, '#f43f5e');
             } else {
                 strokeGradient.addColorStop(0, getColor(points[0]!));
                 fillGradient.addColorStop(0, getColor(points[0]!));
@@ -223,7 +227,14 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             x: xPos,
             y: yPos,
             price: formatNumber(price),
-            date: time ? new Date(time * 1000).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '',
+            date: time
+                ? new Date(time * 1000).toLocaleString('pl-PL', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                  })
+                : '',
             index
         });
     };
@@ -239,8 +250,14 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
 
             {tooltip && (
                 <>
-                    <div className="absolute top-5 bottom-8 border-l border-slate-500/50 border-dashed pointer-events-none" style={{ left: tooltip.x }} />
-                    <div className="absolute left-[60px] right-5 border-t border-slate-500/50 border-dashed pointer-events-none" style={{ top: tooltip.y }} />
+                    <div
+                        className="absolute top-5 bottom-8 border-l border-slate-500/50 border-dashed pointer-events-none"
+                        style={{ left: tooltip.x }}
+                    />
+                    <div
+                        className="absolute left-[60px] right-5 border-t border-slate-500/50 border-dashed pointer-events-none"
+                        style={{ top: tooltip.y }}
+                    />
 
                     <div
                         className="absolute w-3 h-3 bg-white rounded-full border-2 shadow-lg transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
@@ -255,7 +272,9 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                             transform: 'translate(-50%, -100%)'
                         }}
                     >
-                        <div className="font-bold text-sm">{tooltip.price} <span className="text-xs text-slate-400 font-normal">{currency}</span></div>
+                        <div className="font-bold text-sm">
+                            {tooltip.price} <span className="text-xs text-slate-400 font-normal">{currency}</span>
+                        </div>
                         <div className="text-[10px] text-slate-400">{tooltip.date}</div>
                     </div>
                 </>

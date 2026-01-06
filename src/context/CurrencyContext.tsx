@@ -30,6 +30,6 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 
 export const useCurrency = (): CurrencyContextValue => {
     const context = useContext(CurrencyContext);
-    if (!context) throw new Error("useCurrency must be used within CurrencyProvider");
+    if (!context) throw new Error('useCurrency must be used within CurrencyProvider');
     return context;
 };

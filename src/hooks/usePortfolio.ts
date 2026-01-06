@@ -68,10 +68,9 @@ export interface UsePortfolioReturn {
 export const usePortfolio = (): UsePortfolioReturn => {
     const { baseCurrency } = useCurrency();
 
-
     // Use specialized hooks
     const { assets, tickers, currencies } = useAssets();
-    
+
     // Watchlist and transactions
     const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
     const transactions = useLiveQuery(() => db.transactions.orderBy('date').reverse().limit(10).toArray()) || [];
@@ -125,7 +124,7 @@ export const usePortfolio = (): UsePortfolioReturn => {
             const valueNative = asset.amount * valuationPrice;
 
             // Exchange rate for conversion
-            const rate = currency === baseCurrency ? 1 : (exchangeRates[currency] || 1);
+            const rate = currency === baseCurrency ? 1 : exchangeRates[currency] || 1;
 
             // Value in base currency
             const valueBase = valueNative * rate;
@@ -197,7 +196,7 @@ export const usePortfolio = (): UsePortfolioReturn => {
             }));
 
         // Cash in base currency
-        const cashRate = baseCurrency !== 'PLN' ? (exchangeRates['PLN'] || 1) : 1;
+        const cashRate = baseCurrency !== 'PLN' ? exchangeRates['PLN'] || 1 : 1;
         const cashInBase = currentCash * cashRate;
 
         // Total values
@@ -214,8 +213,8 @@ export const usePortfolio = (): UsePortfolioReturn => {
         }
 
         // P/L calculations
-        const totalPL_Base = processedAssets.reduce((acc, curr) => acc + (curr.plValue * curr.rate), 0);
-        const totalCostBase = processedAssets.reduce((acc, curr) => acc + (curr.amount * curr.avgPrice * curr.rate), 0);
+        const totalPL_Base = processedAssets.reduce((acc, curr) => acc + curr.plValue * curr.rate, 0);
+        const totalCostBase = processedAssets.reduce((acc, curr) => acc + curr.amount * curr.avgPrice * curr.rate, 0);
         const totalPLPercent = totalCostBase > 0 ? (totalPL_Base / totalCostBase) * 100 : 0;
 
         const hasForeignAssets = processedAssets.some(a => a.currency !== baseCurrency);

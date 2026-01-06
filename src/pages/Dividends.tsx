@@ -43,7 +43,7 @@ export const Dividends = () => {
             const result = await syncDividendsManually();
             setToastMessage(`✓ Zsynchronizowano: +${result.added} dywidend`);
             setTimeout(() => setToastMessage(null), 3000);
-        } catch (err) {
+        } catch {
             setToastMessage('✗ Błąd synchronizacji');
             setTimeout(() => setToastMessage(null), 3000);
         } finally {
@@ -72,19 +72,17 @@ export const Dividends = () => {
     };
 
     return (
-        <div data-testid="dividends-page" className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+        <div
+            data-testid="dividends-page"
+            className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col"
+        >
             {toastMessage && (
                 <div className="fixed top-4 right-4 bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top-2 fade-in">
                     <p className="text-sm font-bold text-slate-200">{toastMessage}</p>
                 </div>
             )}
 
-            {error && !isLoading && (
-                <ErrorBanner
-                    error={error}
-                    onDismiss={() => { }}
-                />
-            )}
+            {error && !isLoading && <ErrorBanner error={error} onDismiss={() => { }} />}
 
             <header className="shrink-0 flex items-center justify-between">
                 <div>
@@ -96,18 +94,21 @@ export const Dividends = () => {
                     onClick={handleManualRefresh}
                     disabled={refreshing || isLoading}
                     className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all",
+                        'flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all',
                         refreshing || isLoading
-                            ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
                     )}
                 >
-                    <RefreshCw size={16} className={refreshing || isLoading ? "animate-spin" : ""} />
-                    {refreshing ? "Synchronizacja..." : "Odśwież dywidendy"}
+                    <RefreshCw size={16} className={refreshing || isLoading ? 'animate-spin' : ''} />
+                    {refreshing ? 'Synchronizacja...' : 'Odśwież dywidendy'}
                 </button>
             </header>
 
-            <div data-testid="dividends-summary-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+            <div
+                data-testid="dividends-summary-cards"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0"
+            >
                 <StatCard
                     label="Wpływ Suma"
                     value={`${formatNumber(ytdTotal)} PLN`}
@@ -140,7 +141,10 @@ export const Dividends = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
-                <div data-testid="calendar-section" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                <div
+                    data-testid="calendar-section"
+                    className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col"
+                >
                     <div className="px-6 py-4 border-b border-slate-800 shrink-0">
                         <h2 className="text-xl font-bold">Kalendarz Rynkowy</h2>
                         <p className="text-xs text-slate-500 mt-0.5">Nadchodzące dywidendy (następne 60 dni)</p>
@@ -165,7 +169,11 @@ export const Dividends = () => {
                                     </tr>
                                 ) : (
                                     calendar.map((div, i) => (
-                                        <tr key={i} data-testid={`calendar-dividend-${div.ticker}-${i}`} className="hover:bg-slate-800/50 transition-colors">
+                                        <tr
+                                            key={i}
+                                            data-testid={`calendar-dividend-${div.ticker}-${i}`}
+                                            className="hover:bg-slate-800/50 transition-colors"
+                                        >
                                             <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
                                             <td className="px-4 py-3 text-slate-400 text-xs">{div.recordDate}</td>
                                             <td className="px-4 py-3 text-slate-400 text-xs">{div.paymentDate}</td>
@@ -201,7 +209,11 @@ interface VirtualizedDividendsTableProps {
     totalReceivedPLN: number;
 }
 
-const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ received, isLoading, totalReceivedPLN }) => {
+const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
+    received,
+    isLoading,
+    totalReceivedPLN
+}) => {
     const parentRef = useRef<HTMLDivElement>(null);
 
     const rowVirtualizer = useVirtualizer({
@@ -212,10 +224,14 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
     });
 
     // Grid column template for full-width responsive columns
-    const gridTemplate = "minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)";
+    const gridTemplate =
+        'minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)';
 
     return (
-        <div data-testid="received-dividends-section" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+        <div
+            data-testid="received-dividends-section"
+            className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col"
+        >
             <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
                 <div>
                     <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
@@ -265,7 +281,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
                                 position: 'relative'
                             }}
                         >
-                            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                            {rowVirtualizer.getVirtualItems().map(virtualRow => {
                                 const div = received[virtualRow.index];
                                 return (
                                     <div
@@ -301,9 +317,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
                                         <div className="text-right font-mono font-bold text-emerald-400">
                                             {formatNumber(div.valuePLN)} PLN
                                         </div>
-                                        <div className="text-center text-sm text-slate-500">
-                                            {div.sharesOwned}
-                                        </div>
+                                        <div className="text-center text-sm text-slate-500">{div.sharesOwned}</div>
                                     </div>
                                 );
                             })}
@@ -324,7 +338,12 @@ const StatCard = React.memo<StatCardProps>(({ label, value, sublabel, color, too
     };
 
     return (
-        <div className={cn("bg-slate-900 rounded-2xl border border-slate-800 p-6 relative", tooltip && "group cursor-help")}>
+        <div
+            className={cn(
+                'bg-slate-900 rounded-2xl border border-slate-800 p-6 relative',
+                tooltip && 'group cursor-help'
+            )}
+        >
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs text-slate-500 uppercase font-bold">{label}</span>
                 {tooltip && <Info size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />}
@@ -333,9 +352,7 @@ const StatCard = React.memo<StatCardProps>(({ label, value, sublabel, color, too
             {isLoading ? (
                 <div className="h-9 bg-slate-800 animate-pulse rounded-lg mb-1" />
             ) : (
-                <div className={cn("text-3xl font-bold mb-1", colorClasses[color])}>
-                    {value}
-                </div>
+                <div className={cn('text-3xl font-bold mb-1', colorClasses[color])}>{value}</div>
             )}
 
             <span className="text-xs text-slate-600">{sublabel}</span>

@@ -88,16 +88,10 @@ export const validateAmount = (
     amount: number | string | undefined | null,
     options: AmountValidationOptions = {}
 ): ValidationResult<number> => {
-    const {
-        min,
-        max = Infinity,
-        allowZero = false,
-        allowNegative = false,
-        label = 'Wartość'
-    } = options;
+    const { min, max = Infinity, allowZero = false, allowNegative = false, label = 'Wartość' } = options;
 
     // Set default min based on allowNegative
-    const effectiveMin = min !== undefined ? min : (allowNegative ? -Infinity : 0);
+    const effectiveMin = min !== undefined ? min : allowNegative ? -Infinity : 0;
 
     if (amount === undefined || amount === null || amount === '') {
         return { valid: false, error: `${label} jest wymagana`, value: undefined };
@@ -135,13 +129,7 @@ export const validateDate = (
     date: string | Date | undefined | null,
     options: DateValidationOptions = {}
 ): ValidationResult<Date> => {
-    const {
-        allowFuture = false,
-        allowPast = true,
-        minDate = null,
-        maxDate = null,
-        label = 'Data'
-    } = options;
+    const { allowFuture = false, allowPast = true, minDate = null, maxDate = null, label = 'Data' } = options;
 
     if (!date) {
         return { valid: false, error: `${label} jest wymagana`, value: undefined };

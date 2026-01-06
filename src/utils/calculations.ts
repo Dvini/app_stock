@@ -21,7 +21,7 @@ export const calculateProfitLoss = (buyPrice: number, currentPrice: number, quan
     const costBasis = buyPrice * quantity;
     const currentValue = currentPrice * quantity;
     const profitLoss = currentValue - costBasis;
-    const profitLossPercent = costBasis > 0 ? (profitLoss / costBasis) : 0;
+    const profitLossPercent = costBasis > 0 ? profitLoss / costBasis : 0;
 
     return {
         costBasis,
@@ -82,7 +82,7 @@ export const calculateAllocation = (assets: AssetWithValue[], totalValue: number
 
     return assets.map(asset => ({
         ...asset,
-        allocation: (asset.value / totalValue),
+        allocation: asset.value / totalValue,
         allocationPercent: (asset.value / totalValue) * 100
     }));
 };
@@ -126,7 +126,7 @@ export const calculatePortfolioValue = (
         const currency = asset.currency || 'PLN';
 
         // Convert to target currency
-        const rate = currency === targetCurrency ? 1 : (exchangeRates[currency] || 1);
+        const rate = currency === targetCurrency ? 1 : exchangeRates[currency] || 1;
         const valueInTarget = value * rate;
 
         // Track by currency
@@ -213,7 +213,7 @@ export const calculateDiversification = (allocations: number[]): number => {
     const maxHHI = 1;
 
     // Invert so higher score = better diversification
-    const score = 1 - ((hhi - minHHI) / (maxHHI - minHHI));
+    const score = 1 - (hhi - minHHI) / (maxHHI - minHHI);
 
     return Math.max(0, Math.min(1, score));
 };
@@ -268,11 +268,7 @@ interface RiskMetrics {
 /**
  * Calculate risk metrics for a position
  */
-export const calculateRiskMetrics = (
-    positionValue: number,
-    portfolioValue: number,
-    volatility = 0
-): RiskMetrics => {
+export const calculateRiskMetrics = (positionValue: number, portfolioValue: number, volatility = 0): RiskMetrics => {
     const positionSize = calculatePositionSize(positionValue, portfolioValue);
     const concentration = positionSize / 100; // As decimal
 

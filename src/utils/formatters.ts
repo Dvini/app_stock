@@ -31,7 +31,11 @@ export const formatQuantity = (value: number | string | undefined | null): strin
 /**
  * Format a value with currency symbol
  */
-export const formatCurrency = (value: number | string | undefined | null, currency = 'PLN', showSymbol = true): string => {
+export const formatCurrency = (
+    value: number | string | undefined | null,
+    currency = 'PLN',
+    showSymbol = true
+): string => {
     if (value === undefined || value === null) return '0,00 ' + currency;
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0,00 ' + currency;
@@ -42,13 +46,13 @@ export const formatCurrency = (value: number | string | undefined | null, curren
 
     // Currency symbols mapping
     const symbols: Record<string, string> = {
-        'PLN': 'zł',
-        'USD': '$',
-        'EUR': '€',
-        'GBP': '£',
-        'JPY': '¥',
-        'CHF': 'CHF',
-        'CNY': '¥'
+        PLN: 'zł',
+        USD: '$',
+        EUR: '€',
+        GBP: '£',
+        JPY: '¥',
+        CHF: 'CHF',
+        CNY: '¥'
     };
 
     const symbol = symbols[currency] || currency;
@@ -65,7 +69,11 @@ export const formatCurrency = (value: number | string | undefined | null, curren
 /**
  * Format a percentage value
  */
-export const formatPercentage = (value: number | string | undefined | null, decimals = 2, includeSign = false): string => {
+export const formatPercentage = (
+    value: number | string | undefined | null,
+    decimals = 2,
+    includeSign = false
+): string => {
     if (value === undefined || value === null) return '0,00%';
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return '0,00%';
@@ -85,34 +93,42 @@ type DateFormatType = 'short' | 'medium' | 'long' | 'time' | 'datetime';
 /**
  * Format a date with Polish locale
  */
-export const formatDate = (date: Date | string | number | undefined | null, format: DateFormatType = 'medium'): string => {
+export const formatDate = (
+    date: Date | string | number | undefined | null,
+    format: DateFormatType = 'medium'
+): string => {
     if (!date) return '';
 
     const dateObj = date instanceof Date ? date : new Date(date);
     if (isNaN(dateObj.getTime())) return '';
 
     const formats: Record<DateFormatType, Intl.DateTimeFormatOptions> = {
-        'short': { // 01.01.2024
+        short: {
+            // 01.01.2024
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
         },
-        'medium': { // 1 stycznia 2024
+        medium: {
+            // 1 stycznia 2024
             day: 'numeric',
             month: 'long',
             year: 'numeric'
         },
-        'long': { // poniedziałek, 1 stycznia 2024
+        long: {
+            // poniedziałek, 1 stycznia 2024
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric'
         },
-        'time': { // 14:30
+        time: {
+            // 14:30
             hour: '2-digit',
             minute: '2-digit'
         },
-        'datetime': { // 01.01.2024, 14:30
+        datetime: {
+            // 01.01.2024, 14:30
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',

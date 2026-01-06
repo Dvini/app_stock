@@ -50,74 +50,81 @@ export const fetchHistoricalData = async (
     const fxHistories: Record<string, HistoricalDataPoint[]> = {};
 
     // 1. Fetch Asset Histories
-    await Promise.all(uniqueTickers.map(async (ticker) => {
-        let hasData = false;
-        try {
-            let result = await fetchHistory(ticker, apiRange, '1d');
-
-            // Fallback for MAX range if it fails or returns empty
-            if ((!result || !result.data || result.data.length === 0) && apiRange === 'max') {
-                console.warn(`MAX history failed for ${ticker}, trying 10y...`);
-                result = await fetchHistory(ticker, '10y', '1d');
-            }
-            if ((!result || !result.data || result.data.length === 0) && (apiRange === 'max' || apiRange === '10y')) {
-                console.warn(`10y history failed for ${ticker}, trying 5y...`);
-                result = await fetchHistory(ticker, '5y', '1d');
-            }
-
-            if (result && result.data && result.data.length > 0) {
-                histories[ticker] = {
-                    data: result.data,
-                    currency: result.currency as CurrencyCode || 'PLN'
-                };
-                hasData = true;
-                if (result.currency && result.currency !== 'PLN') {
-                    currenciesToFetch.add(result.currency);
-                }
-            }
-        } catch (e) { 
-            console.warn("History fetch failed", ticker, e); 
-        }
-
-        if (!hasData) {
-            // FALLBACK: Fetch current price
+    await Promise.all(
+        uniqueTickers.map(async ticker => {
+            let hasData = false;
             try {
-                const current = await fetchCurrentPrice(ticker);
-                if (current && current.price) {
+                let result = await fetchHistory(ticker, apiRange, '1d');
+
+                // Fallback for MAX range if it fails or returns empty
+                if ((!result || !result.data || result.data.length === 0) && apiRange === 'max') {
+                    console.warn(`MAX history failed for ${ticker}, trying 10y...`);
+                    result = await fetchHistory(ticker, '10y', '1d');
+                }
+                if (
+                    (!result || !result.data || result.data.length === 0) &&
+                    (apiRange === 'max' || apiRange === '10y')
+                ) {
+                    console.warn(`10y history failed for ${ticker}, trying 5y...`);
+                    result = await fetchHistory(ticker, '5y', '1d');
+                }
+
+                if (result && result.data && result.data.length > 0) {
                     histories[ticker] = {
-                        data: [{ timestamp: 0, price: current.price, date: '' }], // Valid from beginning of time
-                        currency: current.currency || 'PLN'
+                        data: result.data,
+                        currency: (result.currency as CurrencyCode) || 'PLN'
                     };
-                    if (current.currency && current.currency !== 'PLN') {
-                        currenciesToFetch.add(current.currency);
+                    hasData = true;
+                    if (result.currency && result.currency !== 'PLN') {
+                        currenciesToFetch.add(result.currency);
                     }
                 }
-            } catch (e) { 
-                console.warn("Asset Fallback failed", ticker, e); 
+            } catch (e) {
+                console.warn('History fetch failed', ticker, e);
             }
-        }
-    }));
+
+            if (!hasData) {
+                // FALLBACK: Fetch current price
+                try {
+                    const current = await fetchCurrentPrice(ticker);
+                    if (current && current.price) {
+                        histories[ticker] = {
+                            data: [{ timestamp: 0, price: current.price, date: '' }], // Valid from beginning of time
+                            currency: current.currency || 'PLN'
+                        };
+                        if (current.currency && current.currency !== 'PLN') {
+                            currenciesToFetch.add(current.currency);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Asset Fallback failed', ticker, e);
+                }
+            }
+        })
+    );
 
     // 2. Fetch Currency Histories (e.g. USDPLN=X)
     if (currenciesToFetch.size > 0) {
-        await Promise.all(Array.from(currenciesToFetch).map(async (currency) => {
-            const pair = `${currency}PLN=X`;
-            const result = await fetchHistory(pair, apiRange, '1d');
+        await Promise.all(
+            Array.from(currenciesToFetch).map(async currency => {
+                const pair = `${currency}PLN=X`;
+                const result = await fetchHistory(pair, apiRange, '1d');
 
-            if (result && result.data && result.data.length > 0) {
-                fxHistories[currency] = result.data;
-            } else {
-                // Fallback: Fetch current 1-point price
-                try {
-                    const current = await fetchCurrentPrice(pair);
-                    if (current && current.price) {
-                        fxHistories[currency] = [{ timestamp: 0, price: current.price, date: '' }];
+                if (result && result.data && result.data.length > 0) {
+                    fxHistories[currency] = result.data;
+                } else {
+                    // Fallback: Fetch current 1-point price
+                    try {
+                        const current = await fetchCurrentPrice(pair);
+                        if (current && current.price) {
+                            fxHistories[currency] = [{ timestamp: 0, price: current.price, date: '' }];
+                        }
+                    } catch (e) {
+                        console.warn('FX Fallback failed for', pair, e);
                     }
-                } catch (e) {
-                    console.warn("FX Fallback failed for", pair, e);
                 }
-            }
-        }));
+            })
+        );
     }
 
     return { histories, fxHistories };

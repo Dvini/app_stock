@@ -19,7 +19,8 @@ class StooqService {
     constructor() {
         this.baseUrl = 'https://stooq.pl/q/g/';
         this.cacheDuration = 24 * 60 * 60 * 1000; // 24 hours
-        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        this.userAgent =
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     }
 
     /**
@@ -27,8 +28,18 @@ class StooqService {
      */
     private parseStooqDate(stooqDate: string): Date | null {
         const months: Record<string, number> = {
-            'sty': 0, 'lut': 1, 'mar': 2, 'kwi': 3, 'maj': 4, 'cze': 5,
-            'lip': 6, 'sie': 7, 'wrz': 8, 'paź': 9, 'lis': 10, 'gru': 11
+            sty: 0,
+            lut: 1,
+            mar: 2,
+            kwi: 3,
+            maj: 4,
+            cze: 5,
+            lip: 6,
+            sie: 7,
+            wrz: 8,
+            paź: 9,
+            lis: 10,
+            gru: 11
         };
 
         // Clean the date string and split
@@ -91,8 +102,8 @@ class StooqService {
             const response = await fetch(url, {
                 headers: {
                     'User-Agent': this.userAgent,
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
+                    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7'
                 }
             });
 
@@ -109,7 +120,7 @@ class StooqService {
             // Find dividend table (#fth1 is the standard table ID on Stooq dividend pages)
             // If not found, try other common table selectors
             let tableRows = $('#fth1 tr');
-            
+
             if (tableRows.length === 0) {
                 // Fallback: look for tables with dividend-related content
                 console.log(`[StooqService] Table #fth1 not found, trying alternative selectors...`);
@@ -132,7 +143,7 @@ class StooqService {
 
                     // Parse date
                     const date = this.parseStooqDate(dateStr);
-                    
+
                     // Parse amount (replace comma with dot for decimal)
                     const amount = parseFloat(amountStr.replace(',', '.'));
 
@@ -157,7 +168,6 @@ class StooqService {
 
             console.log(`[StooqService] Fetched ${dividends.length} dividends for ${normalizedTicker}`);
             return dividends;
-
         } catch (error) {
             console.error(`[StooqService] Failed to fetch dividends for ${ticker}:`, error);
             return [];

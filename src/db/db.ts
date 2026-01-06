@@ -19,7 +19,7 @@ export class StockTrackerDatabase extends Dexie {
         this.version(1).stores({
             assets: '++id, ticker, type, amount, avgPrice',
             transactions: '++id, date, type, ticker, amount, price, total',
-            cash: 'currency',
+            cash: 'currency'
         });
 
         // Version 3: Add currency field to assets and watchlist
@@ -51,7 +51,8 @@ export class StockTrackerDatabase extends Dexie {
         // Version 6: Add compound indexes for optimized queries
         this.version(6).stores({
             assets: '++id, ticker, type, amount, avgPrice, currency',
-            transactions: '++id, date, type, ticker, [ticker+date], [ticker+type], amount, price, total, currency, exchangeRate',
+            transactions:
+                '++id, date, type, ticker, [ticker+date], [ticker+type], amount, price, total, currency, exchangeRate',
             cash: 'currency, amount',
             watchlist: '++id, ticker, dateAdded, currency',
             dividends: '++id, ticker, recordDate, [ticker+recordDate], paymentDate, status, [status+paymentDate]'

@@ -73,7 +73,10 @@ class AlphaVantageService {
 
             // Check for API error messages
             if (data['Information'] || data['Error Message'] || data['Note']) {
-                console.error(`[AlphaVantageService] API error for ${symbol}:`, data['Information'] || data['Error Message'] || data['Note']);
+                console.error(
+                    `[AlphaVantageService] API error for ${symbol}:`,
+                    data['Information'] || data['Error Message'] || data['Note']
+                );
                 return [];
             }
 
@@ -107,7 +110,6 @@ class AlphaVantageService {
 
             console.log(`[AlphaVantageService] Fetched ${dividends.length} dividends for ${symbol}`);
             return dividends;
-
         } catch (error) {
             console.error(`[AlphaVantageService] Failed to fetch dividends for ${symbol}:`, error);
             return [];

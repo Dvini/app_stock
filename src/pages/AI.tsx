@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
-// @ts-ignore - will be migrated to TypeScript
+// @ts-expect-error - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
 import { cn } from '../lib/utils';
 import { PieChart } from '../components/PieChart';
-// @ts-ignore - will be migrated to TypeScript
+// @ts-expect-error - will be migrated to TypeScript
 import { WebGPUChart } from '../components/WebGPUChart';
 
 interface Message {
@@ -48,9 +48,11 @@ export const AI = () => {
                                 {initProgress}
                             </span>
                         ) : isModelLoaded ? (
-                            <span className="text-emerald-400 flex items-center gap-2">● Model gotowy ({currentModel})</span>
+                            <span className="text-emerald-400 flex items-center gap-2">
+                                ● Model gotowy ({currentModel})
+                            </span>
                         ) : (
-                            "Inicjalizacja..."
+                            'Inicjalizacja...'
                         )}
                     </p>
                 </div>
@@ -72,18 +74,30 @@ export const AI = () => {
                         <div className="text-center text-slate-500 mt-20">
                             <Bot size={48} className="mx-auto mb-4 opacity-20" />
                             <p>Zadaj pytanie dotyczące Twojego portfela.</p>
-                            <p className="text-xs mt-2 opacity-60">Przykłady: "Jaka jest wartość mojego portfela?", "Co sądzisz o mojej dywersyfikacji?"</p>
+                            <p className="text-xs mt-2 opacity-60">
+                                Przykłady: "Jaka jest wartość mojego portfela?", "Co sądzisz o mojej dywersyfikacji?"
+                            </p>
                         </div>
                     )}
 
                     {messages.map((msg: Message, idx: number) => (
-                        <div key={idx} className={cn("flex gap-3", msg.role === 'user' ? "flex-row-reverse" : "")}>
-                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                                msg.role === 'user' ? "bg-blue-600" : "bg-emerald-600")}>
+                        <div key={idx} className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : '')}>
+                            <div
+                                className={cn(
+                                    'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                                    msg.role === 'user' ? 'bg-blue-600' : 'bg-emerald-600'
+                                )}
+                            >
                                 {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                             </div>
-                            <div className={cn("max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed",
-                                msg.role === 'user' ? "bg-blue-600/20 text-blue-100 rounded-tr-sm" : "bg-slate-800 text-slate-200 rounded-tl-sm")}>
+                            <div
+                                className={cn(
+                                    'max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed',
+                                    msg.role === 'user'
+                                        ? 'bg-blue-600/20 text-blue-100 rounded-tr-sm'
+                                        : 'bg-slate-800 text-slate-200 rounded-tl-sm'
+                                )}
+                            >
                                 <MessageContent content={msg.content} />
                             </div>
                         </div>
@@ -108,10 +122,10 @@ export const AI = () => {
                         <input
                             type="text"
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
+                            onChange={e => setInput(e.target.value)}
                             onKeyDown={handleKeyPress}
                             disabled={!isModelLoaded || isLoading}
-                            placeholder={isModelLoaded ? "Napisz wiadomość..." : "Ładowanie modelu..."}
+                            placeholder={isModelLoaded ? 'Napisz wiadomość...' : 'Ładowanie modelu...'}
                             className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <button
@@ -141,7 +155,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
 
     // Step 2: Split content into lines and detect standalone JSON chart objects
     const lines = processedContent.split('\n');
-    const parts: Array<{ type: 'text' | 'chart', content: string }> = [];
+    const parts: Array<{ type: 'text' | 'chart'; content: string }> = [];
     let currentTextBlock = '';
 
     for (const line of lines) {
@@ -161,7 +175,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                     parts.push({ type: 'chart', content: trimmedLine });
                     continue;
                 }
-            } catch (e) {
+            } catch {
                 // Not valid JSON, treat as text
             }
         }
@@ -178,12 +192,15 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
     // Step 3: If no charts found via line detection, check for markdown code blocks
     if (parts.every(p => p.type === 'text')) {
         const fullText = parts.map(p => p.content).join('');
-        const hasChartType = fullText.includes('"type": "pie"') || fullText.includes('"type": "area"') ||
-            fullText.includes('"type": "bar"') || fullText.includes('"type": "line"');
+        const hasChartType =
+            fullText.includes('"type": "pie"') ||
+            fullText.includes('"type": "area"') ||
+            fullText.includes('"type": "bar"') ||
+            fullText.includes('"type": "line"');
 
         if ((fullText.includes('```json') || fullText.includes('```')) && hasChartType) {
             const markdownRegex = /```(?:json)?([\s\S]*?)```/g;
-            const newParts: Array<{ type: 'text' | 'chart', content: string }> = [];
+            const newParts: Array<{ type: 'text' | 'chart'; content: string }> = [];
             let lastIndex = 0;
             let match;
 
@@ -223,7 +240,11 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                         if (chartData.type === 'pie') {
                             return (
                                 <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
-                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    {chartData.title && (
+                                        <div className="text-xs font-bold text-center text-slate-400 mb-2">
+                                            {chartData.title}
+                                        </div>
+                                    )}
                                     <div className="h-64 w-full">
                                         <PieChart data={chartData.data} />
                                     </div>
@@ -234,7 +255,11 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                         if (chartData.type === 'area' || chartData.type === 'line') {
                             return (
                                 <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
-                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    {chartData.title && (
+                                        <div className="text-xs font-bold text-center text-slate-400 mb-2">
+                                            {chartData.title}
+                                        </div>
+                                    )}
                                     <div className="h-64 w-full">
                                         <WebGPUChart data={chartData.data} currency={chartData.currency || 'PLN'} />
                                     </div>
@@ -245,7 +270,11 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                         if (chartData.type === 'bar') {
                             return (
                                 <div key={index} className="bg-slate-900 rounded-xl p-4 border border-slate-700 my-2">
-                                    {chartData.title && <div className="text-xs font-bold text-center text-slate-400 mb-2">{chartData.title}</div>}
+                                    {chartData.title && (
+                                        <div className="text-xs font-bold text-center text-slate-400 mb-2">
+                                            {chartData.title}
+                                        </div>
+                                    )}
                                     <div className="h-64 w-full">
                                         <PieChart data={chartData.data} />
                                     </div>
@@ -253,8 +282,15 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
                             );
                         }
                     } catch (e) {
-                        console.error("Chart Render Error", e);
-                        return <div key={index} className="text-red-400 text-xs p-2 border border-red-900 bg-red-900/10 rounded">Błąd renderowania wykresu</div>;
+                        console.error('Chart Render Error', e);
+                        return (
+                            <div
+                                key={index}
+                                className="text-red-400 text-xs p-2 border border-red-900 bg-red-900/10 rounded"
+                            >
+                                Błąd renderowania wykresu
+                            </div>
+                        );
                     }
                 }
 

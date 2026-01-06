@@ -37,48 +37,72 @@ function App() {
         <ErrorBoundary>
             <BrowserRouter>
                 <Routes>
-                    <Route path="/" element={
-                        <CurrencyProvider>
-                            <AIProvider>
-                                <Layout />
-                            </AIProvider>
-                        </CurrencyProvider>
-                    }>
-                        <Route index element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Dashboard />
-                            </Suspense>
-                        } />
-                        <Route path="portfolio" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Portfolio />
-                            </Suspense>
-                        } />
-                        <Route path="transactions" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Transactions />
-                            </Suspense>
-                        } />
-                        <Route path="dividends" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Dividends />
-                            </Suspense>
-                        } />
-                        <Route path="simulator" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Simulator />
-                            </Suspense>
-                        } />
-                        <Route path="ai" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <AI />
-                            </Suspense>
-                        } />
-                        <Route path="settings" element={
-                            <Suspense fallback={LoadingFallback}>
-                                <Settings />
-                            </Suspense>
-                        } />
+                    <Route
+                        path="/"
+                        element={
+                            <CurrencyProvider>
+                                <AIProvider>
+                                    <Layout />
+                                </AIProvider>
+                            </CurrencyProvider>
+                        }
+                    >
+                        <Route
+                            index
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Dashboard />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="portfolio"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Portfolio />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="transactions"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Transactions />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="dividends"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Dividends />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="simulator"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Simulator />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="ai"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <AI />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="settings"
+                            element={
+                                <Suspense fallback={LoadingFallback}>
+                                    <Settings />
+                                </Suspense>
+                            }
+                        />
                     </Route>
                 </Routes>
             </BrowserRouter>
@@ -91,9 +115,9 @@ function App() {
                     style: {
                         background: 'rgb(15 23 42)', // slate-950
                         border: '1px solid rgb(51 65 85)', // slate-700
-                        color: 'rgb(241 245 249)', // slate-100
+                        color: 'rgb(241 245 249)' // slate-100
                     },
-                    className: 'font-sans',
+                    className: 'font-sans'
                 }}
             />
         </ErrorBoundary>

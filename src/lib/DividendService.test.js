@@ -1,6 +1,6 @@
 /**
  * Unit Tests for DividendService - Simplified
-  * Tests critical business logic for dividend calculations
+ * Tests critical business logic for dividend calculations
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -115,9 +115,7 @@ describe('DividendService', () => {
         });
 
         it('should return 0 for ticker with no transactions', () => {
-            const transactions = [
-                { ticker: 'AAPL', type: 'Kupno', amount: 10, date: '2024-01-01' }
-            ];
+            const transactions = [{ ticker: 'AAPL', type: 'Kupno', amount: 10, date: '2024-01-01' }];
 
             const shares = dividendService._calculateSharesOnDate(transactions, 'MSFT', '2024-02-01');
             expect(shares).toBe(0);

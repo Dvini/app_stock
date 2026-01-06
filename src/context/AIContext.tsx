@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { CreateMLCEngine } from "@mlc-ai/web-llm";
+import { CreateMLCEngine } from '@mlc-ai/web-llm';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useDividends } from '../hooks/useDividends';
 
@@ -32,7 +32,9 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [initProgress, setInitProgress] = useState('');
     const [isModelLoaded, setIsModelLoaded] = useState(false);
-    const [currentModel, setCurrentModel] = useState(localStorage.getItem('selected_llm_model') || "Qwen3-1.7B-q4f16_1-MLC");
+    const [currentModel, setCurrentModel] = useState(
+        localStorage.getItem('selected_llm_model') || 'Qwen3-1.7B-q4f16_1-MLC'
+    );
     const engine = useRef<any>(null);
 
     const { portfolioSummary, assets, transactions, watchlist } = usePortfolio();
@@ -54,7 +56,17 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
             watchlist,
             dividends: { ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar }
         };
-    }, [portfolioSummary, assets, transactions, watchlist, ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar]);
+    }, [
+        portfolioSummary,
+        assets,
+        transactions,
+        watchlist,
+        ytdTotal,
+        upcoming60Days,
+        yieldOnCost,
+        monthlyAverage,
+        calendar
+    ]);
 
     const loadModel = async (modelId: string) => {
         try {
@@ -77,101 +89,114 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
             const engineConfig: any = {
                 initProgressCallback: (progress: any) => {
                     setInitProgress(progress.text);
-                },
+                }
             };
 
             const customModels: any[] = [
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-                    "model_id": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 1629,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+                    model_id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 1629,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen2.5-7B-Instruct-q4f16_1-MLC",
-                    "model_id": "Qwen2.5-7B-Instruct-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 4650,
-                    "low_resource_required": false,
+                    model: 'https://huggingface.co/mlc-ai/Qwen2.5-7B-Instruct-q4f16_1-MLC',
+                    model_id: 'Qwen2.5-7B-Instruct-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 4650,
+                    low_resource_required: false
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
-                    "model_id": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 879,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC',
+                    model_id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 879,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC",
-                    "model_id": "Llama-3.2-3B-Instruct-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 2263,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC',
+                    model_id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 2263,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC",
-                    "model_id": "gemma-2-2b-it-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 1583,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC',
+                    model_id: 'gemma-2-2b-it-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 1583,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC",
-                    "model_id": "Phi-3.5-mini-instruct-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 2520,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC',
+                    model_id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 2520,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-                    "model_id": "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 4573,
-                    "low_resource_required": false,
+                    model: 'https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+                    model_id: 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 4573,
+                    low_resource_required: false
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC",
-                    "model_id": "Qwen3-0.6B-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 1403,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC',
+                    model_id: 'Qwen3-0.6B-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 1403,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
-                    "model_id": "Qwen3-1.7B-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 2036,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC',
+                    model_id: 'Qwen3-1.7B-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 2036,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen3-4B-q4f16_1-MLC",
-                    "model_id": "Qwen3-4B-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 3431,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/Qwen3-4B-q4f16_1-MLC',
+                    model_id: 'Qwen3-4B-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 3431,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/Qwen3-8B-q4f16_1-MLC",
-                    "model_id": "Qwen3-8B-q4f16_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 5695,
-                    "low_resource_required": false,
+                    model: 'https://huggingface.co/mlc-ai/Qwen3-8B-q4f16_1-MLC',
+                    model_id: 'Qwen3-8B-q4f16_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 5695,
+                    low_resource_required: false
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/gemma-3-1b-it-q4f32_1-MLC",
-                    "model_id": "gemma-3-1b-it-q4f32_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 1500,
-                    "low_resource_required": true,
+                    model: 'https://huggingface.co/mlc-ai/gemma-3-1b-it-q4f32_1-MLC',
+                    model_id: 'gemma-3-1b-it-q4f32_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 1500,
+                    low_resource_required: true
                 },
                 {
-                    "model": "https://huggingface.co/mlc-ai/gemma-3-4b-it-q4f32_1-MLC",
-                    "model_id": "gemma-3-4b-it-q4f32_1-MLC",
-                    "model_lib": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    "vram_required_MB": 3000,
-                    "low_resource_required": true,
-                },
+                    model: 'https://huggingface.co/mlc-ai/gemma-3-4b-it-q4f32_1-MLC',
+                    model_id: 'gemma-3-4b-it-q4f32_1-MLC',
+                    model_lib:
+                        'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+                    vram_required_MB: 3000,
+                    low_resource_required: true
+                }
             ];
 
             engineConfig.appConfig = { model_list: customModels };
@@ -183,7 +208,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
             localStorage.setItem('selected_llm_model', modelId);
             setInitProgress('');
         } catch (e: any) {
-            console.error("Failed to load model:", e);
+            console.error('Failed to load model:', e);
             setInitProgress(`Error: ${e?.message || 'Unknown error'}`);
             setIsModelLoaded(false);
         }
@@ -195,7 +220,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
 
     const sendMessage = async (content: string) => {
         if (!engine.current || !isModelLoaded) {
-            console.warn("Model not loaded");
+            console.warn('Model not loaded');
             return;
         }
 
@@ -216,16 +241,30 @@ Cash Balance: ${summary?.cash || 'N/A'} ${summary?.baseCurrency || 'PLN'}
 Number of Assets: ${assets?.length || 0}
 
 === ASSETS DETAILS ===
-${assets?.map((a: any) => `${a.ticker}: ${a.amount} shares @ ${a.avgPrice?.toFixed(2)} ${a.currency}
+${
+    assets
+        ?.map(
+            (a: any) => `${a.ticker}: ${a.amount} shares @ ${a.avgPrice?.toFixed(2)} ${a.currency}
   Current Price: ${a.price !== null ? a.price.toFixed(2) : 'N/A'} ${a.currency}
   Value: ${a.value} ${a.currency}
-  P/L: ${a.pl}`).join('\n') || 'No assets'}
+  P/L: ${a.pl}`
+        )
+        .join('\n') || 'No assets'
+}
 
 === CURRENCY BREAKDOWN ===
 ${summary?.breakdown?.map((b: any) => `${b.currency}: ${b.value.toFixed(2)} (P/L: ${b.pl >= 0 ? '+' : ''}${b.pl.toFixed(2)})`).join(', ') || 'N/A'}
 
 === RECENT TRANSACTIONS (Last 30) ===
-${transactions?.slice(0, 30).map((t: any) => `${t.date}: ${t.type.toUpperCase()} ${t.ticker || 'CASH'} ${t.amount ? `- ${t.amount} @ ${t.price} ${t.currency}` : `- ${t.price} ${t.currency}`}`).join('\n') || 'No transactions'}
+${
+    transactions
+        ?.slice(0, 30)
+        .map(
+            (t: any) =>
+                `${t.date}: ${t.type.toUpperCase()} ${t.ticker || 'CASH'} ${t.amount ? `- ${t.amount} @ ${t.price} ${t.currency}` : `- ${t.price} ${t.currency}`}`
+        )
+        .join('\n') || 'No transactions'
+}
 
 === DIVIDEND STATISTICS ===
 YTD Total Received: ${dividends?.ytdTotal?.toFixed(2) || '0'} PLN
@@ -234,7 +273,13 @@ Yield on Cost: ${dividends?.yieldOnCost?.toFixed(2) || '0'}%
 Monthly Average: ${dividends?.monthlyAverage?.toFixed(2) || '0'} PLN
 
 === UPCOMING DIVIDENDS ===
-${dividends?.calendar?.filter((d: any) => d.status === 'expected')?.slice(0, 10)?.map((d: any) => `${d.paymentDate}: ${d.ticker} - ${d.amount?.toFixed(2)} ${d.currency}`).join('\n') || 'No upcoming dividends'}
+${
+    dividends?.calendar
+        ?.filter((d: any) => d.status === 'expected')
+        ?.slice(0, 10)
+        ?.map((d: any) => `${d.paymentDate}: ${d.ticker} - ${d.amount?.toFixed(2)} ${d.currency}`)
+        .join('\n') || 'No upcoming dividends'
+}
 
 === WATCHLIST ===
 ${watchlist?.map((w: any) => `${w.ticker}: ${w.price} ${w.currency}`).join(', ') || 'No watchlist items'}
@@ -259,9 +304,9 @@ Chart types:
 - area/line: for time series (not currently supported, use bar instead)
 `;
 
-            const fullPrompt = portfolioContext + "\n\nUser: " + content;
+            const fullPrompt = portfolioContext + '\n\nUser: ' + content;
             const reply = await engine.current.chat.completions.create({
-                messages: [{ role: 'user', content: fullPrompt }],
+                messages: [{ role: 'user', content: fullPrompt }]
             });
 
             const assistantMessage: Message = {
@@ -271,7 +316,7 @@ Chart types:
 
             setMessages(prev => [...prev, assistantMessage]);
         } catch (e: any) {
-            console.error("Chat failed:", e);
+            console.error('Chat failed:', e);
             const errorMessage: Message = {
                 role: 'assistant',
                 content: `Error: ${e?.message || 'Failed to get response'}`
@@ -296,7 +341,7 @@ Chart types:
         clearMessages,
         clearChat: clearMessages,
         loadModel,
-        changeModel: loadModel,
+        changeModel: loadModel
     };
 
     return <AIContext.Provider value={value}>{children}</AIContext.Provider>;

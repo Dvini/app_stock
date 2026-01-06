@@ -1,0 +1,22 @@
+# CI/CD config files
+*.config.ts
+*.config.js
+
+# Test files (tested separately)
+tests/
+**/*.test.js
+**/*.test.ts
+**/*.spec.ts
+**/*.spec.js
+
+# Build output
+dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Test artifacts
+playwright-report/
+test-results/
