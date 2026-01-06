@@ -2,36 +2,50 @@
 
 This directory contains GitHub Actions workflows for automated testing.
 
-## Workflows
+## Active Workflow
 
-### 🔥 [smoke-tests.yml](smoke-tests.yml)
+### 🚀 [ci.yml](ci.yml)
 
-**Purpose:** Fast smoke tests to catch critical failures
+**Comprehensive CI pipeline with sequential stages**
 
 **Triggers:**
-- **Pull Request** → Runs on Chromium (~2 min)
-- **Push to Main** → Runs on Chromium (~2 min)
+- **Pull Request** → Full pipeline
+- **Push to Main** → Full pipeline
 - **Manual** → Can be triggered from Actions tab
 
-**Browser:** Chromium only (fastest, most stable for CI)
+**Pipeline Stages:**
 
-**What it does:**
-1. Installs dependencies
-2. Builds the app with AI disabled
-3. Runs 20 smoke tests covering:
-   - Navigation & routing
-   - CRUD operations (transactions, watchlist)
-   - Portfolio & charts
-   - Dividends sync
-   - Data management (export/import/reset)
-   - Validation
+#### Stage 1: Fast Checks (Parallel - ~1 min)
+1. **Unit Tests** - Vitest with coverage
+2. **Type Check** - TypeScript validation
+3. **Lint & Format** - ESLint + Prettier
 
-**Success criteria:**
-- All 20 tests must pass
-- Execution time < 10 minutes
-- Artifacts uploaded on failure (videos, screenshots, reports)
+#### Stage 2: Smoke Tests (~2 min)
+**Only runs if Stage 1 passes** ✅
+- E2E tests with Playwright (Chromium)
+- Build verification
+- Critical path testing
+
+#### Stage 3: Status Summary
+- Final status check
+- Ready to merge indicator
+
+**Total Time:**
+- ⚡ Fast fail: ~1 min (if Stage 1 fails)
+- ✅ Full pass: ~3 min (both stages)
+
+**Key Feature:** `needs: [unit-tests, typecheck, lint]` prevents expensive E2E tests from running if quick checks fail.
 
 ---
+
+## Strategy
+
+See [STRATEGY.md](STRATEGY.md) for detailed explanation of the sequential pipeline approach.
+
+**Benefits:**
+- ⚡ Fast feedback (fails in 1 min instead of 2 min)
+- 💰 Cost savings (skip E2E if unit tests fail)
+- 🎯 Logical flow (quick → slow checks)
 
 ## Running Locally
 

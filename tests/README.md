@@ -81,17 +81,26 @@ npm run test:e2e --project=webkit
 
 ## 🚀 CI/CD Integration
 
-### GitHub Actions
-Smoke tests automatically run on:
-- **Pull Requests** - Chromium only (~2 min)
-- **Push to Main** - Chromium only (~2 min)
+### GitHub Actions - Sequential Pipeline
+Tests run automatically in 2 stages:
 
-See [.github/workflows/smoke-tests.yml](../.github/workflows/smoke-tests.yml) for configuration.
+**Stage 1 (Fast - Parallel):**
+- Unit tests (Vitest)
+- Type check (TypeScript)
+- Linting (ESLint + Prettier)
+
+**Stage 2 (Only if Stage 1 passes):**
+- Smoke tests (Playwright E2E)
+
+See [.github/workflows/ci.yml](../.github/workflows/ci.yml) for configuration.
 
 ### Local CI Simulation
 ```bash
-# Simulate CI check (Chromium only)
-npm run test:e2e tests/smoke.spec.ts -- --project=chromium
+# Simulate full pipeline
+npm run test -- --run         # Unit tests
+npm run typecheck             # Type check
+npm run lint                  # Linting
+npm run test:e2e tests/smoke.spec.ts -- --project=chromium  # Smoke tests
 ```
 
 ## Przykład testu

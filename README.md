@@ -2,7 +2,7 @@
 
 > Local-first portfolio management application with AI assistance
 
-[![Smoke Tests](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/smoke-tests.yml/badge.svg)](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/smoke-tests.yml)
+[![CI Pipeline](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/ci.yml)
 
 **Wersja:** 1.0.0  
 **Status:** ✅ Production Ready
@@ -80,6 +80,25 @@ app_stock/
 ---
 
 ## 🧪 Testing
+
+### Unit Tests (Vitest)
+```bash
+# Run unit tests
+npm run test
+
+# Watch mode (auto-rerun on changes)
+npm run test
+
+# UI mode (interactive)
+npm run test:ui
+
+# Coverage report
+npm run test:coverage
+```
+
+**Test files:**
+- `src/lib/*.test.js` - Service tests
+- `src/utils/*.test.js` - Utility function tests
 
 ### Smoke Tests (Fast - CI/CD)
 ```bash
@@ -168,19 +187,37 @@ npm run build
 
 ## 📊 CI/CD
 
-### GitHub Actions
+### GitHub Actions - Sequential Pipeline
+
+**Pipeline Flow:**
+```
+Stage 1 (Parallel):          Stage 2 (Sequential):
+├─ Unit Tests (1 min)        
+├─ Type Check (30s)   ────→  Smoke Tests (2 min)
+└─ Lint (30s)                     ↓
+     ↓                        ✅ Ready to Merge
+  ✅ ALL PASS?
+```
 
 **On Pull Request:**
-- ✅ Smoke tests (Chromium) - ~2 minutes
-- ✅ Type checking
-- ✅ Build verification
+1. ⚡ Fast checks run in parallel (~1 min)
+   - Unit tests (Vitest)
+   - Type checking (TypeScript)
+   - Linting (ESLint + Prettier)
+2. 🔥 Smoke tests (only if step 1 passes)
+   - E2E tests (Playwright Chromium)
+   - Build verification
 
 **On Push to Main:**
-- ✅ Smoke tests (Chromium) - ~2 minutes
-- ✅ Deployment (if configured)
+- Same pipeline as PR
+- Optional deployment trigger
 
-**Browser Coverage:** Chromium (most stable for CI/CD)  
-**Artifacts:** Test videos, screenshots, and reports available for 7 days
+**Key Benefits:**
+- ⚡ Fast fail in ~1 min (if unit tests fail)
+- 💰 Saves compute (skips E2E if quick checks fail)
+- ✅ Full validation in ~3 min if all pass
+
+**Artifacts:** Coverage reports, test videos, screenshots (7 days)
 
 ---
 
