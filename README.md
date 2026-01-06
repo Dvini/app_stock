@@ -131,7 +131,7 @@ npm run test:e2e
 ## 🌐 Deployment
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+
 - Modern browser (Chrome 90+, Firefox 88+, Safari 14+)
 
 ### Environment Variables
@@ -189,7 +189,7 @@ npm run build
 ### App doesn't load?
 - Clear browser cache and IndexedDB
 - Check console for errors
-- Verify Node.js version (18+)
+- Verify Node.js version (20+)
 
 ### Tests fail?
 ```bash

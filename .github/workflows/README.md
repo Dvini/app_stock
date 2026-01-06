@@ -93,7 +93,7 @@ Add to README.md:
 
 ### Tests fail in CI but pass locally?
 - Check if AI is disabled (`VITE_DISABLE_AI=true`)
-- Verify Node version matches (18)
+- Verify Node version matches (20+)
 - Clear npm cache: `npm ci` instead of `npm install`
 
 ### Timeout errors?
