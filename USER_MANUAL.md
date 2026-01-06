@@ -74,12 +74,12 @@ Przed zakupem akcji musisz dodać gotówkę do swojego portfela.
 ┌─────────────────────────────────┐
 │  Dodaj Transakcję               │
 ├─────────────────────────────────┤
-│ Typ:      [Depozyt ▼]          │
+│ Typ:      [Depozyt ▼]           │
 │ Kwota:    [10000]               │
-│ Waluta:   [PLN ▼]              │
+│ Waluta:   [PLN ▼]               │
 │ Data:     [2024-01-04]          │
 │                                 │
-│         [Anuluj]  [Dodaj]      │
+│         [Anuluj]  [Dodaj]       │
 └─────────────────────────────────┘
 ```
 
@@ -112,7 +112,7 @@ Przed zakupem akcji musisz dodać gotówkę do swojego portfela.
 │ Suma:     1505.00 USD           │
 │ W PLN:    6095.25 PLN           │
 │                                 │
-│         [Anuluj]  [Dodaj]      │
+│         [Anuluj]  [Dodaj]       │
 └─────────────────────────────────┘
 ```
 
@@ -136,8 +136,8 @@ Dashboard to **główny ekran** aplikacji, który pokazuje podsumowanie Twojego 
 ┌──────────────────┬──────────────────┬──────────────────┬──────────────────┐
 │ Wartość Portfela │ Gotówka          │ [Add Transaction]│ [Add Watchlist]  │
 │                  │                  │                  │                  │
-│  50 000 PLN      │ 10 000 PLN      │  + Button        │  ⭐ Button      │
-│  ↑ +11.11%       │  PLN + USD      │                  │                  │
+│  50 000 PLN      │ 10 000 PLN       │ + Button         │  ⭐ Button       │
+│  ↑ +11.11%       │  PLN + USD       │                  │                  │
 └──────────────────┴──────────────────┴──────────────────┴──────────────────┘
 ```
 
@@ -246,7 +246,7 @@ Dostępne przedziały czasowe:
 ```
 ┌─────────────────────────────────────────────────────┐
 │  AAPL - Apple Inc.                      165.20 USD  │
-│  [1D] [1W] [1M] [3M] [1Y] [MAX]                    │
+│  [1D] [1W] [1M] [3M] [1Y] [MAX]                     │
 ├─────────────────────────────────────────────────────┤
 │                                             /\      │
 │                                    /\      /  \     │
@@ -371,7 +371,7 @@ Miejsce gdzie śledzisz **wszystkie dywidendy** - zarówno otrzymane, jak i ocze
 ┌──────────────┬──────────────┬──────────────┬──────────────┐
 │ Wpływ Suma   │ Oczekiwane   │ Yield on Cost│ Średnia/Mies │
 │              │ (60 dni)     │              │              │
-│  2 500 PLN   │  150 PLN    │  5.2%       │  208 PLN    │
+│  2 500 PLN   │  150 PLN     │  5.2%        │  208 PLN     │
 │  Rok 2024    │  2 miesiące  │  Rentowność  │  12 miesięcy │
 └──────────────┴──────────────┴──────────────┴──────────────┘
 ```
@@ -397,10 +397,10 @@ Pokażuje **nadchodzące dywidendy** w ciągu najbliższych 60 dni.
 ┌────────┬─────────────┬──────────────┬─────────┬──────────────┐
 │ Ticker │ Record Date │ Payment Date │ DPS     │ Szacowane    │
 ├────────┼─────────────┼──────────────┼─────────┼──────────────┤
-│ AAPL   │ 2024-02-09  │ 2024-02-16   │ 0.24    │ ~9.72 PLN   │
+│ AAPL   │ 2024-02-09  │ 2024-02-16   │ 0.24    │ ~9.72 PLN    │
 │        │             │              │ USD     │              │
 ├────────┼─────────────┼──────────────┼─────────┼──────────────┤
-│ MSFT   │ 2024-02-15  │ 2024-03-14   │ 0.68    │ ~13.60 PLN  │
+│ MSFT   │ 2024-02-15  │ 2024-03-14   │ 0.68    │ ~13.60 PLN   │
 │        │             │              │ USD     │              │
 └────────┴─────────────┴──────────────┴─────────┴──────────────┘
 ```
@@ -540,7 +540,7 @@ Przejdź do: **Sidebar → Ustawienia**
 ```
 ┌─────────────────────────────────┐
 │ Model AI:                       │
-│ [Qwen 3 (1.7B) - Default ▼]   │
+│ [Qwen 3 (1.7B) - Default ▼]     │
 └─────────────────────────────────┘
 ```
 
