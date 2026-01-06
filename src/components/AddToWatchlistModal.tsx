@@ -38,14 +38,14 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div data-testid="add-watchlist-modal" className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <Star className="text-yellow-400 fill-yellow-400" size={24} />
                         Dodaj do Obserwowanych
                     </h2>
-                    <button onClick={onClose} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                    <button data-testid="close-modal-button" onClick={onClose} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
                         <X size={20} />
                     </button>
                 </div>
@@ -54,6 +54,7 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                     <div className="relative">
                         <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Znajdź instrument</label>
                         <input
+                            data-testid="watchlist-ticker-input"
                             type="text"
                             value={ticker}
                             onChange={e => {

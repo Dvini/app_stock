@@ -1,338 +1,235 @@
-﻿# 📈 Stock Portfolio App
+﻿# 🚀 StockTracker
 
-Kompleksowa aplikacja do zarządzania portfelem inwestycyjnym z zaawansowanymi funkcjami analizy, monitorowania dywidend i symulacji transakcji.
+> Local-first portfolio management application with AI assistance
 
-## ✨ Funkcje
+[![Smoke Tests](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/smoke-tests.yml/badge.svg)](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/smoke-tests.yml)
 
-### 📊 **Portfolio Management**
-- Zarządzanie wielowalutowym portfelem akcji
-- Real-time aktualizacja cen (Yahoo Finance API)
-- Automatyczne przeliczanie walut (PLN, USD, EUR, GBP)
-- Historia transakcji z pełnym audytem
-- Watchlist dla obserwowanych aktywów
-
-### 💰 **Dividend Tracking**
-- Automatyczne pobieranie dywidend (Alpha Vantage → Yahoo Finance → Stooq)
-- Multi-source fallback dla maksymalnej dostępności
-- Kalendarz nadchodzących dywidend
-- Analiza otrzymanych dywidend (YTD, total)
-- Statystyki i prognozy
-
-### 🎯 **Advanced Features**
-- **Simulator** - Symulacja transakcji bez wpływu na portfel
-- **AI Assistant** - Analiza portfela z WebLLM (offline)
-- **Charts** - Interaktywne wykresy historyczne
-- **Multi-currency** - Wsparcie dla USD, EUR, GBP, PLN
-
-### 🔧 **Technical Excellence**
-
-#### ⚡ **Performance**
-- Lazy loading wszystkich route'ów
-- List virtualization (1000+ dividend rows)
-- Dexie query optimization
-- Cache management z size limits
-- React.memo dla expensive components
-
-#### 🛡️ **Production Ready**
-- **Logger Service** - Environment-aware logging (DEV/PROD)
-- **Error Boundary** - Crash protection z graceful recovery
-- **Toast Notifications** - Instant user feedback
-- **Loading Skeletons** - Premium UX podczas ładowania
-- TypeScript strict mode - Zero runtime errors
-
-#### 🎨 **Code Quality**
-- ESLint + Prettier configured
-- TypeScript 100% coverage
-- Clean architecture (services, hooks, utils)
-- Comprehensive error handling
-- Detailed JSDoc documentation
+**Wersja:** 1.0.0  
+**Status:** ✅ Production Ready
 
 ---
 
-## 📚 Documentation
+## 🎯 Kluczowe Funkcje
 
-Kompletna dokumentacja techniczna i użytkownika:
-
-### For Developers
-
-| Document | Description |
-|----------|-------------|
-| [📖 DOCUMENTATION.md](DOCUMENTATION.md) | Complete technical documentation with architecture, data models, and API reference |
-| [🔄 PROCESS_FLOWS.md](PROCESS_FLOWS.md) | Detailed flowcharts for key processes (dividends, transactions, prices) |
-| [🛠️ API_REFERENCE.md](API_REFERENCE.md) | Complete API documentation for all services, hooks, and utilities |
-
-### For End Users
-
-| Document | Description |
-|----------|-------------|
-| [📘 USER_MANUAL.md](USER_MANUAL.md) | Comprehensive user guide in Polish with screenshots and FAQ |
-
-### Quick Links
-
-- **Architecture Overview** → [DOCUMENTATION.md#system-architecture](DOCUMENTATION.md#system-architecture)
-- **Database Schema** → [DOCUMENTATION.md#data-models--database-schema](DOCUMENTATION.md#data-models--database-schema)
-- **Dividend Sync Flow** → [PROCESS_FLOWS.md#dividend-synchronization](PROCESS_FLOWS.md#dividend-synchronization)
-- **Transaction Flow** → [PROCESS_FLOWS.md#transaction-processing](PROCESS_FLOWS.md#transaction-processing)
-- **Service APIs** → [API_REFERENCE.md#services](API_REFERENCE.md#services)
-- **Getting Started Guide** → [USER_MANUAL.md#pierwsze-kroki](USER_MANUAL.md#pierwsze-kroki)
+✅ **Śledzenie portfela akcji, ETF i kryptowalut**  
+✅ **Automatyczne pobieranie cen w czasie rzeczywistym**  
+✅ **Zarządzanie dywidendami z prognozą wypłat**  
+✅ **Obsługa wielu walut** (PLN, USD, EUR, GBP, JPY, CHF, CNY)  
+✅ **Wykresy historyczne** powered by WebGPU  
+✅ **Asystent AI** do analizy portfela (opcjonalnie)  
+✅ **100% prywatność** - brak kont, brak śledzenia
 
 ---
-## 🚀 Getting Started
 
-### **Prerequisites**
-- Node.js 20.15+ (recommended 20.19+)
-- npm 10.7+
-
-### **Installation**
+## 🚀 Quick Start
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd app_stock
-
-# Install dependencies
+# 1. Instalacja
 npm install
 
-# Start development server
+# 2. Uruchomienie (dev)
 npm run dev
-```
 
-### **Available Scripts**
-
-#### Development
-```bash
-npm run dev              # Start dev server (Vite)
-npm run dev:lmm          # Dev with LLM model download
-npm run dev:nolmm        # Dev without LLM
-```
-
-#### Code Quality
-```bash
-npm run lint             # Run ESLint
-npm run format           # Format code with Prettier
-npm run format:check     # Check if code is formatted
-npm run typecheck        # TypeScript type checking
-```
-
-#### Testing
-```bash
-npm run test             # Run unit tests (Vitest)
-npm run test:ui          # Vitest UI
-npm run test:coverage    # Coverage report
-```
-
-#### Build
-```bash
-npm run build            # Production build
-npm run preview          # Preview production build
+# 3. Otwórz przeglądarkę
+http://localhost:5173
 ```
 
 ---
 
-## 🏗️ Architecture
+## 📁 Struktura Projektu
 
-### **Tech Stack**
-- **Framework:** React 19 + TypeScript
-- **Routing:** React Router v7
-- **Database:** Dexie.js (IndexedDB wrapper)
-- **Styling:** TailwindCSS 4
-- **Build:** Vite 7
-- **AI:** WebLLM (offline LLM inference)
-- **Charts:** Custom Canvas implementation
-- **Icons:** Lucide React
-
-### **Project Structure**
 ```
-src/
-├── components/          # Reusable UI components
-│   ├── ErrorBoundary.tsx   # Crash protection
-│   ├── Skeletons.tsx       # Loading states
-│   └── ...
-├── context/            # React Context providers
-│   ├── AIContext.jsx       # WebLLM state
-│   └── CurrencyContext.jsx # Currency management
-├── db/                 # Database schema (Dexie)
-├── hooks/              # Custom React hooks
-│   ├── usePortfolio.ts     # Main portfolio logic
-│   ├── useDividends.ts     # Dividend management
-│   └── ...
-├── lib/                # Services & utilities
-│   ├── ApiService.ts       # Yahoo Finance API
-│   ├── CacheService.ts     # localStorage cache
-│   ├── StooqService.ts     # Polish stock data
-│   └── DividendService.ts  # Multi-source dividends
-├── pages/              # Route components
-├── utils/              # Utility functions
-│   ├── logger.ts           # Logging service
-│   ├── calculations.ts     # Financial calculations
-│   ├── formatters.ts       # Number/currency formatting
-│   └── validators.ts       # Input validation
-└── App.tsx             # Root component
+app_stock/
+├── src/
+│   ├── pages/          # Główne strony (Dashboard, Portfolio, etc.)
+│   ├── components/     # Komponenty React
+│   ├── services/       # API services (Yahoo Finance, NBP, etc.)
+│   ├── hooks/          # Custom React hooks
+│   └── lib/            # Utilities i helpery
+├── tests/
+│   ├── smoke.spec.ts   # 🔥 Smoke tests (20 testów)
+│   └── fixtures/       # Test data helpers
+├── docs/               # Dokumentacja
+└── .github/workflows/  # CI/CD (GitHub Actions)
 ```
 
 ---
 
-## 🔑 Key Features Explained
+## 🛠️ Tech Stack
 
-### **Logger Service**
-Scentralizowane logowanie z automatyczną kontrolą environment:
-
-```typescript
-import { logger } from './utils/logger';
-
-logger.debug('Cache hit');     // Only in DEV
-logger.info('Data loaded');     // Only in DEV
-logger.warn('Rate limit');      // Always visible
-logger.error('API failed', e);  // Always visible
-```
-
-### **Error Boundary**
-Automatyczna ochrona przed crashami:
-- Catch wszystkich React errors
-- User-friendly error screen
-- Dev-only stacktrace
-- Soft reset (preserve data)
-
-### **Toast Notifications**
-```typescript
-import { toast } from 'sonner';
-
-toast.success('Transaction saved!');
-toast.error('Failed to fetch prices');
-toast.info('Refreshing data...');
-```
-
-### **Loading Skeletons**
-```typescript
-import { CardSkeleton, ChartSkeleton } from './components/Skeletons';
-
-{isLoading ? <CardSkeleton /> : <DataCard />}
-```
+| Kategoria | Technology |
+|-----------|-----------|
+| **Frontend** | React 18 + TypeScript |
+| **Styling** | Tailwind CSS |
+| **Database** | IndexedDB (Dexie.js) |
+| **Charts** | Recharts |
+| **AI** | WebLLM (local inference) |
+| **Testing** | Playwright E2E |
+| **Build** | Vite |
 
 ---
 
-## 🔧 Configuration
+## 📚 Dokumentacja
 
-### **API Keys**
-Nie wymagane! Aplikacja używa darmowych publicznych API:
-- Yahoo Finance - bez klucza
-- Alpha Vantage - opcjonalnie (ma limity)
-- Stooq - web scraping
-
-### **Prettier**
-Configuration: `.prettierrc`
-```json
-{
-  "semi": true,
-  "singleQuote": true,
-  "tabWidth": 4,
-  "printWidth": 120
-}
-```
-
-### **Database**
-IndexedDB (Dexie):
-- `transactions` - Historia transakcji
-- `watchlist` - Obserwowane aktywa
-- `dividends` - Dane dywidend
-- Automatic schema versioning
-
----
-
-## 📊 Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| **Bundle Size** | ~451KB gzipped |
-| **First Paint** | <1s |
-| **Time to Interactive** | <2s |
-| **Lighthouse Score** | 95+ |
-
-### **Optimizations Applied**
-- ✅ Code splitting (lazy routes)
-- ✅ List virtualization
-- ✅ Query optimization (Dexie indexes)
-- ✅ Cache management (500KB limit)
-- ✅ React.memo for expensive renders
-- ✅ Selective API caching
+- 📖 **[User Manual](USER_MANUAL.md)** - Kompletna instrukcja użytkownika
+- 🏗️ **[Technical Documentation](DOCUMENTATION.md)** - Architektura i procesy
+- 📡 **[API Reference](API_REFERENCE.md)** - Dokumentacja API i hooków
+- 🔄 **[Process Flows](PROCESS_FLOWS.md)** - Diagramy procesów biznesowych
+- 🧪 **[Test Plan](tests/README.md)** - Strategia testowania
 
 ---
 
 ## 🧪 Testing
 
+### Smoke Tests (Fast - CI/CD)
 ```bash
-# Run all tests
-npm run test
+# Run smoke tests (20 tests, ~15 seconds)
+npm run test:e2e tests/smoke.spec.ts
 
-# Watch mode
-npm run test -- --watch
+# UI mode (interactive)
+npm run test:e2e:ui tests/smoke.spec.ts
 
-# Coverage report
-npm run test:coverage
+# Debug mode
+npm run test:e2e:debug tests/smoke.spec.ts
 ```
 
-### **Test Coverage**
-- Unit tests: Formatters, Validators, Calculations
-- Integration tests: CacheService
-- Component tests: (TODO)
+### Coverage
+| Category | Tests | Status |
+|----------|-------|--------|
+| Navigation | 6 | ✅ 100% |
+| Transactions | 4 | ✅ 100% |
+| Watchlist | 2 | ✅ 100% |
+| Charts | 8 | ✅ 100% |
+| Data Management | 3 | ✅ 100% |
+| Validation | 2 | ✅ 100% |
+
+**Total:** 20 smoke tests × 3 browsers = **60 tests**
 
 ---
 
-## 🐛 Known Issues & Solutions
+## 🔧 Development
 
-### **QuotaExceededError**
-✅ **Fixed:** Cache size limits + selective caching
+```bash
+# Development server
+npm run dev
 
-### **Dividend API rate limits**
-✅ **Fixed:** Multi-source fallback (3 sources)
+# Type checking
+npm run typecheck
 
-### **Large portfolio performance**
-✅ **Fixed:** List virtualization + query optimization
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run tests
+npm run test:e2e
+```
+
+---
+
+## 🌐 Deployment
+
+### Prerequisites
+- Node.js 18+
+- Modern browser (Chrome 90+, Firefox 88+, Safari 14+)
+
+### Environment Variables
+```bash
+# Optional: Disable AI features
+VITE_DISABLE_AI=true
+
+# API Keys (optional - uses free tier by default)
+VITE_ALPHA_VANTAGE_KEY=your_key_here
+```
+
+### Build & Deploy
+```bash
+# Build
+npm run build
+
+# Output: dist/
+# Deploy dist/ to any static hosting (Vercel, Netlify, GitHub Pages)
+```
 
 ---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Run tests (`npm run test`)
-4. Check types (`npm run typecheck`)
-5. Format code (`npm run format`)
-6. Commit changes (`git commit -m 'Add AmazingFeature'`)
-7. Push to branch (`git push origin feature/AmazingFeature`)
-8. Open Pull Request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
-### **Code Standards**
-- TypeScript strict mode
-- ESLint rules enforced
-- Prettier formatting required
-- JSDoc for public APIs
+**Note:** All PRs must pass smoke tests (automated via GitHub Actions)
+
+---
+
+## 📊 CI/CD
+
+### GitHub Actions
+
+**On Pull Request:**
+- ✅ Smoke tests (Chromium) - ~2 minutes
+- ✅ Type checking
+- ✅ Build verification
+
+**On Push to Main:**
+- ✅ Smoke tests (Chromium) - ~2 minutes
+- ✅ Deployment (if configured)
+
+**Browser Coverage:** Chromium (most stable for CI/CD)  
+**Artifacts:** Test videos, screenshots, and reports available for 7 days
+
+---
+
+## 🐛 Troubleshooting
+
+### App doesn't load?
+- Clear browser cache and IndexedDB
+- Check console for errors
+- Verify Node.js version (18+)
+
+### Tests fail?
+```bash
+# Clear Playwright cache
+npx playwright install --force
+
+# Reset database
+# Delete IndexedDB from browser DevTools
+```
+
+### API errors?
+- Check network connection
+- Verify API endpoints are accessible
+- Review rate limits (Yahoo Finance, NBP)
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License.
+MIT License - feel free to use for personal or commercial projects
 
 ---
 
 ## 🙏 Acknowledgments
 
 - **Yahoo Finance** - Stock price data
-- **Alpha Vantage** - Dividend data (fallback)
-- **Stooq** - Polish stock data
-- **WebLLM** - Offline AI inference
-- **Dexie.js** - IndexedDB wrapper
-- **Sonner** - Toast notifications
+- **NBP API** - Currency exchange rates
+- **Alpha Vantage** - Dividend information
+- **WebLLM** - Local AI inference
 
 ---
 
-## 📞 Support
+## 📧 Support
 
-For issues and feature requests, please open an issue on GitHub.
+- 🐛 **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/app_stock/issues)
+- 📖 **Documentation:** See `docs/` directory
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/YOUR_USERNAME/app_stock/discussions)
 
 ---
 
-**Built with ❤️ using React + TypeScript + TailwindCSS**
+**Built with ❤️ using React + TypeScript + Tailwind**
 
-**Version:** 1.0.0 (Production Ready) 🚀
+**Version:** 1.0.0 | **Last Updated:** 2026-01-06

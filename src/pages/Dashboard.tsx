@@ -137,9 +137,9 @@ export const Dashboard = () => {
     const chartStats = getChartStats();
 
     return (
-        <div className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
+        <div data-testid="dashboard-page" className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500">
+            <div data-testid="dashboard-summary-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                <div data-testid="portfolio-value-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Portfela</p>
                     <div className="flex items-baseline gap-2 mt-1">
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
@@ -170,12 +170,13 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
+                <div data-testid="cash-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Gotówka</p>
                     <h2 className="text-2xl font-bold mt-1">{portfolioSummary.cash} <span className="text-sm font-normal text-slate-500">{portfolioSummary.baseCurrency || 'PLN'}</span></h2>
                 </div>
 
                 <div
+                    data-testid="add-transaction-button"
                     onClick={() => setShowTxModal(true)}
                     className="bg-blue-600/10 hover:bg-blue-600/20 p-5 rounded-2xl border border-blue-600/30 cursor-pointer transition-all group flex flex-col justify-center items-center"
                 >
@@ -184,6 +185,7 @@ export const Dashboard = () => {
                 </div>
 
                 <div
+                    data-testid="add-watchlist-button"
                     onClick={() => setShowWatchlistModal(true)}
                     className="bg-slate-800/30 hover:bg-slate-800/60 p-5 rounded-2xl border border-slate-700 border-dashed cursor-pointer transition-all group flex flex-col justify-center items-center"
                 >
@@ -193,7 +195,7 @@ export const Dashboard = () => {
             </div>
 
             <div className="flex-1 min-h-0 flex gap-6">
-                <div className="w-1/3 min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
+                <div data-testid="assets-sidebar" className="w-1/3 min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col overflow-hidden">
                     <div className="p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
                         <h3 className="font-bold text-slate-200 flex items-center gap-2">
                             <Search size={16} className="text-slate-500" />
@@ -202,7 +204,7 @@ export const Dashboard = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                         {assets.length > 0 && (
-                            <div className="mb-4">
+                            <div data-testid="portfolio-assets" className="mb-4">
                                 <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2">Twój Portfel</p>
                                 {assets.map(a => (
                                     <AssetItem
@@ -220,7 +222,7 @@ export const Dashboard = () => {
                         )}
 
                         {watchlist.length > 0 && (
-                            <div>
+                            <div data-testid="watchlist-assets">
                                 <p className="text-xs uppercase font-bold text-slate-400 px-3 py-2 flex items-center gap-1">
                                     <Star size={12} className="text-yellow-500/50" /> Obserwowane
                                 </p>
@@ -254,7 +256,7 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative">
+                <div data-testid="chart-container" className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative">
                     {selectedTicker ? (
                         <>
                             <div className="p-6 border-b border-slate-800 flex justify-between items-start bg-gradient-to-r from-slate-900 to-slate-900/50">
@@ -275,10 +277,11 @@ export const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex bg-slate-800/50 p-1 rounded-xl gap-1">
+                                <div data-testid="chart-range-selector" className="flex bg-slate-800/50 p-1 rounded-xl gap-1">
                                     {ranges.map(r => (
                                         <button
                                             key={r.val}
+                                            data-testid={`chart-range-${r.val}`}
                                             onClick={() => setChartRange(r.val)}
                                             className={cn(
                                                 "px-4 py-2 rounded-lg text-sm font-bold transition-all",
@@ -335,6 +338,7 @@ export const Dashboard = () => {
 
 const AssetItem = React.memo<AssetItemProps>(({ ticker, price, currency, pl, amount, selected, onClick, isWatchlist, onRemove }) => (
     <div
+        data-testid={`asset-item-${ticker}`}
         onClick={onClick}
         className={cn(
             "relative p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center group border",
@@ -365,6 +369,7 @@ const AssetItem = React.memo<AssetItemProps>(({ ticker, price, currency, pl, amo
             </div>
             {isWatchlist && onRemove && (
                 <button
+                    data-testid={`remove-watchlist-${ticker}`}
                     onClick={onRemove}
                     className={cn(
                         "p-2 rounded-lg transition-all z-20",

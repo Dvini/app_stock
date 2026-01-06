@@ -268,21 +268,22 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div data-testid="add-transaction-modal" className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Nowa Operacja</h2>
-                    <button onClick={onClose} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                    <button data-testid="close-modal-button" onClick={onClose} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="space-y-4">
                     <div>
-                        <div className="flex bg-slate-950 p-1 rounded-xl">
+                        <div data-testid="transaction-type-selector" className="flex bg-slate-950 p-1 rounded-xl">
                             {(['Kupno', 'Sprzedaż', 'Wpłata', 'Wypłata'] as DbTransactionType[]).map(t => (
                                 <button
                                     key={t}
+                                    data-testid={`transaction-type-${t.toLowerCase()}`}
                                     onClick={() => {
                                         setType(t);
                                         if (isDeposit || isWithdraw) {
@@ -303,6 +304,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                         <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Data</label>
                         <div className="relative">
                             <input
+                                data-testid="transaction-date-input"
                                 type="date"
                                 value={date}
                                 max={new Date().toISOString().split('T')[0]}
@@ -320,6 +322,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             {type === 'Sprzedaż' ? (
                                 <div className="relative">
                                     <select
+                                        data-testid="asset-selector"
                                         value={ticker}
                                         onChange={handleAssetSelect}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold appearance-none"
@@ -338,6 +341,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             ) : (
                                 <>
                                     <input
+                                        data-testid="ticker-input"
                                         type="text"
                                         value={ticker}
                                         onChange={e => {
@@ -380,6 +384,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             <div className="flex-1">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Ilość</label>
                                 <input
+                                    data-testid="amount-input"
                                     type="number"
                                     min="1"
                                     step="1"
@@ -395,6 +400,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             <div className="w-1/3">
                                 <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">Waluta</label>
                                 <select
+                                    data-testid="currency-selector"
                                     value={currency}
                                     onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold text-center appearance-none"
@@ -409,6 +415,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                         <div className="flex-1">
                             <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">{isDeposit || isWithdraw ? 'Kwota (PLN)' : 'Cena za sztukę'}</label>
                             <input
+                                data-testid="price-input"
                                 type="number"
                                 min={isDeposit || isWithdraw ? "0.01" : "0"}
                                 step="0.01"
@@ -454,8 +461,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                     )}
 
                     <div className="pt-4 flex space-x-3">
-                        <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-colors">Anuluj</button>
+                        <button data-testid="cancel-button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-colors">Anuluj</button>
                         <button
+                            data-testid="submit-transaction-button"
                             onClick={handleSubmit}
                             disabled={isInsufficientFunds}
                             className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${isInsufficientFunds

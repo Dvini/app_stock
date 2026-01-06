@@ -71,10 +71,11 @@ export const Portfolio = () => {
     }, [transactions.length, viewMode, historyRange, selectedTicker]);
 
     return (
-        <div className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+        <div data-testid="portfolio-page" className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
             <header className="flex justify-between items-center shrink-0">
                 <h1 className="text-3xl font-extrabold tracking-tight">Twój Portfel</h1>
                 <button
+                    data-testid="add-transaction-button"
                     onClick={() => setShowAddModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2"
                 >
@@ -83,8 +84,8 @@ export const Portfolio = () => {
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
+            <div data-testid="portfolio-summary-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+                <div data-testid="total-value-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Całkowita</p>
                     <div className="flex items-baseline gap-2 mt-1">
                         <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
@@ -110,7 +111,7 @@ export const Portfolio = () => {
                         </div>
                     )}
                 </div>
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
+                <div data-testid="pl-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wynik (P/L)</p>
                     <div className={cn("text-2xl font-bold mt-1 flex items-center gap-2", portfolioSummary.totalPL.includes('-') ? "text-rose-400" : "text-emerald-400")}>
                         {portfolioSummary.totalPL}
@@ -136,23 +137,25 @@ export const Portfolio = () => {
                         </div>
                     )}
                 </div>
-                <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
+                <div data-testid="cash-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
                     <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Gotówka</p>
                     <h2 className="text-2xl font-bold mt-1">{portfolioSummary.cash} <span className="text-sm font-normal text-slate-500">{portfolioSummary.baseCurrency}</span></h2>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[450px] shrink-0">
-                <div className="lg:col-span-3 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative overflow-hidden">
+                <div data-testid="portfolio-chart-section" className="lg:col-span-3 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative overflow-hidden">
                     <div className="flex justify-between items-center mb-4 z-10">
-                        <div className="flex bg-slate-800 p-1 rounded-lg">
+                        <div data-testid="view-mode-selector" className="flex bg-slate-800 p-1 rounded-lg">
                             <button
+                                data-testid="view-history-button"
                                 onClick={() => setViewMode('history')}
                                 className={cn("px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all", viewMode === 'history' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200")}
                             >
                                 <LineIcon size={16} /> Historia
                             </button>
                             <button
+                                data-testid="view-pie-button"
                                 onClick={() => setViewMode('pie')}
                                 className={cn("px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all", viewMode === 'pie' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200")}
                             >
@@ -161,8 +164,9 @@ export const Portfolio = () => {
                         </div>
 
                         {viewMode === 'history' && (
-                            <div className="flex gap-2">
+                            <div data-testid="history-controls" className="flex gap-2">
                                 <select
+                                    data-testid="ticker-selector"
                                     value={selectedTicker}
                                     onChange={e => setSelectedTicker(e.target.value)}
                                     className="bg-slate-800 text-slate-200 text-sm font-bold rounded-lg px-3 py-2 outline-none border border-slate-700"
@@ -170,7 +174,7 @@ export const Portfolio = () => {
                                     <option value="PORTFOLIO">Cały Portfel</option>
                                     {assets.map(a => <option key={a.ticker} value={a.ticker}>{a.ticker}</option>)}
                                 </select>
-                                <div className="flex bg-slate-800 rounded-lg p-1">
+                                <div data-testid="history-range-selector" className="flex bg-slate-800 rounded-lg p-1">
                                     {[
                                         { l: '1D', v: '1d' as HistoryRange },
                                         { l: '1T', v: '5d' as HistoryRange },
@@ -181,6 +185,7 @@ export const Portfolio = () => {
                                     ].map(r => (
                                         <button
                                             key={r.v}
+                                            data-testid={`history-range-${r.v}`}
                                             onClick={() => setHistoryRange(r.v)}
                                             className={cn("px-3 py-1 rounded text-xs font-bold", historyRange === r.v ? "bg-slate-600 text-white" : "text-slate-400")}
                                         >
@@ -231,7 +236,7 @@ export const Portfolio = () => {
                 </div>
             </div>
 
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
+            <div data-testid="portfolio-assets-table" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-auto custom-scrollbar flex-1">
                 <table className="w-full text-left">
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
@@ -252,7 +257,7 @@ export const Portfolio = () => {
                             </tr>
                         ) : (
                             assets.map(asset => (
-                                <tr key={asset.ticker} className="hover:bg-slate-800/50 transition-colors">
+                                <tr key={asset.ticker} data-testid={`asset-row-${asset.ticker}`} className="hover:bg-slate-800/50 transition-colors">
                                     <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
                                     <td className="px-6 py-4 text-right">{formatQuantity(asset.amount)}</td>
                                     <td className="px-6 py-4 text-right font-medium text-slate-300">

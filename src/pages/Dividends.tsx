@@ -72,7 +72,7 @@ export const Dividends = () => {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
+        <div data-testid="dividends-page" className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col">
             {toastMessage && (
                 <div className="fixed top-4 right-4 bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top-2 fade-in">
                     <p className="text-sm font-bold text-slate-200">{toastMessage}</p>
@@ -92,6 +92,7 @@ export const Dividends = () => {
                     <p className="text-slate-400 text-sm mt-1">Kalendarz wypłat i przychody pasywne</p>
                 </div>
                 <button
+                    data-testid="refresh-dividends-button"
                     onClick={handleManualRefresh}
                     disabled={refreshing || isLoading}
                     className={cn(
@@ -106,7 +107,7 @@ export const Dividends = () => {
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+            <div data-testid="dividends-summary-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                 <StatCard
                     label="Wpływ Suma"
                     value={`${formatNumber(ytdTotal)} PLN`}
@@ -139,7 +140,7 @@ export const Dividends = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                <div data-testid="calendar-section" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
                     <div className="px-6 py-4 border-b border-slate-800 shrink-0">
                         <h2 className="text-xl font-bold">Kalendarz Rynkowy</h2>
                         <p className="text-xs text-slate-500 mt-0.5">Nadchodzące dywidendy (następne 60 dni)</p>
@@ -164,7 +165,7 @@ export const Dividends = () => {
                                     </tr>
                                 ) : (
                                     calendar.map((div, i) => (
-                                        <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                                        <tr key={i} data-testid={`calendar-dividend-${div.ticker}-${i}`} className="hover:bg-slate-800/50 transition-colors">
                                             <td className="px-4 py-3 font-bold text-blue-400">{div.ticker}</td>
                                             <td className="px-4 py-3 text-slate-400 text-xs">{div.recordDate}</td>
                                             <td className="px-4 py-3 text-slate-400 text-xs">{div.paymentDate}</td>
@@ -214,7 +215,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
     const gridTemplate = "minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)";
 
     return (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+        <div data-testid="received-dividends-section" className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-800 shrink-0 flex items-baseline justify-between">
                 <div>
                     <h2 className="text-xl font-bold">Portfel: Otrzymane</h2>
@@ -269,6 +270,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({ r
                                 return (
                                     <div
                                         key={div.id}
+                                        data-testid={`dividend-row-${div.ticker}-${div.paymentDate}`}
                                         style={{
                                             position: 'absolute',
                                             top: 0,

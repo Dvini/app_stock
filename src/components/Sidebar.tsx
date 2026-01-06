@@ -21,6 +21,7 @@ interface SidebarItemProps {
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label }) => (
     <NavLink
+        data-testid={`nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
         to={to}
         className={({ isActive }) =>
             cn(

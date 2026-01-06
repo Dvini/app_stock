@@ -108,7 +108,7 @@ export const Settings = () => {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20">
+        <div data-testid="settings-page" className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20">
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
 
             {/* AI Settings */}
