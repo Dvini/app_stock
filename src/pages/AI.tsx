@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
-// @ts-expect-error - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
 import { cn } from '../lib/utils';
 import { PieChart } from '../components/PieChart';
-// @ts-expect-error - will be migrated to TypeScript
 import { WebGPUChart } from '../components/WebGPUChart';
 
 interface Message {

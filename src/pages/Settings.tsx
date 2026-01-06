@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Save, Upload, Trash2, Cpu, AlertTriangle } from 'lucide-react';
 import { exportData, importData, clearData } from '../lib/dataManagement';
-// @ts-expect-error - will be migrated to TypeScript
 import { useAI } from '../context/AIContext';
 
 interface SectionProps {

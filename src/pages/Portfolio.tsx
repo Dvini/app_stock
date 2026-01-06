@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
-// @ts-expect-error - will be migrated
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { PieChart } from '../components/PieChart';
-// @ts-expect-error - will be migrated
 import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { db } from '../db/db';

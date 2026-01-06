@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePortfolio } from '../hooks/usePortfolio';
-// @ts-expect-error - JSX component not typed yet
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { AddToWatchlistModal } from '../components/AddToWatchlistModal';
-// @ts-expect-error - WebGL component not typed yet
 import { WebGPUChart } from '../components/WebGPUChart';
 import { fetchHistory, getCachedPrice, fetchCurrentPrice } from '../lib/api';
 import { db } from '../db/db';

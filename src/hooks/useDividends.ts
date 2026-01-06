@@ -6,7 +6,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-// @ts-expect-error - will be migrated to TypeScript
 import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
 import type { Dividend } from '../types/database';

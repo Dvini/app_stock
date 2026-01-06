@@ -8,7 +8,6 @@
  * - CacheService.ts for cache management
  */
 
-// @ts-expect-error - will be migrated to TypeScript
 import { apiService } from './ApiService.js';
 import { cacheService } from './CacheService';
 import type { YahooFinancePriceData, HistoricalData, ExchangeRate } from '../types/api';
