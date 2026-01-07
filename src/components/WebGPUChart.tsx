@@ -148,12 +148,17 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                         const ratio = Math.abs(p1) / (Math.abs(p1) + Math.abs(p2));
                         const crossPos = pos1 + (pos2 - pos1) * ratio;
 
-                        // Add color stops at crossing point
-                        strokeGradient.addColorStop(crossPos, getColor(p1));
-                        strokeGradient.addColorStop(crossPos, getColor(p2));
+                        // Add slight smoothness (2%) for better visual transition
+                        const smoothness = 0.02;
+                        const crossStart = Math.max(0, crossPos - smoothness);
+                        const crossEnd = Math.min(1, crossPos + smoothness);
 
-                        fillGradient.addColorStop(crossPos, getColor(p1));
-                        fillGradient.addColorStop(crossPos, getColor(p2));
+                        // Add color stops at crossing point with smoothness
+                        strokeGradient.addColorStop(crossStart, getColor(p1));
+                        strokeGradient.addColorStop(crossEnd, getColor(p2));
+
+                        fillGradient.addColorStop(crossStart, getColor(p1));
+                        fillGradient.addColorStop(crossEnd, getColor(p2));
                     }
 
                     // Add color stop at the next point position
