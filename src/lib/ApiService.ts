@@ -236,8 +236,8 @@ class ApiService {
         const shouldCache = !['5y', '10y', 'max'].includes(range);
         const cacheKey = `history_${ticker}_${range}_${interval}`;
 
-        // Shorter cache for intraday data
-        const cacheDuration = range === '1d' ? 5 * 60 * 1000 : this.cacheDuration;
+        // Shorter cache for intraday data (5 minutes for fresh data during market hours)
+        const cacheDuration = (range === '1d' || range === '5d') ? 5 * 60 * 1000 : this.cacheDuration;
 
         // 1. Check cache (only for reasonable ranges)
         if (shouldCache) {
