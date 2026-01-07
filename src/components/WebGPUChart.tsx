@@ -110,7 +110,6 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
 
             const gradientLeft = padding.left;
             const gradientRight = w - padding.right;
-            const gradientWidth = gradientRight - gradientLeft;
 
             const getColor = (val: number) => (val >= 0 ? '#10b981' : '#f43f5e');
 
@@ -131,6 +130,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                 fillGradient.addColorStop(0, '#f43f5e');
                 fillGradient.addColorStop(1, '#f43f5e');
             } else {
+                // Mixed positive and negative - create gradient with color stops at each point
                 strokeGradient.addColorStop(0, getColor(points[0]!));
                 fillGradient.addColorStop(0, getColor(points[0]!));
 
@@ -138,28 +138,28 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                     const p1 = points[i]!;
                     const p2 = points[i + 1]!;
 
+                    // Calculate position of this point in the gradient (0 to 1)
+                    const pos1 = i / (points.length - 1);
+                    const pos2 = (i + 1) / (points.length - 1);
+
+                    // If crossing zero between these two points
                     if ((p1 >= 0 && p2 < 0) || (p1 < 0 && p2 >= 0)) {
+                        // Calculate exact crossing point
                         const ratio = Math.abs(p1) / (Math.abs(p1) + Math.abs(p2));
-                        const crossingIdx = i + ratio;
+                        const crossPos = pos1 + (pos2 - pos1) * ratio;
 
-                        const crossingX = getX(crossingIdx);
-                        let stop = (crossingX - gradientLeft) / gradientWidth;
-                        stop = Math.max(0, Math.min(1, stop));
+                        // Add color stops at crossing point
+                        strokeGradient.addColorStop(crossPos, getColor(p1));
+                        strokeGradient.addColorStop(crossPos, getColor(p2));
 
-                        strokeGradient.addColorStop(stop, getColor(p1));
-                        strokeGradient.addColorStop(stop, getColor(p2));
-
-                        const smoothness = 0.02;
-                        const start = Math.max(0, stop - smoothness);
-                        const end = Math.min(1, stop + smoothness);
-
-                        fillGradient.addColorStop(start, getColor(p1));
-                        fillGradient.addColorStop(end, getColor(p2));
+                        fillGradient.addColorStop(crossPos, getColor(p1));
+                        fillGradient.addColorStop(crossPos, getColor(p2));
                     }
+
+                    // Add color stop at the next point position
+                    strokeGradient.addColorStop(pos2, getColor(p2));
+                    fillGradient.addColorStop(pos2, getColor(p2));
                 }
-                const lastColor = getColor(points[points.length - 1]!);
-                strokeGradient.addColorStop(1, lastColor);
-                fillGradient.addColorStop(1, lastColor);
             }
 
             ctx.save();
