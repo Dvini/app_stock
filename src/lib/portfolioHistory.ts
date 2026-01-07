@@ -31,7 +31,11 @@ export const calculatePortfolioHistory = async (
             startDate.setMonth(now.getMonth() - 1); // Fallback
         }
     } else {
-        if (range === '1d') startDate.setDate(now.getDate() - 1);
+        if (range === '1d') {
+            // For 1D, show today's session from market open (9:30 AM)
+            startDate = new Date();
+            startDate.setHours(9, 30, 0, 0);
+        }
         if (range === '5d') startDate.setDate(now.getDate() - 5);
         if (range === '1mo') startDate.setMonth(now.getMonth() - 1);
         if (range === '1y') startDate.setFullYear(now.getFullYear() - 1);
@@ -46,25 +50,77 @@ export const calculatePortfolioHistory = async (
     ];
 
     let apiRange = range;
-    if (range === 'max')
+    let apiInterval = '1d';
+    
+    if (range === 'max') {
         apiRange = '10y'; // 'max' often fails via proxy, 10y is usually sufficient
-    else if (range === '5y') apiRange = '5y';
-    else if (['1y', 'ytd', '1mo', '5d', '1d'].includes(range)) apiRange = '1y';
-    else apiRange = '1y';
+        apiInterval = '1d';
+    } else if (range === '5y') {
+        apiRange = '5y';
+        apiInterval = '1d';
+    } else if (range === '1y') {
+        apiRange = '1y';
+        apiInterval = '1d';
+    } else if (range === '1mo') {
+        apiRange = '1mo';
+        apiInterval = '1d';
+    } else if (range === '5d') {
+        apiRange = '5d';
+        apiInterval = '15m';
+    } else if (range === '1d') {
+        apiRange = '1d';
+        apiInterval = '5m';
+    } else {
+        apiRange = '1y';
+        apiInterval = '1d';
+    }
 
     const currenciesToFetch = new Set<string>();
 
     // Fetch all historical data (extracted to helper function)
-    const { histories, fxHistories } = await fetchHistoricalData(uniqueTickers, currenciesToFetch, apiRange);
+    const { histories, fxHistories } = await fetchHistoricalData(uniqueTickers, currenciesToFetch, apiRange, apiInterval);
 
     // 3. Replay Loop
     const timeline: Date[] = [];
-    // If range is large, step might need optimization, but 1d is fine for charts
-    for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
-        timeline.push(new Date(d));
+    
+    // Determine step size based on range
+    let stepMinutes = 1440; // 1 day by default
+    if (range === '1d') stepMinutes = 5; // 5 minutes for 1D
+    else if (range === '5d') stepMinutes = 15; // 15 minutes for 5D
+    
+    // Generate timeline with appropriate step
+    if (stepMinutes < 1440) {
+        // Intraday intervals (minutes)
+        for (let d = new Date(startDate); d <= now; d = new Date(d.getTime() + stepMinutes * 60 * 1000)) {
+            timeline.push(new Date(d));
+        }
+    } else {
+        // Daily intervals - set to 23:00 (end of trading day)
+        for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
+            const dayPoint = new Date(d);
+            dayPoint.setHours(23, 0, 0, 0);
+            
+            // Don't add future points
+            if (dayPoint <= now) {
+                timeline.push(dayPoint);
+            }
+        }
+        
+        // For 'max' range, add current time as the last point if it's not already at 23:00
+        if (range === 'max' && timeline.length > 0) {
+            const lastPoint = timeline[timeline.length - 1];
+            const nowTime = now.getTime();
+            const lastPointTime = lastPoint.getTime();
+            
+            // If last point is not today at current time, add current time
+            if (Math.abs(nowTime - lastPointTime) > 60000) { // More than 1 minute difference
+                timeline.push(new Date(now));
+            }
+        }
     }
 
     const resultSeries: HistoryDataPoint[] = timeline.map(day => {
+        // IMPORTANT: Use ALL transactions up to this point for accurate P/L
         const relevantTx = sortedTx.filter(t => new Date(t.date) <= day);
         const portfolio: Record<string, number> = {};
         let cash = 0;

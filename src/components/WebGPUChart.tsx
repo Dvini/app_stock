@@ -29,7 +29,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
     // Data parsing
     const hasObjects = data.length > 0 && typeof data?.[0] === 'object' && data?.[0] !== null;
     const points: number[] = hasObjects ? data.map(d => d?.price || 0) : (data as number[]);
-    const times: number[] = hasObjects ? data.map(d => d?.time || 0) : [];
+    const times: number[] = hasObjects ? data.map(d => d?.timestamp || d?.time || 0) : [];
 
     // Colors
     const isNegative = (color?.[0] ?? 0) > 0.5 && (color?.[1] ?? 0) < 0.5;
@@ -229,11 +229,11 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             price: formatNumber(price),
             date: time
                 ? new Date(time * 1000).toLocaleString('pl-PL', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                  })
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
                 : '',
             index
         });

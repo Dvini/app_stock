@@ -292,6 +292,7 @@ export const Portfolio = () => {
                                 ) : (
                                     <WebGPUChart
                                         data={historyData}
+                                        range={historyRange}
                                         currency={
                                             selectedTicker === 'PORTFOLIO'
                                                 ? portfolioSummary.baseCurrency || 'PLN'

@@ -44,7 +44,8 @@ export const getPriceAt = (historyData: HistoricalDataPoint[], date: Date): numb
 export const fetchHistoricalData = async (
     uniqueTickers: string[],
     currenciesToFetch: Set<string>,
-    apiRange: string
+    apiRange: string,
+    apiInterval: string = '1d'
 ): Promise<FetchHistoricalDataResult> => {
     const histories: Record<string, AssetHistory> = {};
     const fxHistories: Record<string, HistoricalDataPoint[]> = {};
@@ -54,7 +55,7 @@ export const fetchHistoricalData = async (
         uniqueTickers.map(async ticker => {
             let hasData = false;
             try {
-                let result = await fetchHistory(ticker, apiRange, '1d');
+                let result = await fetchHistory(ticker, apiRange, apiInterval);
 
                 // Fallback for MAX range if it fails or returns empty
                 if ((!result || !result.data || result.data.length === 0) && apiRange === 'max') {
@@ -108,7 +109,7 @@ export const fetchHistoricalData = async (
         await Promise.all(
             Array.from(currenciesToFetch).map(async currency => {
                 const pair = `${currency}PLN=X`;
-                const result = await fetchHistory(pair, apiRange, '1d');
+                const result = await fetchHistory(pair, apiRange, apiInterval);
 
                 if (result && result.data && result.data.length > 0) {
                     fxHistories[currency] = result.data;
