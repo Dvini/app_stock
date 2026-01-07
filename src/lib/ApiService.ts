@@ -236,8 +236,8 @@ class ApiService {
         const shouldCache = !['5y', '10y', 'max'].includes(range);
         const cacheKey = `history_${ticker}_${range}_${interval}`;
 
-        // Shorter cache for intraday data (5 minutes for fresh data during market hours)
-        const cacheDuration = (range === '1d' || range === '5d') ? 5 * 60 * 1000 : this.cacheDuration;
+        // Shorter cache for intraday data (2 min for 1D, 5 min for 5D)
+        const cacheDuration = range === '1d' ? 2 * 60 * 1000 : (range === '5d' ? 5 * 60 * 1000 : this.cacheDuration);
 
         // 1. Check cache (only for reasonable ranges)
         if (shouldCache) {
@@ -264,6 +264,8 @@ class ApiService {
             }
 
             // Clean and format data
+            // Yahoo Finance already provides timestamps at market close for daily intervals
+            // For intraday intervals (5m, 15m), timestamps are exact
             const cleanData: HistoryDataPoint[] = timestamps
                 .map((t: number, i: number) => {
                     const date = new Date(t * 1000).toISOString().split('T')[0]!;

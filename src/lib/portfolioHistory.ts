@@ -80,6 +80,32 @@ export const calculatePortfolioHistory = async (
     // Fetch all historical data (extracted to helper function)
     const { histories, fxHistories } = await fetchHistoricalData(uniqueTickers, currenciesToFetch, apiRange, apiInterval);
 
+    // Determine actual end date from Yahoo Finance data instead of using 'now'
+    let endDate = new Date(0); // Start with epoch
+    
+    // Find the latest timestamp from all fetched historical data
+    Object.values(histories).forEach(history => {
+        if (history?.data && history.data.length > 0) {
+            const lastPoint = history.data[history.data.length - 1];
+            if (lastPoint) {
+                const pointDate = new Date(lastPoint.timestamp * 1000);
+                if (pointDate > endDate) {
+                    endDate = pointDate;
+                }
+            }
+        }
+    });
+    
+    // Fallback to 'now' if no data was found
+    if (endDate.getTime() === 0) {
+        endDate = now;
+    }
+
+    console.log('[portfolioHistory] Range:', range);
+    console.log('[portfolioHistory] Start Date:', startDate.toISOString());
+    console.log('[portfolioHistory] End Date from Yahoo:', endDate.toISOString());
+    console.log('[portfolioHistory] Current Time (now):', now.toISOString());
+
     // 3. Replay Loop
     const timeline: Date[] = [];
     
@@ -88,35 +114,32 @@ export const calculatePortfolioHistory = async (
     if (range === '1d') stepMinutes = 5; // 5 minutes for 1D
     else if (range === '5d') stepMinutes = 15; // 15 minutes for 5D
     
-    // Generate timeline with appropriate step
+    // Generate timeline with appropriate step, ending at actual Yahoo Finance data end date
     if (stepMinutes < 1440) {
         // Intraday intervals (minutes)
-        for (let d = new Date(startDate); d <= now; d = new Date(d.getTime() + stepMinutes * 60 * 1000)) {
+        for (let d = new Date(startDate); d <= endDate; d = new Date(d.getTime() + stepMinutes * 60 * 1000)) {
             timeline.push(new Date(d));
         }
     } else {
-        // Daily intervals - set to 23:00 (end of trading day)
-        for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
-            const dayPoint = new Date(d);
-            dayPoint.setHours(23, 0, 0, 0);
-            
-            // Don't add future points
-            if (dayPoint <= now) {
-                timeline.push(dayPoint);
-            }
-        }
+        // Daily intervals - use actual market close times from data
+        // Use while loop to avoid date mutation issues in for loop condition
+        // Normalize to day-level comparison (ignore hours/minutes) to handle timezone issues
+        let currentDate = new Date(startDate);
+        currentDate.setHours(0, 0, 0, 0);
         
-        // For 'max' range, add current time as the last point if it's not already at 23:00
-        if (range === 'max' && timeline.length > 0) {
-            const lastPoint = timeline[timeline.length - 1];
-            const nowTime = now.getTime();
-            const lastPointTime = lastPoint.getTime();
-            
-            // If last point is not today at current time, add current time
-            if (Math.abs(nowTime - lastPointTime) > 60000) { // More than 1 minute difference
-                timeline.push(new Date(now));
-            }
+        const endDateDay = new Date(endDate);
+        endDateDay.setHours(0, 0, 0, 0);
+        
+        while (currentDate <= endDateDay) {
+            timeline.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
         }
+    }
+
+    console.log('[portfolioHistory] Timeline length:', timeline.length);
+    if (timeline.length > 0) {
+        console.log('[portfolioHistory] Timeline first date:', timeline[0]?.toISOString());
+        console.log('[portfolioHistory] Timeline last date:', timeline[timeline.length - 1]?.toISOString());
     }
 
     const resultSeries: HistoryDataPoint[] = timeline.map(day => {
@@ -193,10 +216,17 @@ export const calculatePortfolioHistory = async (
         let totalValue = 0;
         let totalPL = 0;
 
+        // For daily intervals, use end-of-day time to query prices
+        // This ensures getPriceAt finds prices even when Yahoo timestamps are at market close
+        const queryDate = new Date(day);
+        if (stepMinutes >= 1440) {
+            queryDate.setHours(23, 59, 59, 999);
+        }
+
         Object.entries(portfolio).forEach(([ticker, amount]) => {
             const history = histories[ticker];
             if (amount > 0 && history) {
-                const assetPrice = getPriceAt(history.data, day);
+                const assetPrice = getPriceAt(history.data, queryDate);
                 const currency = history.currency;
 
                 let valueNative = assetPrice * amount;
@@ -209,7 +239,7 @@ export const calculatePortfolioHistory = async (
                         let rate = 0;
                         const fxHistory = fxHistories[currency];
                         if (fxHistory && fxHistory.length > 0) {
-                            rate = getPriceAt(fxHistory, day);
+                            rate = getPriceAt(fxHistory, queryDate);
                         }
                         rate = getExchangeRateWithFallback(currency, rate);
                         valuePLN = valueNative * rate;
@@ -226,8 +256,36 @@ export const calculatePortfolioHistory = async (
             totalPL = totalValue - investedPLN;
         }
 
+        // For daily intervals, try to use actual timestamp from historical data (market close time)
+        // For intraday intervals or when no data available, use generated timeline timestamp
+        let actualTimestamp = day.getTime() / 1000;
+        
+        if (stepMinutes >= 1440 && Object.keys(histories).length > 0) {
+            // For daily intervals, find actual market close timestamp from data
+            const dayStart = new Date(day);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(day);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            // Look for any ticker's data point on this day to get actual close timestamp
+            for (const ticker in histories) {
+                const history = histories[ticker];
+                if (history && history.data) {
+                    const dataPoint = history.data.find(p => {
+                        const pointTime = p.timestamp * 1000;
+                        return pointTime >= dayStart.getTime() && pointTime <= dayEnd.getTime();
+                    });
+                    
+                    if (dataPoint) {
+                        actualTimestamp = dataPoint.timestamp;
+                        break; // Use first found timestamp (all tickers should have same close time on same exchange)
+                    }
+                }
+            }
+        }
+
         return {
-            time: day.getTime() / 1000,
+            time: actualTimestamp,
             price: totalValue,
             pl: totalPL
         };
