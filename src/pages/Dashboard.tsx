@@ -216,7 +216,7 @@ export const Dashboard = () => {
                     className="bg-blue-600/10 hover:bg-blue-600/20 p-5 rounded-2xl border border-blue-600/30 cursor-pointer transition-all group flex flex-col justify-center items-center"
                 >
                     <PlusCircle className="text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-blue-200 font-bold text-sm">Dodaj Transakcję</span>
+                    <span className="text-blue-200 font-bold text-sm">Nowa Transakcja</span>
                 </div>
 
                 <div

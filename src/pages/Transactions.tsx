@@ -4,7 +4,11 @@ import { cn } from '../lib/utils';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 
 export const Transactions = () => {
-    const transactions = useLiveQuery(() => db.transactions.reverse().toArray()) || [];
+    const transactions = useLiveQuery(() =>
+        db.transactions.toArray().then(txs =>
+            txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        )
+    ) || [];
 
     return (
         <div
@@ -54,8 +58,8 @@ export const Transactions = () => {
                                                 tx.type === 'Kupno'
                                                     ? 'bg-emerald-500/10 text-emerald-400'
                                                     : tx.type === 'Sprzedaż'
-                                                      ? 'bg-rose-500/10 text-rose-400'
-                                                      : 'bg-blue-500/10 text-blue-400'
+                                                        ? 'bg-rose-500/10 text-rose-400'
+                                                        : 'bg-blue-500/10 text-blue-400'
                                             )}
                                         >
                                             {tx.type}
