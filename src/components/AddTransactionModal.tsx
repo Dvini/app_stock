@@ -227,9 +227,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const handleTickerSelect = async (t: any) => {
         setTicker(t.symbol);
         setShowSuggestions(false);
-        if (t.region === 'US') setCurrency('USD');
-        if (t.region === 'EU' || t.exchange?.includes('Paris')) setCurrency('EUR');
-        if (t.region === 'WA' || t.symbol.endsWith('.WA')) setCurrency('PLN');
+        if (t.region === 'US' || t.region === 'USA') setCurrency('USD');
+        if (t.region === 'EU' || t.region === 'DE' || t.region === 'FR' || t.exchange?.includes('Paris')) setCurrency('EUR');
+        if (t.region === 'WA' || t.region === 'PL' || t.symbol.endsWith('.WA')) setCurrency('PLN');
 
         try {
             const priceData = await fetchCurrentPrice(t.symbol);
@@ -296,11 +296,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                             setExchangeRate('1.0');
                                         }
                                     }}
-                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
-                                        type === t
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${type === t
                                             ? 'bg-blue-600 text-white shadow-lg'
                                             : 'text-slate-500 hover:text-slate-300'
-                                    }`}
+                                        }`}
                                 >
                                     {t}
                                 </button>
@@ -503,11 +502,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             data-testid="submit-transaction-button"
                             onClick={handleSubmit}
                             disabled={isInsufficientFunds}
-                            className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${
-                                isInsufficientFunds
+                            className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${isInsufficientFunds
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
                                     : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40'
-                            }`}
+                                }`}
                         >
                             Zapisz
                         </button>
