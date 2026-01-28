@@ -180,6 +180,7 @@ export const POPULAR_TICKERS: Ticker[] = [
     createTicker('EN.PA', 'Bouygues', 'FR'),
     createTicker('VIV.PA', 'Vivendi', 'FR'),
     createTicker('ETL.PA', 'Eutelsat', 'FR'),
+    createTicker('UBI.DE', 'Ubisoft Entertainment', 'DE'),  // Listed on XETRA (ISIN: FR0000054470)
 
     // --- GERMANY (DAX 40+) ---
     createTicker('SAP.DE', 'SAP SE', 'DE'),
