@@ -29,6 +29,7 @@ export const Portfolio = () => {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyRange, setHistoryRange] = useState<HistoryRange>('max');
     const [selectedTicker, setSelectedTicker] = useState('PORTFOLIO');
+    const [sessionDate, setSessionDate] = useState<string | undefined>(undefined);
 
     const pieData = assets
         .map(a => ({
@@ -45,12 +46,19 @@ export const Portfolio = () => {
             setHistoryLoading(true);
             try {
                 let data;
+                let newSessionDate: string | undefined;
                 if (selectedTicker === 'PORTFOLIO') {
-                    data = await calculatePortfolioHistory(transactions, historyRange, false, false);
+                    const result = await calculatePortfolioHistory(transactions, historyRange, false, false);
+                    data = result.data;
+                    newSessionDate = result.sessionDate;
                 } else {
                     const tickerTx = transactions.filter(t => t.ticker === selectedTicker);
-                    data = await calculatePortfolioHistory(tickerTx, historyRange, true, true);
+                    const result = await calculatePortfolioHistory(tickerTx, historyRange, true, true);
+                    data = result.data;
+                    newSessionDate = result.sessionDate;
                 }
+
+                setSessionDate(newSessionDate);
 
                 const plData: HistoryDataPoint[] = data.map(d => ({
                     time: d.time,
@@ -251,6 +259,11 @@ export const Portfolio = () => {
                                         </button>
                                     ))}
                                 </div>
+                                {historyRange === '1d' && sessionDate && (
+                                    <span className="text-xs text-slate-400 ml-2 self-center">
+                                        Sesja: {sessionDate}
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>

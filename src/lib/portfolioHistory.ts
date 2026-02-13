@@ -8,13 +8,18 @@ interface HistoryDataPoint {
     pl: number;
 }
 
+interface PortfolioHistoryResult {
+    data: HistoryDataPoint[];
+    sessionDate?: string;
+}
+
 export const calculatePortfolioHistory = async (
     transactions: Transaction[],
     range: string = '1mo',
     excludeCash: boolean = false,
     returnNative: boolean = false
-): Promise<HistoryDataPoint[]> => {
-    if (!transactions || transactions.length === 0) return [];
+): Promise<PortfolioHistoryResult> => {
+    if (!transactions || transactions.length === 0) return { data: [], sessionDate: undefined };
 
     // Sort transactions by date first to ensure correct timeline
     const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -99,6 +104,22 @@ export const calculatePortfolioHistory = async (
     // Fallback to 'now' if no data was found
     if (endDate.getTime() === 0) {
         endDate = now;
+    }
+
+    // For 1D range, derive startDate from actual API data (handles weekends/holidays)
+    if (range === '1d') {
+        let earliestTimestamp = Infinity;
+        Object.values(histories).forEach(history => {
+            if (history?.data && history.data.length > 0) {
+                const firstPoint = history.data[0];
+                if (firstPoint && firstPoint.timestamp < earliestTimestamp) {
+                    earliestTimestamp = firstPoint.timestamp;
+                }
+            }
+        });
+        if (earliestTimestamp !== Infinity) {
+            startDate = new Date(earliestTimestamp * 1000);
+        }
     }
 
     console.log('[portfolioHistory] Range:', range);
@@ -291,5 +312,16 @@ export const calculatePortfolioHistory = async (
         };
     });
 
-    return resultSeries;
+    // Extract session date for 1D range (for UI label)
+    let sessionDate: string | undefined;
+    if (range === '1d' && endDate.getTime() !== 0) {
+        sessionDate = endDate.toLocaleDateString('pl-PL', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    return { data: resultSeries, sessionDate };
 };
