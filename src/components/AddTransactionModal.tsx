@@ -24,6 +24,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [ownedAssets, setOwnedAssets] = useState<Asset[]>([]);
     const [availableCash, setAvailableCash] = useState(0);
+    const [commission, setCommission] = useState('');
+    const [commissionCurrency, setCommissionCurrency] = useState<CurrencyCode>('PLN');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -86,7 +88,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const numAmount = parseFloat(amount) || 0;
     const numPrice = parseFloat(price) || 0;
     const numRate = parseFloat(exchangeRate) || 1.0;
-    const totalCostPLN = numAmount * numPrice * numRate;
+    const numCommission = parseFloat(commission) || 0;
+    // Convert commission to PLN
+    const commissionPLN = commissionCurrency === 'PLN'
+        ? numCommission
+        : commissionCurrency === currency
+            ? numCommission * numRate
+            : numCommission; // fallback: treat as PLN if unresolvable
+    const totalCostPLN = numAmount * numPrice * numRate + (type === 'Kupno' ? commissionPLN : 0);
+    const totalRevenuePLN = numAmount * numPrice * numRate - (type === 'Sprzedaż' ? commissionPLN : 0);
     const isDeposit = (type as string) === 'Wpłata' || type === 'deposit' || type === 'Depozyt';
     const isWithdraw = (type as string) === 'Wypłata' || type === 'withdraw';
     const isInsufficientFunds =
@@ -142,6 +152,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             const txPrice = parseFloat(price);
             const txTotal = txAmount * txPrice;
             const rate = parseFloat(exchangeRate) || 1.0;
+            const txCommission = parseFloat(commission) || 0;
+
+            // Compute commissionPLN for cash impact
+            const txCommissionPLN = commissionCurrency === 'PLN'
+                ? txCommission
+                : commissionCurrency === currency
+                    ? txCommission * rate
+                    : txCommission;
 
             await db.transactions.add({
                 date: date as string,
@@ -151,7 +169,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                 price: txPrice,
                 currency: currency,
                 total: txTotal,
-                exchangeRate: rate
+                exchangeRate: rate,
+                commission: txCommission > 0 ? txCommission : undefined,
+                commissionCurrency: txCommission > 0 ? commissionCurrency : undefined
             });
 
             if (!isDeposit && !isWithdraw) {
@@ -162,7 +182,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
                     if (type === 'Kupno') {
                         const totalCostOld = asset.amount * asset.avgPrice;
-                        const totalCostNew = parseFloat(amount) * parseFloat(price);
+                        // Include commission in the cost basis (in asset's native currency)
+                        const commissionInAssetCurrency = commissionCurrency === currency
+                            ? (parseFloat(commission) || 0)
+                            : commissionCurrency === 'PLN'
+                                ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
+                                : (parseFloat(commission) || 0);
+                        const totalCostNew = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
                         const totalAmount = asset.amount + parseFloat(amount);
                         newAvgPrice = (totalCostOld + totalCostNew) / totalAmount;
                         newAmount = totalAmount;
@@ -178,10 +204,17 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                         currency: currency
                     });
                 } else if (type === 'Kupno') {
+                    // For new position, include commission in cost basis
+                    const commissionInAssetCurrency = commissionCurrency === currency
+                        ? (parseFloat(commission) || 0)
+                        : commissionCurrency === 'PLN'
+                            ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
+                            : (parseFloat(commission) || 0);
+                    const totalCostWithCommission = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
                     await db.assets.add({
                         ticker: txTicker,
                         amount: parseFloat(amount),
-                        avgPrice: parseFloat(price),
+                        avgPrice: totalCostWithCommission / parseFloat(amount),
                         currency: currency,
                         type: 'stock'
                     });
@@ -203,8 +236,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
             let cashImpactPLN = txTotal * rate;
 
-            if (type === 'Kupno') currentCash -= cashImpactPLN;
-            if (type === 'Sprzedaż') currentCash += cashImpactPLN;
+            if (type === 'Kupno') currentCash -= (cashImpactPLN + txCommissionPLN);
+            if (type === 'Sprzedaż') currentCash += (cashImpactPLN - txCommissionPLN);
             if (isDeposit) {
                 currentCash += cashImpactPLN;
             }
@@ -468,20 +501,69 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                         )}
                     </div>
 
-                    {type === 'Kupno' && amount && price && (
+                    {!(isDeposit || isWithdraw) && (
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">
+                                    Prowizja
+                                </label>
+                                <input
+                                    data-testid="commission-input"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={commission}
+                                    onChange={e => setCommission(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-amber-500 transition-colors font-mono"
+                                />
+                            </div>
+                            <div className="w-1/3">
+                                <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">
+                                    Waluta
+                                </label>
+                                <select
+                                    data-testid="commission-currency-selector"
+                                    value={commissionCurrency}
+                                    onChange={e => setCommissionCurrency(e.target.value as CurrencyCode)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-amber-500 transition-colors font-bold text-center appearance-none"
+                                >
+                                    {commonCurrencies.map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {!(isDeposit || isWithdraw) && amount && price && (
                         <div
                             className={`p-4 rounded-xl border ${isInsufficientFunds ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800/50 border-slate-700'}`}
                         >
                             <div className="flex justify-between items-center mb-1">
-                                <span className="text-slate-400 text-sm">Szacowany koszt:</span>
-                                <span className="text-white font-bold font-mono">{formatNumber(totalCostPLN)} PLN</span>
-                            </div>
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500">Dostępne środki:</span>
-                                <span className={isInsufficientFunds ? 'text-red-400 font-bold' : 'text-slate-400'}>
-                                    {formatNumber(availableCash)} PLN
+                                <span className="text-slate-400 text-sm">
+                                    {type === 'Kupno' ? 'Szacowany koszt:' : 'Szacowany przychód:'}
+                                </span>
+                                <span className="text-white font-bold font-mono">
+                                    {formatNumber(type === 'Kupno' ? totalCostPLN : totalRevenuePLN)} PLN
                                 </span>
                             </div>
+                            {numCommission > 0 && (
+                                <div className="flex justify-between items-center text-xs mb-1">
+                                    <span className="text-slate-500">w tym prowizja:</span>
+                                    <span className="text-amber-400 font-mono">
+                                        {formatNumber(commissionPLN)} PLN
+                                    </span>
+                                </div>
+                            )}
+                            {type === 'Kupno' && (
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-500">Dostępne środki:</span>
+                                    <span className={isInsufficientFunds ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                                        {formatNumber(availableCash)} PLN
+                                    </span>
+                                </div>
+                            )}
                             {isInsufficientFunds && (
                                 <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
                                     <X size={12} /> Brak wystarczających środków

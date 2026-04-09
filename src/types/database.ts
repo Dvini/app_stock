@@ -36,6 +36,8 @@ export interface Transaction {
     total: number; // Total transaction value
     currency?: CurrencyCode;
     exchangeRate?: number; // Exchange rate at time of transaction
+    commission?: number; // Broker commission/fee amount
+    commissionCurrency?: CurrencyCode; // Currency of the commission
 }
 
 /**

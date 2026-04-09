@@ -33,6 +33,7 @@ export const Transactions = () => {
                             <th className="px-6 py-4 text-right">Cena</th>
                             <th className="px-6 py-4 text-right">Wartość</th>
                             <th className="px-6 py-4 text-right">Kurs Waluty</th>
+                            <th className="px-6 py-4 text-right">Prowizja</th>
                             <th className="px-6 py-4 text-right">Wartość (PLN)</th>
                         </tr>
                     </thead>
@@ -83,6 +84,16 @@ export const Transactions = () => {
                                         {tx.currency && tx.currency !== 'PLN' && tx.exchangeRate
                                             ? formatNumber(tx.exchangeRate, 4, 4)
                                             : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right font-mono text-xs">
+                                        {tx.commission && tx.commission > 0 ? (
+                                            <span className="text-amber-400">
+                                                {formatNumber(tx.commission)}{' '}
+                                                <span className="text-slate-500">{tx.commissionCurrency || 'PLN'}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-600">—</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right font-mono font-bold">
                                         {formatNumber(tx.total * (tx.exchangeRate || 1))}{' '}
