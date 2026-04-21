@@ -2,11 +2,6 @@
 
 > Local-first portfolio management application with AI assistance
 
-[![CI Pipeline](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/app_stock/actions/workflows/ci.yml)
-
-**Wersja:** 1.0.0  
-**Status:** ✅ Production Ready
-
 ---
 
 ## 🎯 Kluczowe Funkcje
@@ -236,37 +231,4 @@ npx playwright install --force
 # Reset database
 # Delete IndexedDB from browser DevTools
 ```
-
-### API errors?
-- Check network connection
-- Verify API endpoints are accessible
-- Review rate limits (Yahoo Finance, NBP)
-
----
-
-## 📝 License
-
-MIT License - feel free to use for personal or commercial projects
-
----
-
-## 🙏 Acknowledgments
-
-- **Yahoo Finance** - Stock price data
-- **NBP API** - Currency exchange rates
-- **Alpha Vantage** - Dividend information
-- **WebLLM** - Local AI inference
-
----
-
-## 📧 Support
-
-- 🐛 **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/app_stock/issues)
-- 📖 **Documentation:** See `docs/` directory
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/YOUR_USERNAME/app_stock/discussions)
-
----
-
-**Built with ❤️ using React + TypeScript + Tailwind**
-
-**Version:** 1.0.0 | **Last Updated:** 2026-01-06
+**Built with ❤️ and AI assistance using React + TypeScript + Tailwind**
