@@ -231,4 +231,4 @@ npx playwright install --force
 # Reset database
 # Delete IndexedDB from browser DevTools
 ```
-**Built with ❤️ and AI assistance using React + TypeScript + Tailwind**
+**Built with AI assistance using React + TypeScript + Tailwind**
