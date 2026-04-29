@@ -1,5 +1,6 @@
 import { cacheService } from './CacheService';
 import type { CurrencyCode } from '../types/database';
+import type { Ticker } from './tickers';
 
 interface ApiServiceOptions {
     proxyUrls?: string[];
@@ -157,6 +158,48 @@ class ApiService {
         } catch (error) {
             console.error(`[ApiService] Failed to fetch price for ${ticker}:`, error);
             return null;
+        }
+    }
+
+    /**
+     * Search for tickers using Yahoo Finance Search API
+     */
+    async search(query: string): Promise<Ticker[]> {
+        if (!query || query.length < 2) return [];
+
+        const cacheKey = `search_${query.toUpperCase()}`;
+        const cached = cacheService.get<Ticker[]>(cacheKey, 24 * 60 * 60 * 1000); // 24 hours cache
+        if (cached) {
+            console.log(`[ApiService] Using cached search results for ${query}`);
+            return cached;
+        }
+
+        try {
+            // Yahoo Finance Search API
+            const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`;
+            const response = await this.fetchWithBackup(url);
+            const data = await response.json();
+
+            if (!data.quotes || !Array.isArray(data.quotes)) {
+                return [];
+            }
+
+            const results: Ticker[] = data.quotes
+                .filter((q: any) => q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'INDEX')
+                .map((q: any) => ({
+                    symbol: q.symbol,
+                    name: q.shortname || q.longname || q.symbol,
+                    region: q.exchDisp || q.exchange || 'Unknown'
+                }));
+
+            // Cache results
+            cacheService.set(cacheKey, results, { ttl: 24 * 60 * 60 * 1000 });
+
+            console.log(`[ApiService] Found ${results.length} results for ${query}`);
+            return results;
+        } catch (error) {
+            console.error(`[ApiService] Search failed for ${query}:`, error);
+            return [];
         }
     }
 

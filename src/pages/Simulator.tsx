@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { usePortfolio } from '../hooks/usePortfolio';
-import { POPULAR_TICKERS as tickers } from '../lib/tickers';
-import { fetchExchangeRates } from '../lib/api';
+import { POPULAR_TICKERS, searchTickers, Ticker } from '../lib/tickers';
+import { fetchExchangeRates, fetchCurrentPrice, apiService } from '../lib/api';
 import { Calculator, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 import type { CurrencyCode } from '../types/database';
@@ -29,12 +29,41 @@ export const Simulator = () => {
     const [price, setPrice] = useState('');
     const [result, setResult] = useState<SimulatorResult | null>(null);
     const [plnRate, setPlnRate] = useState<number | null>(null);
+    
+    // Live search states
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [liveCurrency, setLiveCurrency] = useState<CurrencyCode | null>(null);
+
+    useEffect(() => {
+        if (selectedTicker.length < 2 || mode === 'SELL') {
+            setLiveSuggestions([]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const results = await apiService.search(selectedTicker);
+                setLiveSuggestions(results);
+            } catch (error) {
+                console.error('Search failed', error);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [selectedTicker, mode]);
 
     const getCurrency = (tickerSymbol: string): CurrencyCode => {
+        if (liveCurrency) return liveCurrency;
+
         const asset = assets.find(a => a.ticker === tickerSymbol);
         if (asset) return asset.currency;
 
-        const tickerDef = tickers.find(t => t.symbol === tickerSymbol);
+        const tickerDef = POPULAR_TICKERS.find(t => t.symbol === tickerSymbol);
         if (tickerDef) {
             const region = tickerDef.region;
             if (region === 'USA' || region === 'US ETF' || region === 'CRYPTO') return 'USD';
@@ -69,6 +98,38 @@ export const Simulator = () => {
             active = false;
         };
     }, [currentCurrency]);
+
+    const handleTickerSelect = async (t: Ticker) => {
+        setSelectedTicker(t.symbol);
+        setShowSuggestions(false);
+        try {
+            const priceData = await fetchCurrentPrice(t.symbol);
+            if (priceData && priceData.price) {
+                setPrice(priceData.price.toString());
+            }
+            if (priceData && priceData.currency) {
+                setLiveCurrency(priceData.currency);
+            }
+        } catch (e) {
+            console.error('Failed to fetch price for simulation', e);
+        }
+    };
+
+    const handleAssetSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const t = e.target.value;
+        setSelectedTicker(t);
+        setLiveCurrency(null);
+        if (t) {
+            try {
+                const priceData = await fetchCurrentPrice(t);
+                if (priceData && priceData.price) {
+                    setPrice(priceData.price.toString());
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    };
 
     const handleCalculate = () => {
         if (!selectedTicker || !amount || !price) return;
@@ -164,29 +225,86 @@ export const Simulator = () => {
                             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
                                 Wybierz Ticker
                             </label>
-                            <select
-                                value={selectedTicker}
-                                onChange={e => setSelectedTicker(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                            >
-                                <option value="">-- Wybierz Spółkę --</option>
-                                <optgroup label="Twoje Aktywa">
+                            {mode === 'SELL' ? (
+                                <select
+                                    value={selectedTicker}
+                                    onChange={handleAssetSelect}
+                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                                >
+                                    <option value="">-- Wybierz Aktywo do Sprzedaży --</option>
                                     {assets.map(a => (
                                         <option key={a.ticker} value={a.ticker}>
                                             {a.ticker} (Posiadasz: {a.amount})
                                         </option>
                                     ))}
-                                </optgroup>
-                                <optgroup label="Wszystkie">
-                                    {tickers
-                                        .filter(t => !assets.find(a => a.ticker === t.symbol))
-                                        .map(t => (
-                                            <option key={t.symbol} value={t.symbol}>
-                                                {t.symbol} - {t.name}
-                                            </option>
-                                        ))}
-                                </optgroup>
-                            </select>
+                                </select>
+                            ) : (
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={selectedTicker}
+                                        onChange={e => {
+                                            setSelectedTicker(e.target.value.toUpperCase());
+                                            setShowSuggestions(true);
+                                            setLiveCurrency(null);
+                                        }}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                        placeholder="np. NVDA, KGH.WA"
+                                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors uppercase font-bold placeholder:font-normal"
+                                    />
+                                    {showSuggestions && selectedTicker.length > 0 && (
+                                        <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
+                                            {(() => {
+                                                const local = searchTickers(selectedTicker);
+                                                const liveFiltered = liveSuggestions.filter(ls => !local.some(l => l.symbol === ls.symbol));
+                                                const all = [...local, ...liveFiltered];
+
+                                                if (all.length === 0 && !isSearching) {
+                                                    return <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>;
+                                                }
+
+                                                return (
+                                                    <>
+                                                        {all.map(t => (
+                                                            <div
+                                                                key={t.symbol}
+                                                                onClick={() => handleTickerSelect(t)}
+                                                                className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
+                                                            >
+                                                                <div className="flex justify-between items-center w-full">
+                                                                    <div>
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <span className="font-bold text-white">{t.symbol}</span>
+                                                                            <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                                                                                {t.region}
+                                                                            </span>
+                                                                            {local.some(l => l.symbol === t.symbol) && (
+                                                                                <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">Popularny</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
+                                                                            {t.name}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {isSearching && (
+                                                            <div className="px-4 py-2 bg-slate-800/50 border-t border-slate-700 flex items-center justify-center space-x-2">
+                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">Szukam dalej...</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Star } from 'lucide-react';
 import { db } from '../db/db';
-import { searchTickers } from '../lib/tickers';
+import { searchTickers, Ticker } from '../lib/tickers';
+import { apiService } from '../lib/api';
 
 interface AddToWatchlistModalProps {
     onClose: () => void;
@@ -11,6 +12,29 @@ interface AddToWatchlistModalProps {
 export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClose, onAdded }) => {
     const [ticker, setTicker] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    useEffect(() => {
+        if (ticker.length < 2) {
+            setLiveSuggestions([]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const results = await apiService.search(ticker);
+                setLiveSuggestions(results);
+            } catch (error) {
+                console.error('Search failed', error);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [ticker]);
 
     const handleAdd = async (selectedTicker: string) => {
         try {
@@ -76,32 +100,54 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                         />
 
                         {showSuggestions && ticker.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0">
-                                {searchTickers(ticker).map(t => (
-                                    <div
-                                        key={t.symbol}
-                                        onClick={() => handleAdd(t.symbol)}
-                                        className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
-                                    >
-                                        <div className="flex justify-between items-center w-full">
-                                            <div>
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="font-bold text-white">{t.symbol}</span>
-                                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
-                                                        {t.region}
-                                                    </span>
+                            <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
+                                {(() => {
+                                    const local = searchTickers(ticker);
+                                    const liveFiltered = liveSuggestions.filter(ls => !local.some(l => l.symbol === ls.symbol));
+                                    const all = [...local, ...liveFiltered];
+
+                                    if (all.length === 0 && !isSearching) {
+                                        return <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>;
+                                    }
+
+                                    return (
+                                        <>
+                                            {all.map(t => (
+                                                <div
+                                                    key={t.symbol}
+                                                    onClick={() => handleAdd(t.symbol)}
+                                                    className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
+                                                >
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="font-bold text-white">{t.symbol}</span>
+                                                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                                                                    {t.region}
+                                                                </span>
+                                                                {local.some(l => l.symbol === t.symbol) && (
+                                                                    <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">Popularny</span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
+                                                                {t.name}
+                                                            </span>
+                                                        </div>
+                                                        <PlusButton />
+                                                    </div>
                                                 </div>
-                                                <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
-                                                    {t.name}
-                                                </span>
-                                            </div>
-                                            <PlusButton />
-                                        </div>
-                                    </div>
-                                ))}
-                                {searchTickers(ticker).length === 0 && (
-                                    <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>
-                                )}
+                                            ))}
+                                            {isSearching && (
+                                                <div className="px-4 py-2 bg-slate-800/50 border-t border-slate-700 flex items-center justify-center space-x-2">
+                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">Szukam dalej...</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>

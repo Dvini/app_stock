@@ -2,7 +2,7 @@
 // Suffixes adapted for Yahoo Finance compatibility
 // Expanded to include broader indices (sWIG80, broad European/US markets)
 
-interface Ticker {
+export interface Ticker {
     symbol: string;
     name: string;
     region: string;
@@ -79,6 +79,8 @@ export const POPULAR_TICKERS: Ticker[] = [
     createTicker('OAT.WA', 'Mo-BRUK', 'PL'),
     createTicker('ZEP.WA', 'ZE PAK', 'PL'),
     createTicker('BHW.WA', 'Bank Handlowy', 'PL'),
+    createTicker('CCC.WA', 'CCC', 'PL'),
+    createTicker('INPST.AS', 'InPost', 'PL'),
 
     // --- USA (Expanded Top 100+) ---
     createTicker('AAPL', 'Apple Inc.', 'USA'),
