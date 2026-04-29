@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode nolmm",
     "dev:lmm": "npm run model:download && vite --mode lmm",
     "dev:nolmm": "vite --mode nolmm",
     "model:download": "node scripts/download_model.js",
