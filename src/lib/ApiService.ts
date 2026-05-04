@@ -115,8 +115,8 @@ class ApiService {
     async getCurrentPrice(ticker: string): Promise<PriceData | null> {
         const cacheKey = `price_${ticker}`;
 
-        // 1. Check cache
-        const cached = cacheService.get<PriceData>(cacheKey, this.cacheDuration);
+        // 1. Check cache - use 2 minutes for live prices to match 1D chart responsiveness
+        const cached = cacheService.get<PriceData>(cacheKey, 2 * 60 * 1000); 
         if (cached) {
             console.log(`[ApiService] Using cached price for ${ticker}`);
             return cached;
@@ -124,7 +124,9 @@ class ApiService {
 
         // 2. Fetch from API
         try {
-            const targetUrl = `${this.baseUrl}${ticker}?range=1d&interval=1d`;
+            // Use 5m interval to ensure we get intraday data (matching chart behavior)
+            // Add timestamp to bypass proxy/browser cache
+            const targetUrl = `${this.baseUrl}${ticker}?range=1d&interval=5m&nocache=${Date.now()}`;
             const response = await this.fetchWithBackup(targetUrl);
             const data = await response.json();
 
@@ -146,8 +148,8 @@ class ApiService {
             if (price) {
                 const priceData: PriceData = { price, currency };
 
-                // 3. Cache the result
-                cacheService.set(cacheKey, priceData, { ttl: this.cacheDuration });
+                // 3. Cache the result for 2 minutes
+                cacheService.set(cacheKey, priceData, { ttl: 2 * 60 * 1000 });
 
                 console.log(`[ApiService] Fetched price for ${ticker}: ${price} ${currency}`);
                 return priceData;
@@ -234,11 +236,24 @@ class ApiService {
         try {
             const promises = missingPairs.map(async ({ currency, pair }) => {
                 try {
-                    const targetUrl = `${this.baseUrl}${pair}?range=1d&interval=1d`;
+                    // Use 5m interval and nocache for currency pairs as well
+                    const targetUrl = `${this.baseUrl}${pair}?range=1d&interval=5m&nocache=${Date.now()}`;
                     const response = await this.fetchWithBackup(targetUrl);
                     const data = await response.json();
                     const result = data.chart.result[0];
-                    const rate = result.meta.regularMarketPrice;
+                    
+                    let rate = result.meta.regularMarketPrice;
+
+                    // Fallback to close prices if regularMarketPrice is not available (common for currency pairs)
+                    if (!rate && result.indicators?.quote?.[0]?.close) {
+                        const closes = result.indicators.quote[0].close;
+                        for (let i = closes.length - 1; i >= 0; i--) {
+                            if (closes[i]) {
+                                rate = closes[i];
+                                break;
+                            }
+                        }
+                    }
 
                     if (rate) {
                         return { currency, rate };
