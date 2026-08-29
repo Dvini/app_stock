@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { POPULAR_TICKERS, searchTickers, Ticker } from '../lib/tickers';
 import { fetchExchangeRates, fetchCurrentPrice, apiService } from '../lib/api';
-import { Calculator, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, ArrowRight, TrendingUp, TrendingDown, ShieldCheck, Layers } from 'lucide-react';
+import { FreeRideCalculator } from '../components/FreeRideCalculator';
 import { formatNumber } from '../utils/formatters';
 import type { CurrencyCode } from '../types/database';
 
@@ -23,6 +24,7 @@ interface SimulatorResult {
 
 export const Simulator = () => {
     const { assets } = usePortfolio();
+    const [activeTab, setActiveTab] = useState<'AVERAGING' | 'FREE_RIDE'>('AVERAGING');
     const [mode, setMode] = useState<'BUY' | 'SELL'>('BUY');
     const [selectedTicker, setSelectedTicker] = useState('');
     const [amount, setAmount] = useState('');
@@ -190,15 +192,46 @@ export const Simulator = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-            <h1 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
-                <div className="p-3 bg-blue-500/10 rounded-xl">
-                    <Calculator className="w-8 h-8 text-blue-500" />
-                </div>
-                Symulator Ruchów
-            </h1>
+        <div data-testid="simulator-page" className="p-6 max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <div className="p-3 bg-blue-500/10 rounded-xl">
+                        <Calculator className="w-8 h-8 text-blue-500" />
+                    </div>
+                    Symulator & Kalkulatory
+                </h1>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Tab Switcher */}
+                <div className="bg-slate-900 border border-slate-800 p-1 rounded-2xl flex items-center gap-1 shadow-lg">
+                    <button
+                        onClick={() => setActiveTab('AVERAGING')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            activeTab === 'AVERAGING'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                    >
+                        <Layers size={15} />
+                        <span>Uśrednianie Pozycji</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('FREE_RIDE')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            activeTab === 'FREE_RIDE'
+                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                    >
+                        <ShieldCheck size={15} />
+                        <span>Odzyskanie Wkładu (Free Ride)</span>
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'FREE_RIDE' ? (
+                <FreeRideCalculator />
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
                     <div className="mb-8">
                         <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
@@ -456,6 +489,7 @@ export const Simulator = () => {
                     )}
                 </div>
             </div>
+            )}
         </div>
     );
 };

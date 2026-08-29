@@ -56,6 +56,7 @@ test.describe('Smoke Tests 🔥', () => {
                 { path: '/portfolio', testId: 'portfolio-page', title: 'Portfolio' },
                 { path: '/transactions', testId: 'transactions-page', title: 'Transactions' },
                 { path: '/dividends', testId: 'dividends-page', title: 'Dividends' },
+                { path: '/simulator', testId: 'simulator-page', title: 'Simulator' },
                 { path: '/settings', testId: 'settings-page', title: 'Settings' }
             ];
             
@@ -434,6 +435,21 @@ test.describe('Smoke Tests 🔥', () => {
                     await page.waitForTimeout(200);
                 }
             }
+        });
+
+        test('simulator page and free ride calculator work', async ({ page }) => {
+            await page.goto('/simulator');
+            await expect(page.getByTestId('simulator-page')).toBeVisible();
+
+            // Switch to Free Ride calculator tab
+            const tabButton = page.locator('button:has-text("Odzyskanie Wkładu")');
+            await expect(tabButton).toBeVisible();
+            await tabButton.click();
+
+            // Verify Free Ride section and result cards load
+            await expect(page.locator('text=Strategia „Free Ride”')).toBeVisible();
+            await expect(page.locator('text=Docelowa Cena Sprzedaży')).toBeVisible();
+            await expect(page.locator('text=Darmowe Akcje w Portfelu')).toBeVisible();
         });
     });
 
