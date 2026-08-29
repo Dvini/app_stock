@@ -20,6 +20,7 @@ interface UpcomingDividend extends Dividend {
 }
 
 interface DividendData {
+    portfolioId?: number;
     ticker: string;
     recordDate: string;
     paymentDate: string;
@@ -53,9 +54,12 @@ class DividendService {
             // Process each dividend to ensure accurate share counts
             const processed = await Promise.all(
                 dividends.map(async dividend => {
-                    // Calculate shares owned on record date
+                    const pId = dividend.portfolioId ?? 1;
+                    const portTxs = transactions.filter(t => (t.portfolioId ?? 1) === pId);
+
+                    // Calculate shares owned on record date for this portfolio
                     const sharesOnRecordDate = this._calculateSharesOnDate(
-                        transactions,
+                        portTxs,
                         dividend.ticker,
                         dividend.recordDate
                     );
@@ -125,21 +129,23 @@ class DividendService {
     /**
      * Calculate upcoming dividends for next 60 days
      */
-    async calculateUpcomingDividends(assets: Asset[]): Promise<UpcomingDividend[]> {
+    async calculateUpcomingDividends(assets: Asset[], portfolioId?: number | 'ALL'): Promise<UpcomingDividend[]> {
         try {
             const today = new Date();
             const sixtyDaysLater = new Date(today.getTime() + TIME_CONSTANTS.SIXTY_DAYS_MS);
+            const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
             // Get all expected dividends from database within 60 days
             const upcomingDividends = await db.dividends
                 .where('paymentDate')
                 .between(today.toISOString().split('T')[0]!, sixtyDaysLater.toISOString().split('T')[0]!, true, true)
-                .and(d => d.status === 'expected')
+                .and(d => d.status === 'expected' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
             // Calculate estimated amounts based on current holdings
             const processed: UpcomingDividend[] = upcomingDividends.map(dividend => {
-                const asset = assets.find(a => a.ticker === dividend.ticker);
+                const pId = dividend.portfolioId ?? 1;
+                const asset = assets.find(a => a.ticker === dividend.ticker && (isAll || (a.portfolioId ?? 1) === pId));
                 const sharesOwned = asset?.amount || 0;
                 const estimatedTotal = sharesOwned * dividend.amountPerShare;
 
@@ -218,6 +224,7 @@ class DividendService {
 
             // Add to database
             const id = await db.dividends.add({
+                portfolioId: dividendData.portfolioId ?? 1,
                 ticker,
                 recordDate,
                 paymentDate,
@@ -242,10 +249,17 @@ class DividendService {
      * Calculate Yield on Cost (YoC)
      * Returns dividend yield based on original purchase cost
      */
-    async calculateYieldOnCost(): Promise<number> {
+    async calculateYieldOnCost(portfolioId?: number | 'ALL'): Promise<number> {
         try {
-            // Get all buy transactions
-            const buyTransactions = await db.transactions.where('type').equals('Kupno').toArray();
+            const isAll = portfolioId === undefined || portfolioId === 'ALL';
+
+            // Get all buy transactions for the portfolio
+            const allTransactions = await db.transactions.toArray();
+            const buyTransactions = allTransactions.filter(
+                t =>
+                    (t.type === 'Kupno' || t.type === 'buy') &&
+                    (isAll || (t.portfolioId ?? 1) === portfolioId)
+            );
 
             // Calculate total cost basis (in PLN)
             let totalCostPLN = 0;
@@ -267,7 +281,7 @@ class DividendService {
             const recentDividends = await db.dividends
                 .where('paymentDate')
                 .aboveOrEqual(oneYearAgoStr)
-                .and(d => d.status === 'received')
+                .and(d => d.status === 'received' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
             const annualDividendsPLN = recentDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
@@ -285,16 +299,17 @@ class DividendService {
     /**
      * Calculate monthly average dividends (last 12 months)
      */
-    async calculateMonthlyAverage(): Promise<number> {
+    async calculateMonthlyAverage(portfolioId?: number | 'ALL'): Promise<number> {
         try {
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
             const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0]!;
+            const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
             const recentDividends = await db.dividends
                 .where('paymentDate')
                 .aboveOrEqual(oneYearAgoStr)
-                .and(d => d.status === 'received')
+                .and(d => d.status === 'received' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
             const totalPLN = recentDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
@@ -310,15 +325,16 @@ class DividendService {
     /**
      * Calculate YTD (Year-to-Date) total dividends in PLN
      */
-    async calculateYTDTotal(): Promise<number> {
+    async calculateYTDTotal(portfolioId?: number | 'ALL'): Promise<number> {
         try {
             const currentYear = new Date().getFullYear();
             const yearStart = `${currentYear}-01-01`;
+            const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
             const ytdDividends = await db.dividends
                 .where('paymentDate')
                 .aboveOrEqual(yearStart)
-                .and(d => d.status === 'received')
+                .and(d => d.status === 'received' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
             const totalPLN = ytdDividends.reduce((sum, d) => sum + (d.valuePLN || 0), 0);
@@ -329,17 +345,21 @@ class DividendService {
             return 0;
         }
     }
-
     /**
      * Synchronize dividends from multiple sources with fallback mechanism
      * Priority: Alpha Vantage → Yahoo Finance → Stooq (for Polish stocks)
      */
-    async syncDividendsFromAPI(): Promise<SyncStatistics> {
+    async syncDividendsFromAPI(portfolioId?: number | 'ALL'): Promise<SyncStatistics> {
         try {
-            console.log('[DividendService] Starting dividend synchronization with multi-source fallback...');
+            console.log('[DividendService] Starting dividend sync from APIs...');
+            const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
-            // Get all unique tickers from transactions
-            const transactions = await db.transactions.orderBy('date').toArray(); // CRITICAL: Sort chronologically
+            // Get transactions
+            const allTransactions = await db.transactions.orderBy('date').toArray(); // CRITICAL: Sort chronologically
+            const transactions = isAll
+                ? allTransactions
+                : allTransactions.filter(tx => (tx.portfolioId ?? 1) === portfolioId);
+
             const tickers = [...new Set(transactions.map(tx => tx.ticker).filter((t): t is string => t !== undefined))];
 
             if (tickers.length === 0) {
@@ -399,64 +419,72 @@ class DividendService {
 
                 console.log(`[DividendService] Using ${source} data for ${ticker}`);
 
-                // OPTIMIZATION: Fetch all existing dividends for this ticker once
+                // Group transactions for this ticker by portfolioId
+                const tickerTransactions = transactions.filter(tx => tx.ticker === ticker);
+                const portfoliosHoldingTicker = [...new Set(tickerTransactions.map(tx => tx.portfolioId ?? 1))];
+
+                // Fetch all existing dividends for this ticker once
                 const existingDividends = await db.dividends.where('ticker').equals(ticker).toArray();
 
-                // Create a Map for O(1) lookup by recordDate
-                const existingMap = new Map(existingDividends.map(d => [d.recordDate, d]));
+                // Create a Map for O(1) lookup by portfolioId + recordDate
+                const existingMap = new Map(existingDividends.map(d => [`${d.portfolioId ?? 1}_${d.recordDate}`, d]));
 
-                // Process each dividend
-                for (const div of dividends) {
-                    // Check if dividend already exists using Map
-                    if (existingMap.has(div.exDate)) {
-                        skipped++;
-                        continue;
+                // Process each portfolio holding this ticker
+                for (const targetPortId of portfoliosHoldingTicker) {
+                    const portTransactions = tickerTransactions.filter(tx => (tx.portfolioId ?? 1) === targetPortId);
+
+                    for (const div of dividends) {
+                        const key = `${targetPortId}_${div.exDate}`;
+                        if (existingMap.has(key)) {
+                            skipped++;
+                            continue;
+                        }
+
+                        // Calculate shares owned on ex-date for this specific portfolio
+                        const sharesOwned = this._calculateSharesOnDate(portTransactions, ticker, div.exDate);
+
+                        if (sharesOwned === 0) {
+                            // User didn't own shares in this portfolio on this ex-date, skip
+                            skipped++;
+                            continue;
+                        }
+
+                        // Get NBP rate for the ex-date (use ex-date as payment approximation)
+                        let exchangeRate = 1.0;
+                        if (div.currency !== 'PLN') {
+                            const prevDate = this._getPreviousDay(div.exDate);
+                            const rateData = await nbpService.getHistoricalRate(div.currency, prevDate);
+                            exchangeRate = rateData?.rate || 1.0;
+                        }
+
+                        // Calculate values
+                        const totalAmount = sharesOwned * div.amount;
+                        const valuePLN = totalAmount * exchangeRate;
+
+                        // Determine status based on payment date
+                        const today = new Date().toISOString().split('T')[0]!;
+                        const status = div.exDate > today ? 'expected' : 'received';
+
+                        // Add to database with portfolioId
+                        await db.dividends.add({
+                            portfolioId: targetPortId,
+                            ticker,
+                            recordDate: div.exDate,
+                            paymentDate: div.exDate,
+                            amountPerShare: div.amount,
+                            totalAmount,
+                            currency: div.currency as CurrencyCode,
+                            exchangeRate,
+                            valuePLN,
+                            sharesOwned,
+                            status
+                        });
+
+                        added++;
+                        console.log(
+                            `[DividendService] Added dividend from ${source} for portfolio #${targetPortId}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`
+                        );
                     }
-
-                    // Calculate shares owned on ex-date
-                    const sharesOwned = this._calculateSharesOnDate(transactions, ticker, div.exDate);
-
-                    if (sharesOwned === 0) {
-                        // User didn't own shares on this ex-date, skip
-                        skipped++;
-                        continue;
-                    }
-
-                    // Get NBP rate for the ex-date (use ex-date as payment approximation)
-                    let exchangeRate = 1.0;
-                    if (div.currency !== 'PLN') {
-                        // Try to get rate from day before ex-date
-                        const prevDate = this._getPreviousDay(div.exDate);
-                        const rateData = await nbpService.getHistoricalRate(div.currency, prevDate);
-                        exchangeRate = rateData?.rate || 1.0;
-                    }
-
-                    // Calculate values
-                    const totalAmount = sharesOwned * div.amount;
-                    const valuePLN = totalAmount * exchangeRate;
-
-                    // Determine status based on payment date
-                    const today = new Date().toISOString().split('T')[0]!;
-                    const status = div.exDate > today ? 'expected' : 'received';
-
-                    // Add to database
-                    await db.dividends.add({
-                        ticker,
-                        recordDate: div.exDate,
-                        paymentDate: div.exDate, // Using ex-date as approximation
-                        amountPerShare: div.amount,
-                        totalAmount,
-                        currency: div.currency as CurrencyCode,
-                        exchangeRate,
-                        valuePLN,
-                        sharesOwned,
-                        status
-                    });
-
-                    added++;
-                    console.log(
-                        `[DividendService] Added dividend from ${source}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`
-                    );
                 }
             }
 
@@ -577,6 +605,52 @@ class DividendService {
         } catch (error) {
             console.error('[DividendService] Failed to migrate dividend status:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Migration: Ensure all dividends are associated with their correct portfolioId
+     */
+    async migrateDividendPortfolios(): Promise<{ updated: number }> {
+        try {
+            const allDividends = await db.dividends.toArray();
+            const allTransactions = await db.transactions.toArray();
+            let updated = 0;
+
+            for (const dividend of allDividends) {
+                if (dividend.portfolioId === undefined || dividend.portfolioId === null) {
+                    const matchingTxs = allTransactions.filter(t => t.ticker === dividend.ticker);
+                    const portIds = [...new Set(matchingTxs.map(t => t.portfolioId ?? 1))];
+
+                    if (portIds.length === 1) {
+                        await db.dividends.update(dividend.id!, { portfolioId: portIds[0] });
+                        updated++;
+                    } else if (portIds.length > 1) {
+                        const activePorts = portIds.filter(pId => {
+                            const pTxs = matchingTxs.filter(t => (t.portfolioId ?? 1) === pId);
+                            return this._calculateSharesOnDate(pTxs, dividend.ticker, dividend.recordDate) > 0;
+                        });
+                        if (activePorts.length === 1) {
+                            await db.dividends.update(dividend.id!, { portfolioId: activePorts[0] });
+                            updated++;
+                        } else {
+                            await db.dividends.update(dividend.id!, { portfolioId: portIds[0] ?? 1 });
+                            updated++;
+                        }
+                    } else {
+                        await db.dividends.update(dividend.id!, { portfolioId: 1 });
+                        updated++;
+                    }
+                }
+            }
+
+            if (updated > 0) {
+                console.log(`[DividendService] Assigned portfolioId to ${updated} legacy dividends`);
+            }
+            return { updated };
+        } catch (error) {
+            console.error('[DividendService] Failed to migrate dividend portfolios:', error);
+            return { updated: 0 };
         }
     }
 }

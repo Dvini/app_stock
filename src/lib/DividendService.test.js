@@ -69,6 +69,34 @@ describe('DividendService', () => {
             const result = await dividendService.calculateYTDTotal();
             expect(result).toBe(0);
         });
+
+        it('should filter dividends by portfolioId when specified', async () => {
+            const currentYear = new Date().getFullYear();
+            const allDividends = [
+                { paymentDate: `${currentYear}-03-15`, valuePLN: 100, status: 'received', portfolioId: 1 },
+                { paymentDate: `${currentYear}-06-15`, valuePLN: 200, status: 'received', portfolioId: 2 }
+            ];
+
+            let filterFn;
+            db.dividends.where.mockReturnValue({
+                aboveOrEqual: vi.fn().mockReturnValue({
+                    and: vi.fn().mockImplementation(cb => {
+                        filterFn = cb;
+                        return {
+                            toArray: vi.fn().mockImplementation(async () => allDividends.filter(filterFn))
+                        };
+                    })
+                })
+            });
+
+            // Calling for portfolio 2 should only yield 200 PLN
+            const resultPort2 = await dividendService.calculateYTDTotal(2);
+            expect(resultPort2).toBe(200);
+
+            // Calling for portfolio 3 (no dividends) should yield 0 PLN
+            const resultPort3 = await dividendService.calculateYTDTotal(3);
+            expect(resultPort3).toBe(0);
+        });
     });
 
     describe('calculateMonthlyAverage', () => {

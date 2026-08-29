@@ -81,6 +81,13 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                     console.error('[useDividends] Migration failed:', error);
                 }
             }
+
+            // Always ensure legacy dividends have portfolioId assigned
+            try {
+                await dividendService.migrateDividendPortfolios();
+            } catch (error) {
+                console.error('[useDividends] Portfolio migration failed:', error);
+            }
         };
 
         runMigration();
@@ -104,7 +111,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                 if (dividends.length === 0 && assets.length > 0) {
                     console.log('[useDividends] Empty dividends table, triggering initial sync...');
                     try {
-                        const result = await dividendService.syncDividendsFromAPI();
+                        const result = await dividendService.syncDividendsFromAPI(effectivePortfolioId);
                         console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
                         localStorage.setItem('dividends_lastSync', now.toString());
                     } catch (syncError) {
@@ -125,13 +132,13 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                 }
 
                 const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
-                    dividendService.calculateYTDTotal(),
-                    dividendService.calculateYieldOnCost(),
-                    dividendService.calculateMonthlyAverage()
+                    dividendService.calculateYTDTotal(effectivePortfolioId),
+                    dividendService.calculateYieldOnCost(effectivePortfolioId),
+                    dividendService.calculateMonthlyAverage(effectivePortfolioId)
                 ]);
 
                 // Calculate upcoming dividends
-                const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
+                const upcomingDividends = await dividendService.calculateUpcomingDividends(assets, effectivePortfolioId);
                 const upcoming60Days = upcomingDividends.reduce(
                     (sum: number, d: any) => sum + (d.estimatedPLN || 0),
                     0
@@ -152,7 +159,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
         };
 
         calculateStats();
-    }, [dividends, assets.length]); // Recalculate when dividends or assets change (full array dependency to detect updates)
+    }, [effectivePortfolioId, dividends, assets.length]); // Recalculate when effectivePortfolioId, dividends, or assets change
 
     // Processed received dividends - filtered by portfolio
     const rawReceived =
@@ -246,19 +253,19 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
     const syncDividendsManually = useCallback(async () => {
         try {
             setIsLoading(true);
-            const result = await dividendService.syncDividendsFromAPI();
+            const result = await dividendService.syncDividendsFromAPI(effectivePortfolioId);
             const now = Date.now();
             localStorage.setItem('dividends_lastSync', now.toString());
             console.log(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
 
             // Recalculate stats immediately after sync (prevents double loading state)
             const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
-                dividendService.calculateYTDTotal(),
-                dividendService.calculateYieldOnCost(),
-                dividendService.calculateMonthlyAverage()
+                dividendService.calculateYTDTotal(effectivePortfolioId),
+                dividendService.calculateYieldOnCost(effectivePortfolioId),
+                dividendService.calculateMonthlyAverage(effectivePortfolioId)
             ]);
 
-            const upcomingDividends = await dividendService.calculateUpcomingDividends(assets);
+            const upcomingDividends = await dividendService.calculateUpcomingDividends(assets, effectivePortfolioId);
             const upcoming60Days = upcomingDividends.reduce((sum: number, d: any) => sum + (d.estimatedPLN || 0), 0);
 
             setStats({
@@ -275,7 +282,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
         } finally {
             setIsLoading(false);
         }
-    }, [assets]);
+    }, [assets, effectivePortfolioId]);
 
     return {
         // Statistics
