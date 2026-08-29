@@ -549,12 +549,12 @@ Przejdź do: **Sidebar → Ustawienia**
 #### 2. Zarządzanie Danymi
 
 **Eksport Danych**
-- Pobierz kopię zapasową wszystkich danych w formacie JSON
-- Zawiera: transakcje, dywidendy, kursy walut, cache cen
+- Pobierz kopię zapasową danych w formacie JSON (dla wybranego lub wszystkich portfeli) lub wyeksportuj historię transakcji do pliku CSV dla Excela
+- Zawiera: portfele, transakcje, dywidendy, kursy walut, cache cen
 
-**Kliknij:** "Pobierz Kopię"
+**Kliknij:** "JSON" lub "CSV (Excel)"
 
-**Rezultat:** Pobierze plik `stocktracker-backup-YYYY-MM-DD.json`
+**Rezultat:** Pobierze plik kopii `stock_backup_[portfel]_[data].json` lub plik `.csv`
 
 ---
 
@@ -590,13 +590,13 @@ Przejdź do: **Sidebar → Ustawienia**
 
 **Krok 1:** Przejdź do **Ustawienia → Zarządzanie Danymi**
 
-**Krok 2:** Kliknij **"Pobierz Kopię"**
+**Krok 2:** Wybierz zakres (Wszystkie portfele lub pojedynczy) i kliknij **"JSON"** (lub **"CSV (Excel)"**)
 
 **Krok 3:** Zapisz plik w bezpiecznym miejscu (np. Dysk Google, Dropbox)
 
 **Nazwa pliku:**
 ```
-stocktracker-backup-2024-01-04.json
+stock_backup_wszystkie_portfele_2026-08-29.json
 ```
 
 **Zawartość:** Cały Twój portfel w formacie JSON

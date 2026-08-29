@@ -501,8 +501,8 @@ test.describe('Smoke Tests 🔥', () => {
             // Settings page should load
             await expect(page.getByTestId('settings-page')).toBeVisible();
             
-            // Look for export button (text-based since we don't have testid)
-            const exportButton = page.locator('button:has-text("Pobierz Kopię")');
+            // Look for export button
+            const exportButton = page.getByTestId('export-json-btn').or(page.locator('button:has-text("JSON"), button:has-text("Pobierz Kopię")')).first();
             
             // Should be visible and enabled
             await expect(exportButton).toBeVisible();
@@ -521,7 +521,7 @@ test.describe('Smoke Tests 🔥', () => {
             if (download) {
                 // Verify filename contains expected pattern
                 const filename = download.suggestedFilename();
-                expect(filename).toContain('portfolio_backup');
+                expect(filename).toMatch(/(portfolio|stock)_backup/);
             }
         });
 

@@ -175,6 +175,7 @@ export const Settings = () => {
 
                         <div className="flex items-center gap-2">
                             <button
+                                data-testid="export-json-btn"
                                 onClick={() => exportData(exportScope)}
                                 className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-1.5"
                                 title="Pobierz kopię zapasową JSON"
@@ -182,6 +183,7 @@ export const Settings = () => {
                                 <Save size={14} /> JSON
                             </button>
                             <button
+                                data-testid="export-csv-btn"
                                 onClick={() => exportTransactionsCSV(exportScope)}
                                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"
                                 title="Pobierz transakcje do pliku CSV (Excel)"
