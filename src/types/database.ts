@@ -11,11 +11,29 @@ export type AssetType = 'stock' | 'etf' | 'crypto' | 'commodity';
 // Currency codes
 export type CurrencyCode = 'PLN' | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CHF' | 'CNY';
 
+// Portfolio types
+export type PortfolioType = 'standard' | 'ike' | 'ikze' | 'crypto' | 'custom';
+
+/**
+ * Portfolio account table schema
+ */
+export interface PortfolioAccount {
+    id?: number; // Auto-incremented
+    name: string; // e.g. "Główny", "IKE mBank", "IKZE BOS"
+    type: PortfolioType; // Account type
+    currency: CurrencyCode; // Base currency
+    taxRate: number; // e.g. 19 for standard (19% Belka tax), 0 for IKE/IKZE
+    annualLimit?: number; // Annual contribution limit (e.g. for IKE/IKZE)
+    color?: string; // Accent color hex or Tailwind name
+    createdAt: string; // ISO date string
+}
+
 /**
  * Asset (holdings) table schema
  */
 export interface Asset {
     id?: number; // Auto-incremented
+    portfolioId?: number; // Associated portfolio
     ticker: string;
     type: AssetType;
     amount: number; // Quantity of shares/units
@@ -28,6 +46,7 @@ export interface Asset {
  */
 export interface Transaction {
     id?: number; // Auto-incremented
+    portfolioId?: number; // Associated portfolio
     date: string; // ISO date string
     type: TransactionType;
     ticker?: string; // Optional for deposit/withdraw
@@ -44,7 +63,9 @@ export interface Transaction {
  * Cash balances table schema
  */
 export interface Cash {
-    currency: CurrencyCode; // Primary key
+    id?: number; // Auto-incremented for multi-portfolio support
+    portfolioId?: number; // Associated portfolio
+    currency: CurrencyCode;
     amount: number;
 }
 
@@ -53,6 +74,7 @@ export interface Cash {
  */
 export interface WatchlistItem {
     id?: number; // Auto-incremented
+    portfolioId?: number; // Associated portfolio (optional)
     ticker: string;
     dateAdded: string; // ISO date string
     currency?: CurrencyCode;
@@ -63,6 +85,7 @@ export interface WatchlistItem {
  */
 export interface Dividend {
     id?: number; // Auto-incremented
+    portfolioId?: number; // Associated portfolio
     ticker: string;
     recordDate: string; // ISO date string
     paymentDate: string; // ISO date string
@@ -79,6 +102,7 @@ export interface Dividend {
  * Dexie database interface
  */
 export interface StockTrackerDB {
+    portfolios: PortfolioAccount[];
     assets: Asset[];
     transactions: Transaction[];
     cash: Cash[];

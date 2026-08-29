@@ -189,18 +189,34 @@ export const Dashboard = () => {
                             </div>
                         </div>
                     )}
-                    <div
-                        className={cn(
-                            'text-xs mt-1 flex items-center',
-                            portfolioSummary.totalPL.includes('-') ? 'text-rose-400' : 'text-emerald-400'
-                        )}
-                    >
-                        {portfolioSummary.totalPL.includes('-') ? (
-                            <TrendingDown size={12} className="mr-1" />
-                        ) : (
-                            <TrendingUp size={12} className="mr-1" />
-                        )}
-                        {portfolioSummary.totalPL}
+                    <div className="mt-1.5 space-y-1">
+                        <div
+                            className={cn(
+                                'text-xs flex items-center font-medium',
+                                portfolioSummary.totalPL.includes('-') ? 'text-rose-400' : 'text-emerald-400'
+                            )}
+                        >
+                            {portfolioSummary.totalPL.includes('-') ? (
+                                <TrendingDown size={12} className="mr-1 shrink-0" />
+                            ) : (
+                                <TrendingUp size={12} className="mr-1 shrink-0" />
+                            )}
+                            <span>Brutto: {portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})</span>
+                        </div>
+
+                        {portfolioSummary.isTaxExempt ? (
+                            <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                0% Belki (100% zysku netto)
+                            </div>
+                        ) : portfolioSummary.totalTaxReserveValue > 0 ? (
+                            <div className="text-[11px] text-slate-400 font-medium">
+                                Netto: <span className="text-slate-200 font-bold">{portfolioSummary.totalNetPL}</span>
+                                <span className="text-slate-500 text-[10px] ml-1">
+                                    (-{portfolioSummary.totalTaxReserve} Belka 19%)
+                                </span>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 

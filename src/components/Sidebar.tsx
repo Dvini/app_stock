@@ -9,9 +9,13 @@ import {
     Settings,
     Calculator,
     TrendingUp,
+    ReceiptText,
     LucideIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+import { PortfolioSwitcher } from './PortfolioSwitcher';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 
 interface SidebarItemProps {
     to: string;
@@ -38,20 +42,30 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label }) => (
 );
 
 export const Sidebar = () => {
+    const { isAllPortfolios } = usePortfolioAccount();
+
     return (
         <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col p-4 shrink-0 h-screen sticky top-0">
-            <div className="flex items-center space-x-2 px-4 mb-10">
+            <div className="flex items-center space-x-2 px-4 mb-6">
                 <div className="bg-blue-600 p-1.5 rounded-lg">
                     <TrendingUp className="text-white" size={20} />
                 </div>
                 <span className="text-xl font-bold tracking-tight text-white">StockTracker</span>
             </div>
+
+            <PortfolioSwitcher />
+
             <nav className="flex-1 space-y-1">
-                <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
+                <SidebarItem
+                    to="/"
+                    icon={LayoutDashboard}
+                    label={isAllPortfolios ? 'Podsumowanie' : 'Dashboard'}
+                />
                 <SidebarItem to="/portfolio" icon={PieChart} label="Portfel" />
                 <SidebarItem to="/transactions" icon={History} label="Transakcje" />
                 <SidebarItem to="/dividends" icon={DollarSign} label="Dywidendy" />
                 <SidebarItem to="/simulator" icon={Calculator} label="Symulator" />
+                <SidebarItem to="/taxes" icon={ReceiptText} label="Podatki (PIT-38)" />
                 {(import.meta.env.VITE_DISABLE_AI as string) !== 'true' && (
                     <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
                 )}

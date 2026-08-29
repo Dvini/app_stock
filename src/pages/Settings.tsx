@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Save, Upload, Trash2, Cpu, AlertTriangle } from 'lucide-react';
-import { exportData, importData, clearData } from '../lib/dataManagement';
+import { Save, Upload, Trash2, Cpu, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { exportData, exportTransactionsCSV, importData, clearData } from '../lib/dataManagement';
 import { useAI } from '../context/AIContext';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 
 interface SectionProps {
     title: string;
@@ -41,6 +42,8 @@ const SettingRow: React.FC<SettingRowProps> = ({ icon: Icon, label, description,
 
 export const Settings = () => {
     const { currentModel, changeModel } = useAI();
+    const { portfolios } = usePortfolioAccount();
+    const [exportScope, setExportScope] = useState<number | 'ALL'>('ALL');
     const [importStatus, setImportStatus] = useState('');
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,18 +140,57 @@ export const Settings = () => {
             )}
 
             <Section title="Zarządzanie Danymi">
-                <SettingRow
-                    icon={Save}
-                    label="Eksport Danych"
-                    description="Pobierz kopię zapasową (v2.0): transakcje, dywidendy, kursy walut, cache cen."
-                >
-                    <button
-                        onClick={exportData}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
-                    >
-                        Pobierz Kopię
-                    </button>
-                </SettingRow>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex gap-4">
+                        <div className="bg-slate-800 p-2.5 rounded-xl h-fit">
+                            <Save size={20} className="text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="font-bold text-sm text-slate-200">Eksport Danych</p>
+                            <p className="text-xs text-slate-500 mt-1 max-w-md">
+                                Pobierz kopię zapasową JSON (wszystkie portfele lub wybrany) lub wyeksportuj transakcje do pliku CSV dla programu Excel.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                        {portfolios.length > 1 && (
+                            <select
+                                value={exportScope}
+                                onChange={e =>
+                                    setExportScope(
+                                        e.target.value === 'ALL' ? 'ALL' : Number(e.target.value)
+                                    )
+                                }
+                                className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-blue-500 transition"
+                            >
+                                <option value="ALL">Wszystkie portfele (Zbiorczo)</option>
+                                {portfolios.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        Tylko: {p.name} ({p.type.toUpperCase()})
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => exportData(exportScope)}
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-1.5"
+                                title="Pobierz kopię zapasową JSON"
+                            >
+                                <Save size={14} /> JSON
+                            </button>
+                            <button
+                                onClick={() => exportTransactionsCSV(exportScope)}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"
+                                title="Pobierz transakcje do pliku CSV (Excel)"
+                            >
+                                <FileSpreadsheet size={14} className="text-emerald-400" /> CSV (Excel)
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="h-px bg-slate-800 my-2" />
 

@@ -11,10 +11,13 @@ import { formatNumber } from '../utils/formatters';
 import useAssets from './useAssets';
 import usePrices from './usePrices';
 import useExchangeRates from './useExchangeRates';
-import type { Transaction, CurrencyCode } from '../types/database';
+import { usePortfolioAccount } from '../context/PortfolioContext';
+import { calculateNetProfitLoss } from '../utils/taxCalculations';
+import type { Transaction, CurrencyCode, PortfolioAccount } from '../types/database';
 
 interface ProcessedAsset {
     id?: number;
+    portfolioId?: number;
     ticker: string;
     type: string;
     amount: number;
@@ -28,10 +31,15 @@ interface ProcessedAsset {
     pl: string;
     plValue: number;
     isRealData: boolean;
+    taxRate: number;
+    netPL: string;
+    netPLValue: number;
+    estimatedTax: number;
 }
 
 interface ProcessedWatchlistItem {
     id?: number;
+    portfolioId?: number;
     ticker: string;
     dateAdded: string;
     currency: CurrencyCode;
@@ -49,10 +57,17 @@ interface PortfolioSummary {
     totalValuePLN: string;
     totalPL: string;
     totalPLPercent: string;
+    totalPL_Value: number;
+    totalNetPL: string;
+    totalNetPL_Value: number;
+    totalTaxReserve: string;
+    totalTaxReserveValue: number;
+    isTaxExempt: boolean;
     cash: string;
     baseCurrency: CurrencyCode;
     isLoadingPrices: boolean;
     breakdown: CurrencyBreakdown[];
+    taxRate?: number;
 }
 
 export interface UsePortfolioReturn {
@@ -60,6 +75,8 @@ export interface UsePortfolioReturn {
     watchlist: ProcessedWatchlistItem[];
     transactions: Transaction[];
     portfolioSummary: PortfolioSummary;
+    currentPortfolio: PortfolioAccount | null;
+    isAllPortfolios: boolean;
 }
 
 const EMPTY_WATCHLIST: any[] = [];
@@ -71,18 +88,37 @@ const EMPTY_CURRENCIES: CurrencyCode[] = [];
 /**
  * Main portfolio hook
  */
-export const usePortfolio = (): UsePortfolioReturn => {
-    const { baseCurrency } = useCurrency();
+export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolioReturn => {
+    const { activePortfolioId, currentPortfolio: contextPortfolio, portfolios } = usePortfolioAccount();
+    const { baseCurrency: globalBaseCurrency } = useCurrency();
 
-    // Use specialized hooks
-    const { assets, tickers, currencies } = useAssets();
+    const effectivePortfolioId = portfolioIdOverride !== undefined ? portfolioIdOverride : activePortfolioId;
+    const isAllPortfolios = effectivePortfolioId === 'ALL';
 
-    // Watchlist and transactions
-    const watchlist = useLiveQuery(() => db.watchlist.toArray()) ?? EMPTY_WATCHLIST;
-    const transactions =
-        useLiveQuery(() => db.transactions.orderBy('date').reverse().limit(10).toArray()) ?? EMPTY_TRANSACTIONS;
-    const allCash = useLiveQuery(() => db.cash.toArray()) ?? EMPTY_CASH;
-    const currentCash = allCash.find(c => c.currency === 'PLN')?.amount || 0;
+    const baseCurrency = (
+        isAllPortfolios ? globalBaseCurrency : contextPortfolio?.currency || globalBaseCurrency
+    ) as CurrencyCode;
+
+    // Use specialized hooks for assets
+    const { assets, tickers, currencies } = useAssets(effectivePortfolioId);
+
+    // Watchlist, transactions, and cash from database
+    const rawWatchlist = useLiveQuery(() => db.watchlist.toArray()) ?? EMPTY_WATCHLIST;
+    const rawTransactions =
+        useLiveQuery(() => db.transactions.orderBy('date').reverse().toArray()) ?? EMPTY_TRANSACTIONS;
+    const rawCash = useLiveQuery(() => db.cash.toArray()) ?? EMPTY_CASH;
+
+    const watchlist = useMemo(() => {
+        return rawWatchlist.filter(w => isAllPortfolios || (w.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawWatchlist, effectivePortfolioId, isAllPortfolios]);
+
+    const transactions = useMemo(() => {
+        return rawTransactions.filter(t => isAllPortfolios || (t.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawTransactions, effectivePortfolioId, isAllPortfolios]);
+
+    const allCash = useMemo(() => {
+        return rawCash.filter(c => isAllPortfolios || (c.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawCash, effectivePortfolioId, isAllPortfolios]);
 
     // Combine asset and watchlist tickers for single usePrices call
     const allTickers = useMemo(() => {
@@ -106,18 +142,33 @@ export const usePortfolio = (): UsePortfolioReturn => {
             }
         });
 
-        // Add PLN for cash conversion if base is different
+        // Add cash currencies
+        allCash.forEach(c => {
+            if (c?.currency && c.currency !== baseCurrency) {
+                currencySet.add(c.currency);
+            }
+        });
+
+        // Add PLN for conversion if base is different
         if (baseCurrency !== 'PLN') {
             currencySet.add('PLN');
         }
 
         return Array.from(currencySet);
-    }, [currencies, watchlist, baseCurrency]);
+    }, [currencies, watchlist, allCash, baseCurrency]);
 
     // Fetch exchange rates
     const { rates: exchangeRates } = useExchangeRates(neededCurrencies, {
         targetCurrency: baseCurrency
     });
+
+    const currentCash = useMemo(() => {
+        const ratesMap = exchangeRates as Record<string, number>;
+        return allCash.reduce((sum, c) => {
+            const rate = c.currency === baseCurrency ? 1 : ratesMap[c.currency] || 1;
+            return sum + (c.amount || 0) * rate;
+        }, 0);
+    }, [allCash, baseCurrency, exchangeRates]);
 
     // Process assets with prices and rates
     const processedAssets = useMemo(() => {
@@ -143,6 +194,17 @@ export const usePortfolio = (): UsePortfolioReturn => {
             const plValueNative = valueNative - costBasisNative;
             const plPercent = costBasisNative > 0 ? (plValueNative / costBasisNative) * 100 : 0;
 
+            // Tax calculations (0% for IKE/IKZE, 19% default for standard)
+            const assetTaxRate = isAllPortfolios
+                ? (portfolios.find(p => p.id === (asset.portfolioId ?? 1))?.taxRate ?? 19)
+                : (contextPortfolio?.taxRate ?? 19);
+
+            const { netPL: netPLValueNative, taxAmount: taxAmountNative } = calculateNetProfitLoss(
+                plValueNative,
+                assetTaxRate
+            );
+            const netPLPercent = costBasisNative > 0 ? (netPLValueNative / costBasisNative) * 100 : 0;
+
             return {
                 ...asset,
                 price: currentPrice,
@@ -153,10 +215,14 @@ export const usePortfolio = (): UsePortfolioReturn => {
                 rate,
                 pl: `${plValueNative > 0 ? '+' : ''}${formatNumber(plValueNative)} ${currency} (${formatNumber(plPercent)}%)`,
                 plValue: plValueNative,
-                isRealData: !!priceData
+                isRealData: !!priceData,
+                taxRate: assetTaxRate,
+                netPL: `${netPLValueNative > 0 ? '+' : ''}${formatNumber(netPLValueNative)} ${currency} (${formatNumber(netPLPercent)}%)`,
+                netPLValue: netPLValueNative,
+                estimatedTax: taxAmountNative
             };
         });
-    }, [assets, prices, baseCurrency, exchangeRates]);
+    }, [assets, prices, baseCurrency, exchangeRates, isAllPortfolios, portfolios, contextPortfolio]);
 
     // Process watchlist
     const processedWatchlist = useMemo(() => {
@@ -226,6 +292,11 @@ export const usePortfolio = (): UsePortfolioReturn => {
         const totalCostBase = processedAssets.reduce((acc, curr) => acc + curr.amount * curr.avgPrice * curr.rate, 0);
         const totalPLPercent = totalCostBase > 0 ? (totalPL_Base / totalCostBase) * 100 : 0;
 
+        // Net P/L and Belka tax reserve calculations
+        const totalNetPL_Base = processedAssets.reduce((acc, curr) => acc + curr.netPLValue * curr.rate, 0);
+        const totalTaxReserve_Base = processedAssets.reduce((acc, curr) => acc + curr.estimatedTax * curr.rate, 0);
+        const isTaxExempt = !isAllPortfolios && (contextPortfolio?.taxRate === 0);
+
         const hasForeignAssets = processedAssets.some(a => a.currency !== baseCurrency);
         const approxPrefix = hasForeignAssets ? '~ ' : '';
 
@@ -234,18 +305,36 @@ export const usePortfolio = (): UsePortfolioReturn => {
             totalValuePLN: formatNumber(totalValuePLN),
             totalPL: `${totalPL_Base > 0 ? '+' : ''}${formatNumber(totalPL_Base)} ${baseCurrency}`,
             totalPLPercent: `${formatNumber(totalPLPercent)}%`,
+            totalPL_Value: totalPL_Base,
+            totalNetPL: `${totalNetPL_Base > 0 ? '+' : ''}${formatNumber(totalNetPL_Base)} ${baseCurrency}`,
+            totalNetPL_Value: totalNetPL_Base,
+            totalTaxReserve: `${formatNumber(totalTaxReserve_Base)} ${baseCurrency}`,
+            totalTaxReserveValue: totalTaxReserve_Base,
+            isTaxExempt,
             cash: formatNumber(cashInBase),
             baseCurrency,
             isLoadingPrices,
-            breakdown: breakdownEntries
+            breakdown: breakdownEntries,
+            taxRate: isAllPortfolios ? undefined : contextPortfolio?.taxRate ?? 19
         };
-    }, [processedAssets, currentCash, baseCurrency, exchangeRates, isLoadingPrices, allCash]);
+    }, [
+        processedAssets,
+        currentCash,
+        baseCurrency,
+        exchangeRates,
+        isLoadingPrices,
+        allCash,
+        isAllPortfolios,
+        contextPortfolio
+    ]);
 
     return {
         assets: processedAssets,
         watchlist: processedWatchlist,
         transactions,
-        portfolioSummary
+        portfolioSummary,
+        currentPortfolio: isAllPortfolios ? null : contextPortfolio,
+        isAllPortfolios
     };
 };
 

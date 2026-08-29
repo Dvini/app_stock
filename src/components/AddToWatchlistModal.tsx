@@ -4,12 +4,17 @@ import { db } from '../db/db';
 import { searchTickers, Ticker } from '../lib/tickers';
 import { apiService } from '../lib/api';
 
+import { usePortfolioAccount } from '../context/PortfolioContext';
+
 interface AddToWatchlistModalProps {
     onClose: () => void;
     onAdded?: () => void;
 }
 
 export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClose, onAdded }) => {
+    const { activePortfolioId } = usePortfolioAccount();
+    const targetPortfolioId = activePortfolioId === 'ALL' ? 1 : activePortfolioId;
+
     const [ticker, setTicker] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
@@ -38,19 +43,25 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
 
     const handleAdd = async (selectedTicker: string) => {
         try {
-            // Check if already exists in Watchlist
-            const exists = await db.watchlist.where('ticker').equals(selectedTicker).first();
+            // Check if already exists in Watchlist for this portfolio
+            const exists = await db.watchlist
+                .where('[portfolioId+ticker]')
+                .equals([targetPortfolioId, selectedTicker])
+                .first();
 
-            // Check if exists in Assets (Portfolio)
-            const inPortfolio = await db.assets.where('ticker').equals(selectedTicker).first();
+            // Check if exists in Assets for this portfolio
+            const inPortfolio = await db.assets
+                .where('[portfolioId+ticker]')
+                .equals([targetPortfolioId, selectedTicker])
+                .first();
 
             if (!exists && !inPortfolio) {
                 await db.watchlist.add({
+                    portfolioId: targetPortfolioId,
                     ticker: selectedTicker,
                     dateAdded: new Date().toISOString()
                 });
             } else {
-                // Optional: Alert user it's already there
                 console.log('Ticker already in watchlist or portfolio');
             }
 

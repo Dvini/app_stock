@@ -6,6 +6,7 @@ import { apiService, fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { nbpService } from '../lib/NBPService';
 import { dividendService } from '../lib/DividendService';
 import { formatNumber } from '../utils/formatters';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
 
 interface AddTransactionModalProps {
@@ -14,6 +15,12 @@ interface AddTransactionModalProps {
 }
 
 export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onTransactionAdded }) => {
+    const { activePortfolioId, portfolios } = usePortfolioAccount();
+    const [selectedPortfolioId, setSelectedPortfolioId] = useState<number>(() => {
+        if (activePortfolioId !== 'ALL') return activePortfolioId;
+        return portfolios[0]?.id ?? 1;
+    });
+
     const [ticker, setTicker] = useState('');
     const [amount, setAmount] = useState('');
     const [price, setPrice] = useState('');
@@ -31,14 +38,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
     useEffect(() => {
         const fetchData = async () => {
-            const assets = await db.assets.toArray();
+            const assets = await db.assets.where('portfolioId').equals(selectedPortfolioId).toArray();
             setOwnedAssets(assets.filter(a => a.amount > 0));
 
-            const cashEntry = await db.cash.get('PLN');
+            const cashEntry = await db.cash.where('[portfolioId+currency]').equals([selectedPortfolioId, 'PLN']).first();
             setAvailableCash(cashEntry ? cashEntry.amount : 0);
         };
         fetchData();
-    }, []);
+    }, [selectedPortfolioId]);
 
     useEffect(() => {
         const fetchRate = async () => {
@@ -185,6 +192,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                     : txCommission;
 
             await db.transactions.add({
+                portfolioId: selectedPortfolioId,
                 date: date as string,
                 type: type,
                 ticker: txTicker,
@@ -198,7 +206,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             });
 
             if (!isDeposit && !isWithdraw) {
-                const asset = await db.assets.where('ticker').equals(txTicker).first();
+                const asset = await db.assets
+                    .where('[portfolioId+ticker]')
+                    .equals([selectedPortfolioId, txTicker])
+                    .first();
                 if (asset) {
                     let newAmount = asset.amount;
                     let newAvgPrice = asset.avgPrice;
@@ -235,6 +246,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             : (parseFloat(commission) || 0);
                     const totalCostWithCommission = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
                     await db.assets.add({
+                        portfolioId: selectedPortfolioId,
                         ticker: txTicker,
                         amount: parseFloat(amount),
                         avgPrice: totalCostWithCommission / parseFloat(amount),
@@ -254,7 +266,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                 }
             }
 
-            const cashEntry = await db.cash.get('PLN');
+            const cashEntry = await db.cash
+                .where('[portfolioId+currency]')
+                .equals([selectedPortfolioId, 'PLN'])
+                .first();
             let currentCash = cashEntry ? cashEntry.amount : 0;
 
             let cashImpactPLN = txTotal * rate;
@@ -268,7 +283,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                 currentCash -= cashImpactPLN;
             }
 
-            await db.cash.put({ currency: 'PLN', amount: currentCash });
+            if (cashEntry && cashEntry.id) {
+                await db.cash.update(cashEntry.id, { amount: currentCash });
+            } else {
+                await db.cash.add({ portfolioId: selectedPortfolioId, currency: 'PLN', amount: currentCash });
+            }
 
             if (onTransactionAdded) onTransactionAdded();
             onClose();
@@ -339,6 +358,26 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                 </div>
 
                 <div className="space-y-4">
+                    {portfolios.length > 1 && (
+                        <div>
+                            <label className="text-xs text-slate-500 uppercase font-bold ml-1 mb-1 block">
+                                Rachunek / Portfel
+                            </label>
+                            <select
+                                data-testid="transaction-portfolio-select"
+                                value={selectedPortfolioId}
+                                onChange={e => setSelectedPortfolioId(Number(e.target.value))}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 outline-none focus:border-blue-600 transition-colors text-white font-semibold text-sm"
+                            >
+                                {portfolios.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name} ({p.type.toUpperCase()})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div>
                         <div data-testid="transaction-type-selector" className="flex bg-slate-950 p-1 rounded-xl">
                             {(['Kupno', 'Sprzedaż', 'Wpłata', 'Wypłata'] as DbTransactionType[]).map(t => (

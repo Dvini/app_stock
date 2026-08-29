@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { PieChart } from '../components/PieChart';
 import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
-import { db } from '../db/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 
 type ViewMode = 'pie' | 'history';
@@ -20,9 +19,17 @@ interface HistoryDataPoint {
 }
 
 export const Portfolio = () => {
-    const { assets, portfolioSummary } = usePortfolio();
-    const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
+    const { assets, portfolioSummary, transactions } = usePortfolio();
+    const { portfolios, isAllPortfolios } = usePortfolioAccount();
     const [showAddModal, setShowAddModal] = useState(false);
+
+    const portfolioMap = useMemo(() => {
+        const map = new Map<number, (typeof portfolios)[0]>();
+        portfolios.forEach(p => {
+            if (p.id) map.set(p.id, p);
+        });
+        return map;
+    }, [portfolios]);
 
     const [viewMode, setViewMode] = useState<ViewMode>('history');
     const [historyData, setHistoryData] = useState<HistoryDataPoint[]>([]);
@@ -332,6 +339,9 @@ export const Portfolio = () => {
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4">Ticker</th>
+                            {isAllPortfolios && portfolios.length > 1 && (
+                                <th className="px-6 py-4">Portfel</th>
+                            )}
                             <th className="px-6 py-4 text-right">Ilość</th>
                             <th className="px-6 py-4 text-right">Cena Akt.</th>
                             <th className="px-6 py-4 text-right">Śr. Kupna</th>
@@ -342,19 +352,44 @@ export const Portfolio = () => {
                     <tbody className="divide-y divide-slate-800">
                         {assets.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-slate-500 italic">
+                                <td
+                                    colSpan={isAllPortfolios && portfolios.length > 1 ? 7 : 6}
+                                    className="px-6 py-8 text-center text-slate-500 italic"
+                                >
                                     Twój portfel jest pusty. Kliknij "Nowa Operacja", aby dodać aktywa.
                                 </td>
                             </tr>
                         ) : (
-                            assets.map(asset => (
-                                <tr
-                                    key={asset.ticker}
-                                    data-testid={`asset-row-${asset.ticker}`}
-                                    className="hover:bg-slate-800/50 transition-colors"
-                                >
-                                    <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
-                                    <td className="px-6 py-4 text-right">{formatQuantity(asset.amount)}</td>
+                            assets.map(asset => {
+                                const p = portfolioMap.get(asset.portfolioId ?? 1);
+                                return (
+                                    <tr
+                                        key={`${asset.ticker}-${asset.portfolioId ?? 1}`}
+                                        data-testid={`asset-row-${asset.ticker}`}
+                                        className="hover:bg-slate-800/50 transition-colors"
+                                    >
+                                        <td className="px-6 py-4 font-bold text-blue-400">{asset.ticker}</td>
+                                        {isAllPortfolios && portfolios.length > 1 && (
+                                            <td className="px-6 py-4">
+                                                <span
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                                                    style={{
+                                                        backgroundColor: `${p?.color || '#3b82f6'}20`,
+                                                        border: `1px solid ${p?.color || '#3b82f6'}40`,
+                                                        color: p?.color || '#93c5fd'
+                                                    }}
+                                                >
+                                                    <span
+                                                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                        style={{ backgroundColor: p?.color || '#3b82f6' }}
+                                                    />
+                                                    <span className="truncate max-w-[100px]">
+                                                        {p?.name || 'Główny'}
+                                                    </span>
+                                                </span>
+                                            </td>
+                                        )}
+                                        <td className="px-6 py-4 text-right">{formatQuantity(asset.amount)}</td>
                                     <td className="px-6 py-4 text-right font-medium text-slate-300">
                                         {asset.price !== null ? formatNumber(asset.price) : '---'}{' '}
                                         <span className="text-xs text-slate-500">{asset.currency}</span>
@@ -375,6 +410,19 @@ export const Portfolio = () => {
                                         <div className="text-[10px] text-slate-500 font-normal">
                                             {formatNumber(asset.plValue * asset.rate)} {portfolioSummary.baseCurrency}
                                         </div>
+                                        {asset.taxRate === 0 ? (
+                                            <div className="text-[10px] text-emerald-400 font-semibold mt-0.5">
+                                                0% Belki (ulga)
+                                            </div>
+                                        ) : asset.estimatedTax > 0 ? (
+                                            <div
+                                                className="text-[10px] text-slate-400 font-medium mt-0.5"
+                                                title={`Podatek Belki (19%): -${formatNumber(asset.estimatedTax * asset.rate)} ${portfolioSummary.baseCurrency}`}
+                                            >
+                                                netto: ~{formatNumber(asset.netPLValue * asset.rate)}{' '}
+                                                {portfolioSummary.baseCurrency}
+                                            </div>
+                                        ) : null}
                                     </td>
                                     <td className="px-6 py-4 text-right font-bold">
                                         <div>
@@ -393,8 +441,8 @@ export const Portfolio = () => {
                                         )}
                                     </td>
                                 </tr>
-                            ))
-                        )}
+                            );
+                        }))}
                     </tbody>
                 </table>
             </div>

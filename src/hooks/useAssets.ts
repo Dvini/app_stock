@@ -6,6 +6,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { useMemo } from 'react';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { UseAssetsReturn } from '../types/hooks';
 import type { Asset } from '../types/database';
 
@@ -16,7 +17,10 @@ const EMPTY_CURRENCIES: any[] = [];
 /**
  * Custom hook to get user's assets from database
  */
-export const useAssets = (): UseAssetsReturn => {
+export const useAssets = (overridePortfolioId?: number | 'ALL'): UseAssetsReturn => {
+    const { activePortfolioId } = usePortfolioAccount();
+    const targetPortfolioId = overridePortfolioId !== undefined ? overridePortfolioId : activePortfolioId;
+
     // Fetch all assets from database
     const allAssets = useLiveQuery(() => db.assets.toArray()) ?? EMPTY_ASSETS;
 
@@ -24,10 +28,11 @@ export const useAssets = (): UseAssetsReturn => {
     const assets: Asset[] = useMemo(() => {
         if (allAssets.length === 0) return EMPTY_ASSETS;
         return allAssets.filter(asset => {
-            // Filter out sold assets (with epsilon for float errors)
-            return asset.amount > 0.000001;
+            const matchesPortfolio =
+                targetPortfolioId === 'ALL' || (asset.portfolioId ?? 1) === targetPortfolioId;
+            return matchesPortfolio && asset.amount > 0.000001;
         });
-    }, [allAssets]);
+    }, [allAssets, targetPortfolioId]);
 
     // Get unique tickers
     const tickers = useMemo(() => {

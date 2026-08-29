@@ -3,11 +3,12 @@
  * Manages dividend data, calculations, and statistics
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Dividend } from '../types/database';
 
 interface DividendStats {
@@ -31,13 +32,28 @@ interface UseDividendsReturn {
     error: string | null;
 }
 
-export const useDividends = (): UseDividendsReturn => {
+const EMPTY_DIVIDENDS: Dividend[] = [];
+const EMPTY_ASSETS_LIST: any[] = [];
+
+export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividendsReturn => {
+    const { activePortfolioId } = usePortfolioAccount();
+    const effectivePortfolioId = overridePortfolioId !== undefined ? overridePortfolioId : activePortfolioId;
+    const isAll = effectivePortfolioId === 'ALL';
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Live queries from database
-    const dividends = useLiveQuery(() => db.dividends.toArray()) || [];
-    const assets = useLiveQuery(() => db.assets.toArray()) || [];
+    const rawDividends = useLiveQuery(() => db.dividends.toArray()) ?? EMPTY_DIVIDENDS;
+    const rawAssets = useLiveQuery(() => db.assets.toArray()) ?? EMPTY_ASSETS_LIST;
+
+    const dividends = useMemo(() => {
+        return rawDividends.filter(d => isAll || (d.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawDividends, effectivePortfolioId, isAll]);
+
+    const assets = useMemo(() => {
+        return rawAssets.filter(a => isAll || (a.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawAssets, effectivePortfolioId, isAll]);
 
     // Statistics state
     const [stats, setStats] = useState<DividendStats>({
@@ -138,21 +154,25 @@ export const useDividends = (): UseDividendsReturn => {
         calculateStats();
     }, [dividends, assets.length]); // Recalculate when dividends or assets change (full array dependency to detect updates)
 
-    // Processed received dividends - optimized query directly from Dexie
-    // Filter out dividends where user didn't own shares (sharesOwned = 0 or undefined)
-    const received =
+    // Processed received dividends - filtered by portfolio
+    const rawReceived =
         useLiveQuery(
             () =>
                 db.dividends
                     .where('status')
                     .equals('received')
-                    .and(d => (d.sharesOwned || 0) > 0) // Filter out dividends with 0 shares
-                    .reverse() // Reverse for descending order
-                    .sortBy('paymentDate') // Most recent first
-        ) || [];
+                    .and(d => (d.sharesOwned || 0) > 0)
+                    .reverse()
+                    .sortBy('paymentDate'),
+            []
+        ) ?? EMPTY_DIVIDENDS;
 
-    // Processed calendar (upcoming dividends) - optimized query
-    const calendar =
+    const received = useMemo(() => {
+        return rawReceived.filter(d => isAll || (d.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawReceived, effectivePortfolioId, isAll]);
+
+    // Processed calendar (upcoming dividends) - filtered by portfolio
+    const rawCalendar =
         useLiveQuery(() => {
             const today = new Date().toISOString().split('T')[0] || '';
             const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
@@ -161,37 +181,52 @@ export const useDividends = (): UseDividendsReturn => {
                 .where('status')
                 .equals('expected')
                 .and(d => d.paymentDate >= today && d.paymentDate <= sixtyDaysLater)
-                .sortBy('paymentDate'); // Soonest first
-        }) || [];
+                .sortBy('paymentDate');
+        }, []) ?? EMPTY_DIVIDENDS;
+
+    const calendar = useMemo(() => {
+        return rawCalendar.filter(d => isAll || (d.portfolioId ?? 1) === effectivePortfolioId);
+    }, [rawCalendar, effectivePortfolioId, isAll]);
 
     /**
      * Add a new dividend
      */
-    const addDividend = useCallback(async (dividendData: Partial<Dividend>) => {
-        try {
-            // Validate required fields
-            if (
-                !dividendData.ticker ||
-                !dividendData.recordDate ||
-                !dividendData.paymentDate ||
-                dividendData.amountPerShare === undefined
-            ) {
-                throw new Error('Missing required dividend fields');
-            }
+    const addDividend = useCallback(
+        async (dividendData: Partial<Dividend>) => {
+            try {
+                // Validate required fields
+                if (
+                    !dividendData.ticker ||
+                    !dividendData.recordDate ||
+                    !dividendData.paymentDate ||
+                    !dividendData.amountPerShare
+                ) {
+                    throw new Error('Missing required fields');
+                }
 
-            await dividendService.addDividend({
-                ticker: dividendData.ticker,
-                recordDate: dividendData.recordDate,
-                paymentDate: dividendData.paymentDate,
-                amountPerShare: dividendData.amountPerShare,
-                currency: dividendData.currency,
-                status: dividendData.status
-            });
-        } catch (err) {
-            console.error('[useDividends] Error adding dividend:', err);
-            throw err;
-        }
-    }, []);
+                const targetPortfolioId = effectivePortfolioId === 'ALL' ? 1 : effectivePortfolioId;
+
+                // Add to database
+                await db.dividends.add({
+                    portfolioId: targetPortfolioId,
+                    ticker: dividendData.ticker.toUpperCase(),
+                    recordDate: dividendData.recordDate,
+                    paymentDate: dividendData.paymentDate,
+                    amountPerShare: dividendData.amountPerShare,
+                    currency: dividendData.currency || 'PLN',
+                    status: dividendData.status || 'upcoming',
+                    sharesOwned: dividendData.sharesOwned,
+                    totalAmount: dividendData.totalAmount,
+                    exchangeRate: dividendData.exchangeRate,
+                    valuePLN: dividendData.valuePLN
+                });
+            } catch (err) {
+                console.error('[useDividends] Error adding dividend:', err);
+                throw err;
+            }
+        },
+        [effectivePortfolioId]
+    );
 
     /**
      * Delete a dividend

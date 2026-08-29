@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Info, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
+import { usePortfolioAccount } from '../context/PortfolioContext';
 import { formatNumber } from '../utils/formatters';
 import { ErrorBanner, SkeletonLoader } from '../components/UIComponents';
 
@@ -33,6 +34,7 @@ export const Dividends = () => {
         isLoading,
         error
     } = useDividends();
+    const { portfolios, isAllPortfolios } = usePortfolioAccount();
 
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -196,6 +198,8 @@ export const Dividends = () => {
                     received={received}
                     isLoading={isLoading}
                     totalReceivedPLN={totalReceivedPLN}
+                    portfolios={portfolios}
+                    isAllPortfolios={isAllPortfolios}
                 />
             </div>
         </div>
@@ -207,14 +211,28 @@ interface VirtualizedDividendsTableProps {
     received: any[];
     isLoading: boolean;
     totalReceivedPLN: number;
+    portfolios: any[];
+    isAllPortfolios: boolean;
 }
 
 const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
     received,
     isLoading,
-    totalReceivedPLN
+    totalReceivedPLN,
+    portfolios,
+    isAllPortfolios
 }) => {
     const parentRef = useRef<HTMLDivElement>(null);
+
+    const portfolioMap = useMemo(() => {
+        const map = new Map<number, any>();
+        portfolios.forEach(p => {
+            if (p.id) map.set(p.id, p);
+        });
+        return map;
+    }, [portfolios]);
+
+    const showPortfolio = isAllPortfolios && portfolios.length > 1;
 
     const rowVirtualizer = useVirtualizer({
         count: received.length,
@@ -224,8 +242,9 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
     });
 
     // Grid column template for full-width responsive columns
-    const gridTemplate =
-        'minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)';
+    const gridTemplate = showPortfolio
+        ? 'minmax(90px, 1fr) minmax(100px, 1fr) minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(110px, 1.1fr) minmax(50px, 0.5fr)'
+        : 'minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)';
 
     return (
         <div
@@ -266,6 +285,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                             }}
                         >
                             <div>Data</div>
+                            {showPortfolio && <div>Portfel</div>}
                             <div>Ticker</div>
                             <div className="text-right">DPS</div>
                             <div className="text-right">Kwota</div>
@@ -283,6 +303,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                         >
                             {rowVirtualizer.getVirtualItems().map(virtualRow => {
                                 const div = received[virtualRow.index];
+                                const p = portfolioMap.get(div.portfolioId ?? 1);
                                 return (
                                     <div
                                         key={div.id}
@@ -302,6 +323,26 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                                         className="hover:bg-slate-800/50 transition-colors px-4 py-3 border-b border-slate-800"
                                     >
                                         <div className="text-slate-400 text-sm">{div.paymentDate}</div>
+                                        {showPortfolio && (
+                                            <div>
+                                                <span
+                                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                                    style={{
+                                                        backgroundColor: `${p?.color || '#3b82f6'}20`,
+                                                        border: `1px solid ${p?.color || '#3b82f6'}40`,
+                                                        color: p?.color || '#93c5fd'
+                                                    }}
+                                                >
+                                                    <span
+                                                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                        style={{ backgroundColor: p?.color || '#3b82f6' }}
+                                                    />
+                                                    <span className="truncate max-w-[80px]">
+                                                        {p?.name || 'Główny'}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="font-bold text-blue-400">{div.ticker}</div>
                                         <div className="text-right text-slate-300 font-mono text-sm">
                                             {formatNumber(div.amountPerShare, 2, 4)}{' '}

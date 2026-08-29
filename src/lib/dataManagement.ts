@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import type { Asset, Transaction, WatchlistItem, Cash, Dividend } from '../types/database';
+import type { Asset, Transaction, WatchlistItem, Cash, Dividend, PortfolioAccount } from '../types/database';
 
 interface CacheItem {
     key: string;
@@ -7,21 +7,30 @@ interface CacheItem {
     timestamp: number;
 }
 
-interface ExportData {
-    version: number;
+export interface ExportDataV3 {
+    version: 3;
     timestamp: string;
+    exportScope: 'ALL' | 'SINGLE';
+    portfolioInfo?: {
+        id?: number;
+        name: string;
+        type: string;
+        currency: string;
+        taxRate?: number;
+    };
     data: {
+        portfolios?: PortfolioAccount[];
         assets: Asset[];
         transactions: Transaction[];
-        watchlist: WatchlistItem[];
-        cash: Cash[];
-        dividends: Dividend[];
-        exchangeRates: CacheItem[];
-        priceHistory: CacheItem[];
-        metadata: {
-            lastDividendSync: string | null;
-            lastPriceUpdate: string | null;
-            cacheVersion: string;
+        watchlist?: WatchlistItem[];
+        cash?: Cash[];
+        dividends?: Dividend[];
+        exchangeRates?: CacheItem[];
+        priceHistory?: CacheItem[];
+        metadata?: {
+            lastDividendSync?: string | null;
+            lastPriceUpdate?: string | null;
+            cacheVersion?: string;
         };
     };
 }
@@ -52,13 +61,37 @@ interface ImportDataV2 {
     };
 }
 
-export const exportData = async (): Promise<boolean> => {
+/**
+ * Export data to JSON (all portfolios or single portfolio)
+ */
+export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean> => {
     try {
-        const assets = await db.assets.toArray();
-        const transactions = await db.transactions.toArray();
-        const watchlist = await db.watchlist.toArray();
-        const cash = await db.cash.toArray();
-        const dividends = await db.dividends.toArray();
+        const isSingle = typeof portfolioId === 'number';
+        const allPortfolios = await db.portfolios.toArray();
+        const targetPortfolio = isSingle ? allPortfolios.find(p => p.id === portfolioId) : null;
+
+        const rawAssets = await db.assets.toArray();
+        const rawTransactions = await db.transactions.toArray();
+        const rawWatchlist = await db.watchlist.toArray();
+        const rawCash = await db.cash.toArray();
+        const rawDividends = await db.dividends.toArray();
+
+        const assets = isSingle
+            ? rawAssets.filter(a => (a.portfolioId ?? 1) === portfolioId)
+            : rawAssets;
+        const transactions = isSingle
+            ? rawTransactions.filter(t => (t.portfolioId ?? 1) === portfolioId)
+            : rawTransactions;
+        const watchlist = isSingle
+            ? rawWatchlist.filter(w => (w.portfolioId ?? 1) === portfolioId)
+            : rawWatchlist;
+        const cash = isSingle
+            ? rawCash.filter(c => (c.portfolioId ?? 1) === portfolioId)
+            : rawCash;
+        const dividends = isSingle
+            ? rawDividends.filter(d => (d.portfolioId ?? 1) === portfolioId)
+            : rawDividends;
+        const portfolios = isSingle && targetPortfolio ? [targetPortfolio] : allPortfolios;
 
         // Extract cache from localStorage
         const exchangeRates: CacheItem[] = [];
@@ -107,10 +140,22 @@ export const exportData = async (): Promise<boolean> => {
             }
         }
 
-        const data: ExportData = {
-            version: 2,
+        const data: ExportDataV3 = {
+            version: 3,
             timestamp: new Date().toISOString(),
+            exportScope: isSingle ? 'SINGLE' : 'ALL',
+            portfolioInfo:
+                isSingle && targetPortfolio
+                    ? {
+                          id: targetPortfolio.id,
+                          name: targetPortfolio.name,
+                          type: targetPortfolio.type,
+                          currency: targetPortfolio.currency,
+                          taxRate: targetPortfolio.taxRate
+                      }
+                    : undefined,
             data: {
+                portfolios,
                 assets,
                 transactions,
                 watchlist,
@@ -121,7 +166,7 @@ export const exportData = async (): Promise<boolean> => {
                 metadata: {
                     lastDividendSync: localStorage.getItem('dividends_lastSync'),
                     lastPriceUpdate: localStorage.getItem('lastPriceUpdate'),
-                    cacheVersion: 'v2'
+                    cacheVersion: 'v3'
                 }
             }
         };
@@ -129,16 +174,22 @@ export const exportData = async (): Promise<boolean> => {
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
 
+        const dateStr = new Date().toISOString().split('T')[0]!;
+        const safeName =
+            isSingle && targetPortfolio
+                ? targetPortfolio.name.toLowerCase().replace(/[^a-z0-9]/gi, '_')
+                : 'wszystkie_portfele';
+
         const a = document.createElement('a');
         a.href = url;
-        a.download = `portfolio_backup_v2_${new Date().toISOString().split('T')[0]!}.json`;
+        a.download = `stock_backup_${safeName}_${dateStr}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
         console.log(
-            `[Export] v2.0 exported: ${dividends.length} dividends, ${exchangeRates.length} rates, ${priceHistory.length} cache items`
+            `[Export] v3.0 (${data.exportScope}): ${transactions.length} txs, ${assets.length} assets, ${dividends.length} divs`
         );
         return true;
     } catch (error) {
@@ -147,6 +198,83 @@ export const exportData = async (): Promise<boolean> => {
     }
 };
 
+/**
+ * Export transactions to CSV (with Polish Excel friendly formatting)
+ */
+export const exportTransactionsCSV = async (portfolioId?: number | 'ALL'): Promise<boolean> => {
+    try {
+        const isSingle = typeof portfolioId === 'number';
+        const allPortfolios = await db.portfolios.toArray();
+        const portfolioMap = new Map(allPortfolios.map(p => [p.id ?? 1, p]));
+        const targetPortfolio = isSingle ? portfolioMap.get(portfolioId) : null;
+
+        const rawTransactions = await db.transactions.toArray();
+        const transactions = isSingle
+            ? rawTransactions.filter(t => (t.portfolioId ?? 1) === portfolioId)
+            : rawTransactions;
+
+        transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const headers = [
+            'Data',
+            'Portfel',
+            'Typ',
+            'Ticker',
+            'Ilość',
+            'Cena',
+            'Waluta',
+            'Wartość',
+            'Kurs NBP',
+            'Prowizja',
+            'Wartość PLN'
+        ];
+
+        const rows = transactions.map(tx => {
+            const port = portfolioMap.get(tx.portfolioId ?? 1);
+            const totalPLN = tx.total * (tx.exchangeRate || 1);
+            return [
+                `"${tx.date}"`,
+                `"${port?.name || 'Główny'}"`,
+                `"${tx.type}"`,
+                `"${tx.ticker || ''}"`,
+                tx.amount !== undefined ? tx.amount : '',
+                tx.price !== undefined ? tx.price : '',
+                `"${tx.currency || 'PLN'}"`,
+                tx.total,
+                tx.exchangeRate || 1,
+                tx.commission || 0,
+                totalPLN.toFixed(2)
+            ].join(';');
+        });
+
+        const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const dateStr = new Date().toISOString().split('T')[0]!;
+        const safeName =
+            isSingle && targetPortfolio
+                ? targetPortfolio.name.toLowerCase().replace(/[^a-z0-9]/gi, '_')
+                : 'wszystkie_portfele';
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transakcje_${safeName}_${dateStr}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        return true;
+    } catch (error) {
+        console.error('CSV Export failed:', error);
+        return false;
+    }
+};
+
+/**
+ * Import data from file (v1, v2 or v3)
+ */
 export const importData = async (file: File): Promise<boolean> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -157,7 +285,7 @@ export const importData = async (file: File): Promise<boolean> => {
                     throw new Error('Invalid file content');
                 }
 
-                const imported = JSON.parse(result) as ImportDataV1 | ImportDataV2;
+                const imported = JSON.parse(result) as ImportDataV1 | ImportDataV2 | ExportDataV3;
                 const version = 'version' in imported ? imported.version : 1;
 
                 console.log(`[Import] Detected version: ${version}`);
@@ -166,6 +294,8 @@ export const importData = async (file: File): Promise<boolean> => {
                     await importV1(imported as ImportDataV1);
                 } else if (version === 2) {
                     await importV2(imported as ImportDataV2);
+                } else if (version === 3) {
+                    await importV3(imported as ExportDataV3);
                 } else {
                     throw new Error(`Unsupported backup version: ${version}`);
                 }
@@ -187,16 +317,23 @@ const importV1 = async (data: ImportDataV1): Promise<void> => {
         throw new Error('Invalid v1.0 backup file format');
     }
 
-    await db.transaction('rw', db.assets, db.transactions, db.watchlist, db.cash, async () => {
+    const defaultPort = await ensureDefaultPortfolio();
+
+    const assets = data.assets.map(a => ({ ...a, portfolioId: defaultPort }));
+    const txs = data.transactions.map(t => ({ ...t, portfolioId: defaultPort }));
+    const watch = (data.watchlist || []).map(w => ({ ...w, portfolioId: defaultPort }));
+    const cash = (data.cash || []).map(c => ({ ...c, portfolioId: defaultPort }));
+
+    await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash], async () => {
         await db.assets.clear();
         await db.transactions.clear();
         await db.watchlist.clear();
         await db.cash.clear();
 
-        await db.assets.bulkAdd(data.assets);
-        await db.transactions.bulkAdd(data.transactions);
-        if (data.watchlist) await db.watchlist.bulkAdd(data.watchlist);
-        if (data.cash) await db.cash.bulkAdd(data.cash);
+        await db.assets.bulkAdd(assets);
+        await db.transactions.bulkAdd(txs);
+        if (watch.length) await db.watchlist.bulkAdd(watch);
+        if (cash.length) await db.cash.bulkAdd(cash);
     });
 
     console.log('[Import] v1.0 data imported successfully');
@@ -210,6 +347,14 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
         throw new Error('Invalid v2.0 backup file format');
     }
 
+    const defaultPort = await ensureDefaultPortfolio();
+
+    const assets = data.assets.map(a => ({ ...a, portfolioId: a.portfolioId || defaultPort }));
+    const txs = data.transactions.map(t => ({ ...t, portfolioId: t.portfolioId || defaultPort }));
+    const watch = (data.watchlist || []).map(w => ({ ...w, portfolioId: w.portfolioId || defaultPort }));
+    const cash = (data.cash || []).map(c => ({ ...c, portfolioId: c.portfolioId || defaultPort }));
+    const divs = (data.dividends || []).map(d => ({ ...d, portfolioId: d.portfolioId || defaultPort }));
+
     // Clear and import database tables
     await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
         await db.assets.clear();
@@ -218,11 +363,11 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
         await db.cash.clear();
         await db.dividends.clear();
 
-        await db.assets.bulkAdd(data.assets);
-        await db.transactions.bulkAdd(data.transactions);
-        if (data.watchlist) await db.watchlist.bulkAdd(data.watchlist);
-        if (data.cash) await db.cash.bulkAdd(data.cash);
-        if (data.dividends) await db.dividends.bulkAdd(data.dividends);
+        await db.assets.bulkAdd(assets);
+        await db.transactions.bulkAdd(txs);
+        if (watch.length) await db.watchlist.bulkAdd(watch);
+        if (cash.length) await db.cash.bulkAdd(cash);
+        if (divs.length) await db.dividends.bulkAdd(divs);
     });
 
     // Restore cache from backup
@@ -236,11 +381,64 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
                 })
             );
         });
-        console.log(`[Import] Restored ${data.exchangeRates.length} exchange rate cache items`);
+    }
+};
+
+// Import v3.0 (with multi-portfolio support)
+const importV3 = async (imported: ExportDataV3): Promise<void> => {
+    const { data, exportScope, portfolioInfo } = imported;
+
+    if (!data) throw new Error('Invalid v3.0 backup format');
+
+    if (exportScope === 'SINGLE' && portfolioInfo) {
+        // Import single portfolio as a new portfolio into existing database
+        const newPortId = await db.portfolios.add({
+            name: `${portfolioInfo.name} (Import)`,
+            type: (portfolioInfo.type as any) || 'standard',
+            currency: (portfolioInfo.currency as any) || 'PLN',
+            taxRate: portfolioInfo.taxRate ?? 19,
+            createdAt: new Date().toISOString()
+        });
+
+        const assets = data.assets.map(({ id, ...rest }) => ({ ...rest, portfolioId: Number(newPortId) }));
+        const txs = data.transactions.map(({ id, ...rest }) => ({ ...rest, portfolioId: Number(newPortId) }));
+        const watch = (data.watchlist || []).map(({ id, ...rest }) => ({ ...rest, portfolioId: Number(newPortId) }));
+        const cash = (data.cash || []).map(({ id, ...rest }) => ({ ...rest, portfolioId: Number(newPortId) }));
+        const divs = (data.dividends || []).map(({ id, ...rest }) => ({ ...rest, portfolioId: Number(newPortId) }));
+
+        await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
+            if (assets.length) await db.assets.bulkAdd(assets as Asset[]);
+            if (txs.length) await db.transactions.bulkAdd(txs as Transaction[]);
+            if (watch.length) await db.watchlist.bulkAdd(watch as WatchlistItem[]);
+            if (cash.length) await db.cash.bulkAdd(cash as Cash[]);
+            if (divs.length) await db.dividends.bulkAdd(divs as Dividend[]);
+        });
+
+        console.log(`[Import] Single portfolio "${portfolioInfo.name}" imported as new portfolio #${newPortId}`);
+    } else {
+        // Full restore (ALL portfolios)
+        await db.transaction('rw', [db.portfolios, db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
+            await db.portfolios.clear();
+            await db.assets.clear();
+            await db.transactions.clear();
+            await db.watchlist.clear();
+            await db.cash.clear();
+            await db.dividends.clear();
+
+            if (data.portfolios?.length) await db.portfolios.bulkAdd(data.portfolios);
+            if (data.assets?.length) await db.assets.bulkAdd(data.assets);
+            if (data.transactions?.length) await db.transactions.bulkAdd(data.transactions);
+            if (data.watchlist?.length) await db.watchlist.bulkAdd(data.watchlist);
+            if (data.cash?.length) await db.cash.bulkAdd(data.cash);
+            if (data.dividends?.length) await db.dividends.bulkAdd(data.dividends);
+        });
+
+        console.log('[Import] All portfolios and data restored successfully');
     }
 
-    if (data.priceHistory) {
-        data.priceHistory.forEach(item => {
+    // Restore cache
+    if (data.exchangeRates) {
+        data.exchangeRates.forEach(item => {
             localStorage.setItem(
                 `stock_cache_v2_${item.key}`,
                 JSON.stringify({
@@ -249,35 +447,52 @@ const importV2 = async (imported: ImportDataV2): Promise<void> => {
                 })
             );
         });
-        console.log(`[Import] Restored ${data.priceHistory.length} price/chart cache items`);
     }
-
-    // Restore metadata
-    if (data.metadata) {
-        if (data.metadata.lastDividendSync) {
-            localStorage.setItem('dividends_lastSync', data.metadata.lastDividendSync);
-        }
-        if (data.metadata.lastPriceUpdate) {
-            localStorage.setItem('lastPriceUpdate', data.metadata.lastPriceUpdate);
-        }
-    }
-
-    console.log('[Import] v2.0 data imported successfully');
 };
 
-export const clearData = async (): Promise<boolean> => {
+const ensureDefaultPortfolio = async (): Promise<number> => {
+    const p = await db.portfolios.toCollection().first();
+    if (p && p.id) return p.id;
+    const newId = await db.portfolios.add({
+        id: 1,
+        name: 'Główny',
+        type: 'standard',
+        currency: 'PLN',
+        taxRate: 19,
+        color: '#3b82f6',
+        createdAt: new Date().toISOString()
+    });
+    return Number(newId);
+};
+
+export const clearData = async (): Promise<void> => {
     try {
-        await db.transaction('rw', [db.assets, db.transactions, db.watchlist, db.cash, db.dividends], async () => {
-            await db.assets.clear();
-            await db.transactions.clear();
-            await db.watchlist.clear();
-            await db.cash.clear();
-            await db.dividends.clear();
-        });
-        console.log('[ClearData] All data cleared including dividends');
-        return true;
+        await db.transaction(
+            'rw',
+            [db.portfolios, db.assets, db.transactions, db.watchlist, db.cash, db.dividends],
+            async () => {
+                await db.portfolios.clear();
+                await db.assets.clear();
+                await db.transactions.clear();
+                await db.watchlist.clear();
+                await db.cash.clear();
+                await db.dividends.clear();
+            }
+        );
+
+        // Clear local storage cache
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('stock_cache_') || key.startsWith('dividends_') || key.startsWith('lastPriceUpdate') || key === 'stock_tracker_active_portfolio')) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
+        console.log('All data and cache cleared');
     } catch (error) {
         console.error('Clear failed:', error);
-        return false;
+        throw error;
     }
 };
