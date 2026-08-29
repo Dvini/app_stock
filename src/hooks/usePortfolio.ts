@@ -62,6 +62,12 @@ export interface UsePortfolioReturn {
     portfolioSummary: PortfolioSummary;
 }
 
+const EMPTY_WATCHLIST: any[] = [];
+const EMPTY_TRANSACTIONS: any[] = [];
+const EMPTY_CASH: any[] = [];
+const EMPTY_TICKERS: string[] = [];
+const EMPTY_CURRENCIES: CurrencyCode[] = [];
+
 /**
  * Main portfolio hook
  */
@@ -72,13 +78,15 @@ export const usePortfolio = (): UsePortfolioReturn => {
     const { assets, tickers, currencies } = useAssets();
 
     // Watchlist and transactions
-    const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
-    const transactions = useLiveQuery(() => db.transactions.orderBy('date').reverse().limit(10).toArray()) || [];
-    const allCash = useLiveQuery(() => db.cash.toArray()) || [];
+    const watchlist = useLiveQuery(() => db.watchlist.toArray()) ?? EMPTY_WATCHLIST;
+    const transactions =
+        useLiveQuery(() => db.transactions.orderBy('date').reverse().limit(10).toArray()) ?? EMPTY_TRANSACTIONS;
+    const allCash = useLiveQuery(() => db.cash.toArray()) ?? EMPTY_CASH;
     const currentCash = allCash.find(c => c.currency === 'PLN')?.amount || 0;
 
     // Combine asset and watchlist tickers for single usePrices call
     const allTickers = useMemo(() => {
+        if (tickers.length === 0 && watchlist.length === 0) return EMPTY_TICKERS;
         const watchlistTickers = watchlist.map(w => w.ticker);
         return [...new Set([...tickers, ...watchlistTickers])]; // Deduplicate
     }, [tickers, watchlist]);
@@ -88,6 +96,7 @@ export const usePortfolio = (): UsePortfolioReturn => {
 
     // Determine currencies needed for exchange rates
     const neededCurrencies = useMemo(() => {
+        if (currencies.length === 0 && watchlist.length === 0 && baseCurrency === 'PLN') return EMPTY_CURRENCIES;
         const currencySet = new Set(currencies);
 
         // Add watchlist currencies

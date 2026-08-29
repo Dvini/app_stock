@@ -64,6 +64,30 @@ class ApiService {
      * Fetch with automatic proxy fallback and retry
      */
     async fetchWithBackup(url: string, retryCount: number = 0): Promise<Response> {
+        // In local/dev environment with Vite proxy, use /api/yahoo directly
+        const isLocal =
+            typeof window !== 'undefined' &&
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+        if (url.startsWith('/')) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) return response;
+                throw new Error(`Local proxy returned ${response.status} ${response.statusText}`);
+            } catch (localErr) {
+                console.warn('[ApiService] Local proxy fetch failed:', localErr);
+            }
+        } else if (isLocal && url.startsWith('https://query1.finance.yahoo.com')) {
+            const localProxyUrl = url.replace('https://query1.finance.yahoo.com', '/api/yahoo');
+            try {
+                const response = await fetch(localProxyUrl);
+                if (response.ok) return response;
+                console.warn(`[ApiService] Local proxy returned ${response.status}, trying fallback`);
+            } catch (localErr) {
+                console.warn('[ApiService] Local proxy fetch failed, trying fallback:', localErr);
+            }
+        }
+
         const proxyUrl = this.proxyUrls[this.currentProxyIndex];
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
 

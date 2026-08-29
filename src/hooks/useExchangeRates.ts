@@ -3,7 +3,7 @@
  * Handles currency conversion with caching
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchExchangeRates } from '../lib/api';
 import { useCurrency } from '../context/CurrencyContext';
 import type { CurrencyCode } from '../types/database';
@@ -46,13 +46,18 @@ export const useExchangeRates = (
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     const [error, setError] = useState<Error | null>(null);
 
+    const currenciesRef = useRef(currencies);
+    currenciesRef.current = currencies;
+    const currenciesKey = [...currencies].sort().join(',');
+
     // Fetch exchange rates
     const fetchRates = useCallback(async () => {
         // Filter out target currency (no need to fetch rate for same currency)
-        const neededCurrencies = currencies.filter(c => c && c !== targetCurrency);
+        const neededCurrencies = currenciesRef.current.filter(c => c && c !== targetCurrency);
 
         if (neededCurrencies.length === 0) {
-            setRates({} as Record<CurrencyCode, number>);
+            setRates(prev => (Object.keys(prev).length === 0 ? prev : ({} as Record<CurrencyCode, number>)));
+            setIsLoading(false);
             return;
         }
 
@@ -61,7 +66,21 @@ export const useExchangeRates = (
 
         try {
             const fetchedRates = await fetchExchangeRates(neededCurrencies, targetCurrency);
-            setRates(fetchedRates as Record<CurrencyCode, number>);
+            setRates(prev => {
+                const prevKeys = Object.keys(prev);
+                const newKeys = Object.keys(fetchedRates);
+                if (
+                    prevKeys.length === newKeys.length &&
+                    prevKeys.every(
+                        k =>
+                            prev[k as CurrencyCode] ===
+                            (fetchedRates as Record<CurrencyCode, number>)[k as CurrencyCode]
+                    )
+                ) {
+                    return prev;
+                }
+                return fetchedRates as Record<CurrencyCode, number>;
+            });
             setLastUpdate(new Date());
         } catch (err) {
             console.error('Error fetching exchange rates:', err);
@@ -69,7 +88,7 @@ export const useExchangeRates = (
         } finally {
             setIsLoading(false);
         }
-    }, [currencies, targetCurrency]);
+    }, [currenciesKey, targetCurrency]);
 
     // Initial fetch and auto-refresh
     useEffect(() => {

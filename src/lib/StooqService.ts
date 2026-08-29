@@ -96,10 +96,14 @@ class StooqService {
         }
 
         try {
+            const isLocal =
+                typeof window !== 'undefined' &&
+                (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
             const url = `${this.baseUrl}?s=${normalizedTicker}`;
-            console.log(`[StooqService] Fetching dividends for ${normalizedTicker} from ${url}`);
+            const targetUrl = isLocal ? url.replace('https://stooq.pl', '/api/stooq') : url;
+            console.log(`[StooqService] Fetching dividends for ${normalizedTicker} from ${targetUrl}`);
 
-            const response = await fetch(url, {
+            const response = await fetch(targetUrl, {
                 headers: {
                     'User-Agent': this.userAgent,
                     Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',

@@ -3,7 +3,7 @@
  * Implements caching and automatic refresh
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchCurrentPrice, getCachedPrice } from '../lib/api';
 import type { PriceData } from '../types/api';
 
@@ -37,10 +37,16 @@ export const usePrices = (tickers: string[] = [], options: UsePricesOptions = {}
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const tickersRef = useRef(tickers);
+    tickersRef.current = tickers;
+    const tickersKey = [...tickers].sort().join(',');
+
     // Fetch prices for all tickers
     const fetchPrices = useCallback(async () => {
-        if (tickers.length === 0) {
-            setPrices({});
+        const currentTickers = tickersRef.current;
+        if (currentTickers.length === 0) {
+            setPrices(prev => (Object.keys(prev).length === 0 ? prev : {}));
+            setIsLoading(false);
             return;
         }
 
@@ -48,7 +54,7 @@ export const usePrices = (tickers: string[] = [], options: UsePricesOptions = {}
         const newPrices: Record<string, PriceData> = {};
         const newErrors: Record<string, string> = {};
 
-        const promises = tickers.map(async ticker => {
+        const promises = currentTickers.map(async ticker => {
             try {
                 // Try cache first
                 const cached = getCachedPrice(ticker);
@@ -82,11 +88,23 @@ export const usePrices = (tickers: string[] = [], options: UsePricesOptions = {}
             }
         });
 
-        setPrices(newPrices);
+        setPrices(prev => {
+            const prevKeys = Object.keys(prev);
+            const newKeys = Object.keys(newPrices);
+            if (
+                prevKeys.length === newKeys.length &&
+                prevKeys.every(
+                    k => prev[k]?.price === newPrices[k]?.price && prev[k]?.currency === newPrices[k]?.currency
+                )
+            ) {
+                return prev;
+            }
+            return newPrices;
+        });
         setErrors(newErrors);
         setLastUpdate(new Date());
         setIsLoading(false);
-    }, [tickers]);
+    }, [tickersKey]);
 
     // Initial fetch and auto-refresh
     useEffect(() => {

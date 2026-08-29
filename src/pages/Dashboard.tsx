@@ -29,9 +29,13 @@ interface AssetItemProps {
     onRemove?: (e: React.MouseEvent) => void;
 }
 
+const EMPTY_WATCHLIST: any[] = [];
+
 export const Dashboard = () => {
     const { assets, portfolioSummary } = usePortfolio();
-    const watchlist = useLiveQuery(() => db.watchlist.toArray()) || [];
+    const watchlist = useLiveQuery(() => db.watchlist.toArray()) ?? EMPTY_WATCHLIST;
+    const assetsRef = React.useRef(assets);
+    assetsRef.current = assets;
 
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
@@ -48,7 +52,7 @@ export const Dashboard = () => {
         } else if (!selectedTicker && watchlist.length > 0) {
             setSelectedTicker(watchlist[0]?.ticker || null);
         }
-    }, [assets, watchlist, selectedTicker]);
+    }, [assets.length, watchlist.length, selectedTicker]);
 
     useEffect(() => {
         if (!selectedTicker) return;
@@ -71,7 +75,7 @@ export const Dashboard = () => {
                 setChartCurrency(result.currency);
             } else if (Array.isArray(result)) {
                 setChartData(result);
-                const knownAsset = assets.find(a => a.ticker === selectedTicker);
+                const knownAsset = assetsRef.current.find(a => a.ticker === selectedTicker);
                 setChartCurrency(knownAsset?.currency || 'PLN');
             } else {
                 setChartData([]);
@@ -80,7 +84,7 @@ export const Dashboard = () => {
         };
 
         loadChart();
-    }, [selectedTicker, chartRange, assets]);
+    }, [selectedTicker, chartRange]);
 
     const getAssetPrice = (ticker: string) => {
         const p = assets.find(a => a.ticker === ticker);
