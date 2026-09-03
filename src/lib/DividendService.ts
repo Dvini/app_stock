@@ -4,7 +4,8 @@ import { alphaVantageService } from './AlphaVantageService';
 import { stooqService } from './StooqService';
 import { apiService } from './ApiService';
 import { TIME_CONSTANTS } from '../utils/constants';
-import type { Transaction, Dividend, Asset, CurrencyCode } from '../types/database';
+import type { Asset, Dividend, Transaction, CurrencyCode } from '../types/database';
+import { isBuyTransaction, isSellTransaction } from '../types/database';
 
 interface ProcessedDividend extends Dividend {
     sharesOwned: number;
@@ -107,9 +108,9 @@ class DividendService {
             const txDate = new Date(tx.date);
             if (txDate > recordDate) break; // Stop if transaction is after record date
 
-            if (tx.type === 'buy' || tx.type === 'Kupno') {
+            if (isBuyTransaction(tx.type)) {
                 shares += tx.amount;
-            } else if (tx.type === 'sell' || tx.type === 'Sprzedaż') {
+            } else if (isSellTransaction(tx.type)) {
                 shares -= tx.amount;
             }
         }
@@ -256,9 +257,7 @@ class DividendService {
             // Get all buy transactions for the portfolio
             const allTransactions = await db.transactions.toArray();
             const buyTransactions = allTransactions.filter(
-                t =>
-                    (t.type === 'Kupno' || t.type === 'buy') &&
-                    (isAll || (t.portfolioId ?? 1) === portfolioId)
+                t => (t.type === 'Kupno' || t.type === 'buy') && (isAll || (t.portfolioId ?? 1) === portfolioId)
             );
 
             // Calculate total cost basis (in PLN)

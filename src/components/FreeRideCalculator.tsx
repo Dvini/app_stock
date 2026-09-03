@@ -1,14 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-    ShieldCheck,
-    TrendingUp,
-    Coins,
-    Sparkles,
-    AlertCircle,
-    Info,
-    Target,
-    CheckCircle2
-} from 'lucide-react';
+import { ShieldCheck, TrendingUp, Coins, Sparkles, AlertCircle, Info, Target, CheckCircle2 } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import { formatNumber, formatCurrency } from '../utils/formatters';
@@ -211,13 +202,17 @@ export const FreeRideCalculator: React.FC = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <h2 className="text-xl font-bold text-white">Strategia „Free Ride” (Pozycja Bez Ryzyka)</h2>
+                                <h2 className="text-xl font-bold text-white">
+                                    Strategia „Free Ride” (Pozycja Bez Ryzyka)
+                                </h2>
                                 <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                                     <Sparkles size={12} /> 100% Ochrony Kapitału
                                 </span>
                             </div>
                             <p className="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">
-                                Oblicz dokładną cenę lub liczbę akcji, przy której sprzedaż pokryje <strong>100% Twojego pierwotnego wkładu</strong> (po odliczeniu podatku od zysków). Reszta akcji zostaje w portfelu jako czysty zysk o zerowym ryzyku straty!
+                                Oblicz dokładną cenę lub liczbę akcji, przy której sprzedaż pokryje{' '}
+                                <strong>100% Twojego pierwotnego wkładu</strong> (po odliczeniu podatku od zysków).
+                                Reszta akcji zostaje w portfelu jako czysty zysk o zerowym ryzyku straty!
                             </p>
                         </div>
                     </div>
@@ -363,7 +358,8 @@ export const FreeRideCalculator: React.FC = () => {
                                 />
                                 {parseFloat(sellShares) >= N && N > 0 && (
                                     <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                        <AlertCircle size={13} /> Liczba akcji do sprzedaży musi być mniejsza niż łączna liczba akcji ({N})!
+                                        <AlertCircle size={13} /> Liczba akcji do sprzedaży musi być mniejsza niż łączna
+                                        liczba akcji ({N})!
                                     </p>
                                 )}
                             </div>
@@ -481,8 +477,7 @@ export const FreeRideCalculator: React.FC = () => {
                                     <div className="mt-3 pt-3 border-t border-blue-500/20 flex flex-wrap items-center justify-between text-xs gap-2">
                                         <span className="text-slate-400">Wymagany wzrost:</span>
                                         <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1">
-                                            <TrendingUp size={12} />
-                                            +{formatNumber(calculation.requiredGrowth)}%
+                                            <TrendingUp size={12} />+{formatNumber(calculation.requiredGrowth)}%
                                         </span>
                                     </div>
 

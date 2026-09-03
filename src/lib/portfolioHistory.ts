@@ -56,7 +56,7 @@ export const calculatePortfolioHistory = async (
 
     let apiRange = range;
     let apiInterval = '1d';
-    
+
     if (range === 'max') {
         apiRange = '10y'; // 'max' often fails via proxy, 10y is usually sufficient
         apiInterval = '1d';
@@ -83,11 +83,16 @@ export const calculatePortfolioHistory = async (
     const currenciesToFetch = new Set<string>();
 
     // Fetch all historical data (extracted to helper function)
-    const { histories, fxHistories } = await fetchHistoricalData(uniqueTickers, currenciesToFetch, apiRange, apiInterval);
+    const { histories, fxHistories } = await fetchHistoricalData(
+        uniqueTickers,
+        currenciesToFetch,
+        apiRange,
+        apiInterval
+    );
 
     // Determine actual end date from Yahoo Finance data instead of using 'now'
     let endDate = new Date(0); // Start with epoch
-    
+
     // Find the latest timestamp from all fetched historical data
     Object.values(histories).forEach(history => {
         if (history?.data && history.data.length > 0) {
@@ -100,7 +105,7 @@ export const calculatePortfolioHistory = async (
             }
         }
     });
-    
+
     // Fallback to 'now' if no data was found
     if (endDate.getTime() === 0) {
         endDate = now;
@@ -129,12 +134,13 @@ export const calculatePortfolioHistory = async (
 
     // 3. Replay Loop
     const timeline: Date[] = [];
-    
+
     // Determine step size based on range
     let stepMinutes = 1440; // 1 day by default
-    if (range === '1d') stepMinutes = 5; // 5 minutes for 1D
+    if (range === '1d')
+        stepMinutes = 5; // 5 minutes for 1D
     else if (range === '5d') stepMinutes = 15; // 15 minutes for 5D
-    
+
     // Generate timeline with appropriate step, ending at actual Yahoo Finance data end date
     if (stepMinutes < 1440) {
         // Intraday intervals (minutes)
@@ -147,10 +153,10 @@ export const calculatePortfolioHistory = async (
         // Normalize to day-level comparison (ignore hours/minutes) to handle timezone issues
         let currentDate = new Date(startDate);
         currentDate.setHours(0, 0, 0, 0);
-        
+
         const endDateDay = new Date(endDate);
         endDateDay.setHours(0, 0, 0, 0);
-        
+
         while (currentDate <= endDateDay) {
             timeline.push(new Date(currentDate));
             currentDate.setDate(currentDate.getDate() + 1);
@@ -280,14 +286,14 @@ export const calculatePortfolioHistory = async (
         // For daily intervals, try to use actual timestamp from historical data (market close time)
         // For intraday intervals or when no data available, use generated timeline timestamp
         let actualTimestamp = day.getTime() / 1000;
-        
+
         if (stepMinutes >= 1440 && Object.keys(histories).length > 0) {
             // For daily intervals, find actual market close timestamp from data
             const dayStart = new Date(day);
             dayStart.setHours(0, 0, 0, 0);
             const dayEnd = new Date(day);
             dayEnd.setHours(23, 59, 59, 999);
-            
+
             // Look for any ticker's data point on this day to get actual close timestamp
             for (const ticker in histories) {
                 const history = histories[ticker];
@@ -296,7 +302,7 @@ export const calculatePortfolioHistory = async (
                         const pointTime = p.timestamp * 1000;
                         return pointTime >= dayStart.getTime() && pointTime <= dayEnd.getTime();
                     });
-                    
+
                     if (dataPoint) {
                         actualTimestamp = dataPoint.timestamp;
                         break; // Use first found timestamp (all tickers should have same close time on same exchange)

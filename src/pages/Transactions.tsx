@@ -18,9 +18,9 @@ export const Transactions = () => {
 
     const rawTransactions =
         useLiveQuery(() =>
-            db.transactions.toArray().then(txs =>
-                txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            )
+            db.transactions
+                .toArray()
+                .then(txs => txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
         ) || [];
 
     const portfolioMap = useMemo(() => {
@@ -60,9 +60,7 @@ export const Transactions = () => {
                         <select
                             value={filterPortfolioId}
                             onChange={e =>
-                                setFilterPortfolioId(
-                                    e.target.value === 'ALL' ? 'ALL' : Number(e.target.value)
-                                )
+                                setFilterPortfolioId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))
                             }
                             className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-white outline-none focus:border-blue-500 transition"
                         >
@@ -154,9 +152,7 @@ export const Transactions = () => {
                                         </td>
                                         <td className="px-6 py-4 font-bold text-blue-400">{tx.ticker || '—'}</td>
                                         <td className="px-6 py-4 text-right">
-                                            {['Kupno', 'Sprzedaż'].includes(tx.type)
-                                                ? formatQuantity(tx.amount)
-                                                : '-'}
+                                            {['Kupno', 'Sprzedaż'].includes(tx.type) ? formatQuantity(tx.amount) : '-'}
                                         </td>
                                         <td className="px-6 py-4 text-right font-mono">
                                             {tx.price !== undefined ? formatNumber(tx.price) : '—'}{' '}

@@ -106,14 +106,18 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
             throw new Error('Nie można usunąć jedynego portfela.');
         }
 
-        await db.transaction('rw', [db.portfolios, db.assets, db.transactions, db.cash, db.dividends, db.watchlist], async () => {
-            await db.portfolios.delete(id);
-            await db.assets.where('portfolioId').equals(id).delete();
-            await db.transactions.where('portfolioId').equals(id).delete();
-            await db.cash.where('portfolioId').equals(id).delete();
-            await db.dividends.where('portfolioId').equals(id).delete();
-            await db.watchlist.where('portfolioId').equals(id).delete();
-        });
+        await db.transaction(
+            'rw',
+            [db.portfolios, db.assets, db.transactions, db.cash, db.dividends, db.watchlist],
+            async () => {
+                await db.portfolios.delete(id);
+                await db.assets.where('portfolioId').equals(id).delete();
+                await db.transactions.where('portfolioId').equals(id).delete();
+                await db.cash.where('portfolioId').equals(id).delete();
+                await db.dividends.where('portfolioId').equals(id).delete();
+                await db.watchlist.where('portfolioId').equals(id).delete();
+            }
+        );
 
         // If currently on the deleted portfolio, switch to 'ALL' or remaining
         const remaining = portfolios.filter(p => p.id !== id);

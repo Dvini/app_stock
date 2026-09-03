@@ -13,7 +13,7 @@ import usePrices from './usePrices';
 import useExchangeRates from './useExchangeRates';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import { calculateNetProfitLoss } from '../utils/taxCalculations';
-import type { Transaction, CurrencyCode, PortfolioAccount } from '../types/database';
+import type { Transaction, WatchlistItem, Cash, CurrencyCode, PortfolioAccount } from '../types/database';
 
 interface ProcessedAsset {
     id?: number;
@@ -79,9 +79,9 @@ export interface UsePortfolioReturn {
     isAllPortfolios: boolean;
 }
 
-const EMPTY_WATCHLIST: any[] = [];
-const EMPTY_TRANSACTIONS: any[] = [];
-const EMPTY_CASH: any[] = [];
+const EMPTY_WATCHLIST: WatchlistItem[] = [];
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+const EMPTY_CASH: Cash[] = [];
 const EMPTY_TICKERS: string[] = [];
 const EMPTY_CURRENCIES: CurrencyCode[] = [];
 
@@ -295,7 +295,7 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
         // Net P/L and Belka tax reserve calculations
         const totalNetPL_Base = processedAssets.reduce((acc, curr) => acc + curr.netPLValue * curr.rate, 0);
         const totalTaxReserve_Base = processedAssets.reduce((acc, curr) => acc + curr.estimatedTax * curr.rate, 0);
-        const isTaxExempt = !isAllPortfolios && (contextPortfolio?.taxRate === 0);
+        const isTaxExempt = !isAllPortfolios && contextPortfolio?.taxRate === 0;
 
         const hasForeignAssets = processedAssets.some(a => a.currency !== baseCurrency);
         const approxPrefix = hasForeignAssets ? '~ ' : '';
@@ -315,7 +315,7 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
             baseCurrency,
             isLoadingPrices,
             breakdown: breakdownEntries,
-            taxRate: isAllPortfolios ? undefined : contextPortfolio?.taxRate ?? 19
+            taxRate: isAllPortfolios ? undefined : (contextPortfolio?.taxRate ?? 19)
         };
     }, [
         processedAssets,

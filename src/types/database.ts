@@ -2,8 +2,29 @@
  * Database schema type definitions for Dexie
  */
 
-// Transaction types
-export type TransactionType = 'buy' | 'sell' | 'deposit' | 'withdraw' | 'Kupno' | 'Sprzedaż' | 'Depozyt' | 'Wypłata';
+export type TransactionType =
+    | 'buy'
+    | 'sell'
+    | 'deposit'
+    | 'withdraw'
+    | 'Kupno'
+    | 'Sprzedaż'
+    | 'Depozyt'
+    | 'Wypłata'
+    | 'Wpłata';
+
+/** Helper to check buy-type transactions regardless of language */
+export const isBuyTransaction = (type: TransactionType): boolean => type === 'buy' || type === 'Kupno';
+/** Helper to check sell-type transactions regardless of language */
+export const isSellTransaction = (type: TransactionType): boolean => type === 'sell' || type === 'Sprzedaż';
+/** Helper to check deposit-type transactions regardless of language */
+export const isDepositTransaction = (type: TransactionType): boolean =>
+    type === 'deposit' || type === 'Depozyt' || type === 'Wpłata';
+/** Helper to check withdraw-type transactions regardless of language */
+export const isWithdrawTransaction = (type: TransactionType): boolean => type === 'withdraw' || type === 'Wypłata';
+/** Check if transaction is a cash operation (deposit or withdraw) */
+export const isCashTransaction = (type: TransactionType): boolean =>
+    isDepositTransaction(type) || isWithdrawTransaction(type);
 
 // Asset types
 export type AssetType = 'stock' | 'etf' | 'crypto' | 'commodity';

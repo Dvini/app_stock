@@ -1,8 +1,16 @@
 import { useRef, useEffect, useState } from 'react';
 import { formatNumber } from '../utils/formatters';
 
+interface ChartPoint {
+    time?: number;
+    timestamp?: number;
+    date?: string;
+    price?: number;
+    close?: number;
+}
+
 interface WebGPUChartProps {
-    data?: any[];
+    data?: ChartPoint[];
     color?: number[];
     currency?: string;
     range?: string;
@@ -234,11 +242,11 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             price: formatNumber(price),
             date: time
                 ? new Date(time * 1000).toLocaleString('pl-PL', {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                })
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                  })
                 : '',
             index
         });

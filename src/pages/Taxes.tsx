@@ -2,11 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import {
-    matchFIFOClosedTrades,
-    generatePIT38Report,
-    exportPIT38ToCSV
-} from '../utils/taxCalculations';
+import { matchFIFOClosedTrades, generatePIT38Report, exportPIT38ToCSV } from '../utils/taxCalculations';
 import { formatNumber } from '../utils/formatters';
 import { cn } from '../lib/utils';
 import {
@@ -109,9 +105,7 @@ export const Taxes: React.FC = () => {
                             value={selectedPortfolioId}
                             onChange={e =>
                                 setSelectedPortfolioId(
-                                    e.target.value === 'TAXABLE_ALL'
-                                        ? 'TAXABLE_ALL'
-                                        : Number(e.target.value)
+                                    e.target.value === 'TAXABLE_ALL' ? 'TAXABLE_ALL' : Number(e.target.value)
                                 )
                             }
                             className="bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-200 outline-none focus:border-blue-500 transition"
@@ -119,7 +113,8 @@ export const Taxes: React.FC = () => {
                             <option value="TAXABLE_ALL">Wszystkie rachunki opodatkowane</option>
                             {portfolios.map(p => (
                                 <option key={p.id} value={p.id}>
-                                    {p.name} ({p.type.toUpperCase()}{p.taxRate === 0 ? ' • 0%' : ' • 19%'})
+                                    {p.name} ({p.type.toUpperCase()}
+                                    {p.taxRate === 0 ? ' • 0%' : ' • 19%'})
                                 </option>
                             ))}
                         </select>
@@ -143,7 +138,10 @@ export const Taxes: React.FC = () => {
                     <div>
                         <h4 className="text-sm font-bold text-emerald-400">Rachunek zwolniony z podatku</h4>
                         <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                            Wybrany portfel to rachunek emerytalny (IKE / IKZE). Zgodnie z art. 21 ust. 1 pkt 58a i 58b ustawy o PIT, dochody ze zbycia papierów wartościowych na tym rachunku są <strong>całkowicie zwolnione z podatku dochodowego</strong> i nie podlegają wykazaniu w deklaracji PIT-38.
+                            Wybrany portfel to rachunek emerytalny (IKE / IKZE). Zgodnie z art. 21 ust. 1 pkt 58a i 58b
+                            ustawy o PIT, dochody ze zbycia papierów wartościowych na tym rachunku są{' '}
+                            <strong>całkowicie zwolnione z podatku dochodowego</strong> i nie podlegają wykazaniu w
+                            deklaracji PIT-38.
                         </p>
                     </div>
                 </div>
@@ -160,7 +158,8 @@ export const Taxes: React.FC = () => {
                         </span>
                     </div>
                     <div className="text-2xl font-black text-white mt-1">
-                        {formatNumber(summary.revenuePLN)} <span className="text-xs font-normal text-slate-500">PLN</span>
+                        {formatNumber(summary.revenuePLN)}{' '}
+                        <span className="text-xs font-normal text-slate-500">PLN</span>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1">Suma kwot uzyskanych ze sprzedaży</p>
                 </div>
@@ -229,18 +228,19 @@ export const Taxes: React.FC = () => {
                         </span>
                     </div>
                     <div className="text-2xl font-black text-white mt-1">
-                        {summary.taxDuePLN.toLocaleString('pl-PL')} <span className="text-xs font-normal text-slate-400">PLN</span>
+                        {summary.taxDuePLN.toLocaleString('pl-PL')}{' '}
+                        <span className="text-xs font-normal text-slate-400">PLN</span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1">
-                        {summary.taxDuePLN > 0
-                            ? 'Należny podatek do 30 kwietnia'
-                            : 'Brak podatku do zapłacenia'}
+                        {summary.taxDuePLN > 0 ? 'Należny podatek do 30 kwietnia' : 'Brak podatku do zapłacenia'}
                     </p>
 
                     {summary.taxSavedIKEPLN > 0 && (
                         <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
                             <span className="text-emerald-400 font-semibold">Zaoszczędzono na IKE:</span>
-                            <span className="font-bold text-emerald-400">+{formatNumber(summary.taxSavedIKEPLN)} PLN</span>
+                            <span className="font-bold text-emerald-400">
+                                +{formatNumber(summary.taxSavedIKEPLN)} PLN
+                            </span>
                         </div>
                     )}
                 </div>
@@ -323,8 +323,8 @@ export const Taxes: React.FC = () => {
                                                 <td className="px-6 py-4 text-right font-mono">
                                                     {t.isTaxExempt ? (
                                                         <span className="text-emerald-400 text-xs font-semibold">
-                            0 zł (IKE)
-                        </span>
+                                                            0 zł (IKE)
+                                                        </span>
                                                     ) : t.taxLiabilityPLN > 0 ? (
                                                         <span className="text-slate-300 font-bold">
                                                             {formatNumber(t.taxLiabilityPLN)}
@@ -336,9 +336,7 @@ export const Taxes: React.FC = () => {
                                                 <td className="px-6 py-4 text-center">
                                                     {t.lots.length > 0 && (
                                                         <button
-                                                            onClick={() =>
-                                                                setExpandedTradeId(isExpanded ? null : t.id)
-                                                            }
+                                                            onClick={() => setExpandedTradeId(isExpanded ? null : t.id)}
                                                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
                                                             title="Pokaż partie zakupu FIFO"
                                                         >
@@ -375,7 +373,8 @@ export const Taxes: React.FC = () => {
                                                                     </span>
                                                                     {lot.buyExchangeRate !== 1 && (
                                                                         <span>
-                                                                            Kurs NBP: {formatNumber(lot.buyExchangeRate, 4, 4)}
+                                                                            Kurs NBP:{' '}
+                                                                            {formatNumber(lot.buyExchangeRate, 4, 4)}
                                                                         </span>
                                                                     )}
                                                                     <span className="text-slate-300 font-bold">
@@ -409,13 +408,13 @@ export const Taxes: React.FC = () => {
                         automatycznie rozlicza każdą sprzedaż zgodnie z tą regułą.
                     </div>
                     <div>
-                        <strong className="text-slate-300">Prowizje maklerskie:</strong> Zarówno prowizja od kupna, jak i
-                        sprzedaży, stanowią koszty uzyskania przychodów (KUP) i obniżają podstawę opodatkowania.
+                        <strong className="text-slate-300">Prowizje maklerskie:</strong> Zarówno prowizja od kupna, jak
+                        i sprzedaży, stanowią koszty uzyskania przychodów (KUP) i obniżają podstawę opodatkowania.
                     </div>
                     <div>
-                        <strong className="text-slate-300">Kompensacja strat:</strong> Stratę z danego roku można odliczyć
-                        od dochodów z giełdy w najbliższych kolejno po sobie następujących 5 latach podatkowych (do 50%
-                        kwoty straty w jednym roku).
+                        <strong className="text-slate-300">Kompensacja strat:</strong> Stratę z danego roku można
+                        odliczyć od dochodów z giełdy w najbliższych kolejno po sobie następujących 5 latach podatkowych
+                        (do 50% kwoty straty w jednym roku).
                     </div>
                     <div>
                         <strong className="text-slate-300">Termin złożenia deklaracji:</strong> Zeznanie PIT-38 składa

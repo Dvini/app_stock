@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-    calculateNetProfitLoss,
-    matchFIFOClosedTrades,
-    generatePIT38Report
-} from './taxCalculations';
+import { calculateNetProfitLoss, matchFIFOClosedTrades, generatePIT38Report } from './taxCalculations';
 import type { Transaction, PortfolioAccount } from '../types/database';
 
 describe('taxCalculations', () => {

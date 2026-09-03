@@ -56,11 +56,7 @@ export const Sidebar = () => {
             <PortfolioSwitcher />
 
             <nav className="flex-1 space-y-1">
-                <SidebarItem
-                    to="/"
-                    icon={LayoutDashboard}
-                    label={isAllPortfolios ? 'Podsumowanie' : 'Dashboard'}
-                />
+                <SidebarItem to="/" icon={LayoutDashboard} label={isAllPortfolios ? 'Podsumowanie' : 'Dashboard'} />
                 <SidebarItem to="/portfolio" icon={PieChart} label="Portfel" />
                 <SidebarItem to="/transactions" icon={History} label="Transakcje" />
                 <SidebarItem to="/dividends" icon={DollarSign} label="Dywidendy" />

@@ -19,6 +19,7 @@ import { PieChart } from '../components/PieChart';
 import { PortfolioModal } from '../components/PortfolioModal';
 import { formatNumber } from '../utils/formatters';
 import type { PortfolioAccount, CurrencyCode } from '../types/database';
+import { isDepositTransaction } from '../types/database';
 
 export const AllPortfoliosOverview: React.FC = () => {
     const { portfolios, setActivePortfolioId } = usePortfolioAccount();
@@ -83,7 +84,7 @@ export const AllPortfoliosOverview: React.FC = () => {
                 const rateToPLN = c.currency === 'PLN' ? 1 : rates[c.currency] || 1;
                 cashValPLN += (c.amount || 0) * rateToPLN;
                 if (c.currency === p.currency) {
-                    cashNative += (c.amount || 0);
+                    cashNative += c.amount || 0;
                 }
             });
 
@@ -98,8 +99,7 @@ export const AllPortfoliosOverview: React.FC = () => {
             // Annual contributions for current year (for IKE/IKZE limits)
             const yearDepositsPLN = pTx
                 .filter(t => {
-                    const tType = t.type as string;
-                    const isDep = tType === 'Wpłata' || tType === 'deposit' || tType === 'Depozyt';
+                    const isDep = isDepositTransaction(t.type);
                     return isDep && t.date && t.date.startsWith(currentYear);
                 })
                 .reduce((sum, t) => {
@@ -153,7 +153,10 @@ export const AllPortfoliosOverview: React.FC = () => {
     }, [portfolioMetrics]);
 
     return (
-        <div data-testid="all-portfolios-overview" className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300">
+        <div
+            data-testid="all-portfolios-overview"
+            className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300"
+        >
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -239,9 +242,7 @@ export const AllPortfoliosOverview: React.FC = () => {
                         <span>Konta Inwestycyjne</span>
                         <PieIcon size={18} className="text-indigo-400" />
                     </div>
-                    <div className="text-3xl font-extrabold text-white tracking-tight">
-                        {portfolios.length}
-                    </div>
+                    <div className="text-3xl font-extrabold text-white tracking-tight">{portfolios.length}</div>
                     <p className="text-xs text-slate-500 mt-2">
                         {portfolios.filter(p => p.type === 'ike' || p.type === 'ikze').length} emerytalne,{' '}
                         {portfolios.filter(p => p.type !== 'ike' && p.type !== 'ikze').length} standardowe
@@ -262,9 +263,7 @@ export const AllPortfoliosOverview: React.FC = () => {
                         {portfolioMetrics.map(m => {
                             const p = m.portfolio;
                             const sharePercent =
-                                grandTotals.totalWealthPLN > 0
-                                    ? (m.totalValPLN / grandTotals.totalWealthPLN) * 100
-                                    : 0;
+                                grandTotals.totalWealthPLN > 0 ? (m.totalValPLN / grandTotals.totalWealthPLN) * 100 : 0;
 
                             const limitPercent =
                                 p.annualLimit && p.annualLimit > 0
@@ -320,9 +319,7 @@ export const AllPortfoliosOverview: React.FC = () => {
                                         <div className="my-3">
                                             <div className="text-2xl font-black text-white">
                                                 {formatNumber(m.totalValNative)}{' '}
-                                                <span className="text-xs font-normal text-slate-400">
-                                                    {p.currency}
-                                                </span>
+                                                <span className="text-xs font-normal text-slate-400">{p.currency}</span>
                                             </div>
                                             {p.currency !== 'PLN' && (
                                                 <p className="text-xs text-slate-500">
@@ -353,7 +350,8 @@ export const AllPortfoliosOverview: React.FC = () => {
                                                         Limit wpłat {new Date().getFullYear()}:
                                                     </span>
                                                     <span className="text-white font-bold">
-                                                        {formatNumber(m.yearDepositsPLN)} / {formatNumber(p.annualLimit)} PLN
+                                                        {formatNumber(m.yearDepositsPLN)} /{' '}
+                                                        {formatNumber(p.annualLimit)} PLN
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -398,16 +396,11 @@ export const AllPortfoliosOverview: React.FC = () => {
                             <PieIcon size={18} className="text-indigo-400" />
                             Alokacja Portfeli
                         </h2>
-                        <p className="text-xs text-slate-400 mb-6">
-                            Rozkład łącznego kapitału pomiędzy rachunkami
-                        </p>
+                        <p className="text-xs text-slate-400 mb-6">Rozkład łącznego kapitału pomiędzy rachunkami</p>
 
                         {allocationData.length > 0 ? (
                             <div className="h-64 relative flex items-center justify-center">
-                                <PieChart
-                                    data={allocationData}
-                                    colors={allocationData.map(d => d.color)}
-                                />
+                                <PieChart data={allocationData} colors={allocationData.map(d => d.color)} />
                             </div>
                         ) : (
                             <div className="h-48 flex items-center justify-center text-xs text-slate-500 italic">

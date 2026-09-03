@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { initDB } from './db/db';
 import { AIProvider } from './context/AIContext';
 import { CurrencyProvider } from './context/CurrencyContext';
+import { cacheService } from './lib/CacheService';
 import { PortfolioProvider, usePortfolioAccount } from './context/PortfolioContext';
 
 // Lazy load all page components for code splitting
@@ -50,9 +51,7 @@ function App() {
         initDB();
 
         // Clean up expired cache entries on startup
-        import('./lib/CacheService').then(({ cacheService }) => {
-            cacheService.cleanup();
-        });
+        cacheService.cleanup();
     }, []);
 
     return (

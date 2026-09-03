@@ -148,7 +148,8 @@ export const Settings = () => {
                         <div>
                             <p className="font-bold text-sm text-slate-200">Eksport Danych</p>
                             <p className="text-xs text-slate-500 mt-1 max-w-md">
-                                Pobierz kopię zapasową JSON (wszystkie portfele lub wybrany) lub wyeksportuj transakcje do pliku CSV dla programu Excel.
+                                Pobierz kopię zapasową JSON (wszystkie portfele lub wybrany) lub wyeksportuj transakcje
+                                do pliku CSV dla programu Excel.
                             </p>
                         </div>
                     </div>
@@ -158,9 +159,7 @@ export const Settings = () => {
                             <select
                                 value={exportScope}
                                 onChange={e =>
-                                    setExportScope(
-                                        e.target.value === 'ALL' ? 'ALL' : Number(e.target.value)
-                                    )
+                                    setExportScope(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))
                                 }
                                 className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-blue-500 transition"
                             >

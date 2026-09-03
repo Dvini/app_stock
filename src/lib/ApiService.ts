@@ -140,7 +140,7 @@ class ApiService {
         const cacheKey = `price_${ticker}`;
 
         // 1. Check cache - use 2 minutes for live prices to match 1D chart responsiveness
-        const cached = cacheService.get<PriceData>(cacheKey, 2 * 60 * 1000); 
+        const cached = cacheService.get<PriceData>(cacheKey, 2 * 60 * 1000);
         if (cached) {
             console.log(`[ApiService] Using cached price for ${ticker}`);
             return cached;
@@ -154,9 +154,14 @@ class ApiService {
             const response = await this.fetchWithBackup(targetUrl);
             const data = await response.json();
 
+            if (!data?.chart?.result?.[0]) {
+                console.warn(`[ApiService] No chart data for ${ticker}`);
+                return null;
+            }
+
             const result = data.chart.result[0];
-            let price = result.meta.regularMarketPrice;
-            let currency = result.meta.currency || 'PLN';
+            let price = result.meta?.regularMarketPrice;
+            let currency = result.meta?.currency || 'PLN';
 
             // Fallback to close prices if regularMarketPrice is not available
             if (!price && result.indicators?.quote?.[0]?.close) {
@@ -211,8 +216,11 @@ class ApiService {
             }
 
             const results: Ticker[] = data.quotes
-                .filter((q: any) => q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'INDEX')
-                .map((q: any) => ({
+                .filter(
+                    (q: Record<string, string>) =>
+                        q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'INDEX'
+                )
+                .map((q: Record<string, string>) => ({
                     symbol: q.symbol,
                     name: q.shortname || q.longname || q.symbol,
                     region: q.exchDisp || q.exchange || 'Unknown'
@@ -265,7 +273,7 @@ class ApiService {
                     const response = await this.fetchWithBackup(targetUrl);
                     const data = await response.json();
                     const result = data.chart.result[0];
-                    
+
                     let rate = result.meta.regularMarketPrice;
 
                     // Fallback to close prices if regularMarketPrice is not available (common for currency pairs)
@@ -319,7 +327,7 @@ class ApiService {
         const cacheKey = `history_${ticker}_${range}_${interval}`;
 
         // Shorter cache for intraday data (2 min for 1D, 5 min for 5D)
-        const cacheDuration = range === '1d' ? 2 * 60 * 1000 : (range === '5d' ? 5 * 60 * 1000 : this.cacheDuration);
+        const cacheDuration = range === '1d' ? 2 * 60 * 1000 : range === '5d' ? 5 * 60 * 1000 : this.cacheDuration;
 
         // 1. Check cache (only for reasonable ranges)
         if (shouldCache) {

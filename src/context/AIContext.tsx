@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import type { MLCEngineInterface, AppConfig } from '@mlc-ai/web-llm';
 import { CreateMLCEngine } from '@mlc-ai/web-llm';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useDividends } from '../hooks/useDividends';
@@ -35,7 +36,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
     const [currentModel, setCurrentModel] = useState(
         localStorage.getItem('selected_llm_model') || 'Qwen3-1.7B-q4f16_1-MLC'
     );
-    const engine = useRef<any>(null);
+    const engine = useRef<MLCEngineInterface | null>(null);
 
     const { portfolioSummary, assets, transactions, watchlist } = usePortfolio();
     const { ytdTotal, upcoming60Days, yieldOnCost, monthlyAverage, calendar } = useDividends();
@@ -86,13 +87,14 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
                 return;
             }
 
-            const engineConfig: any = {
-                initProgressCallback: (progress: any) => {
-                    setInitProgress(progress.text);
-                }
-            };
+            const engineConfig: { initProgressCallback: (progress: { text: string }) => void; appConfig?: AppConfig } =
+                {
+                    initProgressCallback: (progress: { text: string }) => {
+                        setInitProgress(progress.text);
+                    }
+                };
 
-            const customModels: any[] = [
+            const customModels = [
                 {
                     model: 'https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
                     model_id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
@@ -207,9 +209,10 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
             setCurrentModel(modelId);
             localStorage.setItem('selected_llm_model', modelId);
             setInitProgress('');
-        } catch (e: any) {
-            console.error('Failed to load model:', e);
-            setInitProgress(`Error: ${e?.message || 'Unknown error'}`);
+        } catch (e: unknown) {
+            const err = e instanceof Error ? e : new Error(String(e));
+            console.error('Failed to load model:', err);
+            setInitProgress(`Error: ${err.message}`);
             setIsModelLoaded(false);
         }
     };
@@ -244,7 +247,7 @@ Number of Assets: ${assets?.length || 0}
 ${
     assets
         ?.map(
-            (a: any) => `${a.ticker}: ${a.amount} shares @ ${a.avgPrice?.toFixed(2)} ${a.currency}
+            a => `${a.ticker}: ${a.amount} shares @ ${a.avgPrice?.toFixed(2)} ${a.currency}
   Current Price: ${a.price !== null ? a.price.toFixed(2) : 'N/A'} ${a.currency}
   Value: ${a.value} ${a.currency}
   P/L: ${a.pl}`
@@ -253,14 +256,14 @@ ${
 }
 
 === CURRENCY BREAKDOWN ===
-${summary?.breakdown?.map((b: any) => `${b.currency}: ${b.value.toFixed(2)} (P/L: ${b.pl >= 0 ? '+' : ''}${b.pl.toFixed(2)})`).join(', ') || 'N/A'}
+${summary?.breakdown?.map(b => `${b.currency}: ${b.value.toFixed(2)} (P/L: ${b.pl >= 0 ? '+' : ''}${b.pl.toFixed(2)})`).join(', ') || 'N/A'}
 
 === RECENT TRANSACTIONS (Last 30) ===
 ${
     transactions
         ?.slice(0, 30)
         .map(
-            (t: any) =>
+            t =>
                 `${t.date}: ${t.type.toUpperCase()} ${t.ticker || 'CASH'} ${t.amount ? `- ${t.amount} @ ${t.price} ${t.currency}` : `- ${t.price} ${t.currency}`}`
         )
         .join('\n') || 'No transactions'
@@ -275,14 +278,14 @@ Monthly Average: ${dividends?.monthlyAverage?.toFixed(2) || '0'} PLN
 === UPCOMING DIVIDENDS ===
 ${
     dividends?.calendar
-        ?.filter((d: any) => d.status === 'expected')
+        ?.filter(d => d.status === 'expected')
         ?.slice(0, 10)
-        ?.map((d: any) => `${d.paymentDate}: ${d.ticker} - ${d.amount?.toFixed(2)} ${d.currency}`)
+        ?.map(d => `${d.paymentDate}: ${d.ticker} - ${d.amountPerShare?.toFixed(2)} ${d.currency}`)
         .join('\n') || 'No upcoming dividends'
 }
 
 === WATCHLIST ===
-${watchlist?.map((w: any) => `${w.ticker}: ${w.price} ${w.currency}`).join(', ') || 'No watchlist items'}
+${watchlist?.map(w => `${w.ticker}: ${w.price} ${w.currency}`).join(', ') || 'No watchlist items'}
 
 === INSTRUCTIONS ===
 You are a financial assistant with access to the user's complete portfolio data above.
@@ -315,11 +318,12 @@ Chart types:
             };
 
             setMessages(prev => [...prev, assistantMessage]);
-        } catch (e: any) {
-            console.error('Chat failed:', e);
+        } catch (e: unknown) {
+            const err = e instanceof Error ? e : new Error(String(e));
+            console.error('Chat failed:', err);
             const errorMessage: Message = {
                 role: 'assistant',
-                content: `Error: ${e?.message || 'Failed to get response'}`
+                content: `Error: ${err.message || 'Failed to get response'}`
             };
             setMessages(prev => [...prev, errorMessage]);
         } finally {

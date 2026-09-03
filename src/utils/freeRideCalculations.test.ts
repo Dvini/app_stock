@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-    calculateFreeRideTargetPrice,
-    calculateFreeRideSharesToSell
-} from './freeRideCalculations';
+import { calculateFreeRideTargetPrice, calculateFreeRideSharesToSell } from './freeRideCalculations';
 
 describe('Free Ride Calculations', () => {
     describe('calculateFreeRideTargetPrice', () => {

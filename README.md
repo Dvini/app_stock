@@ -1,4 +1,4 @@
-﻿# 🚀 StockTracker
+# 🚀 StockTracker
 
 > Local-first portfolio management application with AI assistance
 
@@ -38,9 +38,8 @@ app_stock/
 ├── src/
 │   ├── pages/          # Główne strony (Dashboard, Portfolio, etc.)
 │   ├── components/     # Komponenty React
-│   ├── services/       # API services (Yahoo Finance, NBP, etc.)
+│   ├── lib/            # API services, utilities i helpery
 │   ├── hooks/          # Custom React hooks
-│   └── lib/            # Utilities i helpery
 ├── tests/
 │   ├── smoke.spec.ts   # 🔥 Smoke tests (20 testów)
 │   └── fixtures/       # Test data helpers
@@ -54,12 +53,12 @@ app_stock/
 
 | Kategoria | Technology |
 |-----------|-----------|
-| **Frontend** | React 18 + TypeScript |
+| **Frontend** | React 19 + TypeScript |
 | **Styling** | Tailwind CSS |
 | **Database** | IndexedDB (Dexie.js) |
-| **Charts** | Recharts |
+| **Charts** | WebGPU (custom renderer) |
 | **AI** | WebLLM (local inference) |
-| **Testing** | Playwright E2E |
+| **Testing** | Vitest (unit) + Playwright (E2E) |
 | **Build** | Vite |
 
 ---

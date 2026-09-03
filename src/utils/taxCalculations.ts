@@ -47,10 +47,7 @@ export interface PIT38Summary {
 /**
  * Calculate net profit/loss and estimated Belka tax reserve for an open position
  */
-export const calculateNetProfitLoss = (
-    grossPL: number,
-    taxRate: number = 19
-): { netPL: number; taxAmount: number } => {
+export const calculateNetProfitLoss = (grossPL: number, taxRate: number = 19): { netPL: number; taxAmount: number } => {
     if (taxRate <= 0 || grossPL <= 0) {
         return { netPL: grossPL, taxAmount: 0 };
     }
@@ -104,7 +101,8 @@ export const matchFIFOClosedTrades = (
 
         if (tx.type === 'Kupno') {
             const queue = buyInventory.get(key) || [];
-            const commPLN = (tx.commission || 0) * (tx.commissionCurrency && tx.commissionCurrency !== 'PLN' ? exchangeRate : 1);
+            const commPLN =
+                (tx.commission || 0) * (tx.commissionCurrency && tx.commissionCurrency !== 'PLN' ? exchangeRate : 1);
             const commPerShare = tx.amount > 0 ? commPLN / tx.amount : 0;
 
             queue.push({
@@ -152,13 +150,13 @@ export const matchFIFOClosedTrades = (
                 }
             }
 
-            const sellCommPLN = (tx.commission || 0) * (tx.commissionCurrency && tx.commissionCurrency !== 'PLN' ? exchangeRate : 1);
+            const sellCommPLN =
+                (tx.commission || 0) * (tx.commissionCurrency && tx.commissionCurrency !== 'PLN' ? exchangeRate : 1);
             const revenuePLN = tx.amount * price * exchangeRate;
             const totalCostPLN = buyCostPLN + buyCommissionPLN + sellCommPLN;
             const gainLossPLN = revenuePLN - totalCostPLN;
 
-            const taxLiabilityPLN =
-                !isTaxExempt && gainLossPLN > 0 ? gainLossPLN * (taxRate / 100) : 0;
+            const taxLiabilityPLN = !isTaxExempt && gainLossPLN > 0 ? gainLossPLN * (taxRate / 100) : 0;
 
             const sellDateObj = new Date(tx.date);
             const sellYear = !isNaN(sellDateObj.getTime())
@@ -256,11 +254,7 @@ export const generatePIT38Report = (
 /**
  * Export PIT-38 statement to CSV file
  */
-export const exportPIT38ToCSV = (
-    trades: ClosedTrade[],
-    summary: PIT38Summary,
-    year: number
-): boolean => {
+export const exportPIT38ToCSV = (trades: ClosedTrade[], summary: PIT38Summary, year: number): boolean => {
     try {
         const headers = [
             'Data sprzedaży',
@@ -279,22 +273,24 @@ export const exportPIT38ToCSV = (
             'Szacowany podatek 19% (PLN)'
         ];
 
-        const rows = trades.map(t => [
-            `"${t.sellDate}"`,
-            `"${t.portfolioName || 'Główny'}"`,
-            `"${t.isTaxExempt ? 'IKE/IKZE (Zwolnione)' : 'Standard (19%)'}"`,
-            `"${t.ticker}"`,
-            t.shares,
-            t.sellPriceNative,
-            `"${t.sellCurrency}"`,
-            t.sellExchangeRate,
-            t.revenuePLN.toFixed(2),
-            t.costBasisPLN.toFixed(2),
-            t.totalCommissionPLN.toFixed(2),
-            t.totalCostPLN.toFixed(2),
-            t.gainLossPLN.toFixed(2),
-            t.taxLiabilityPLN.toFixed(2)
-        ].join(';'));
+        const rows = trades.map(t =>
+            [
+                `"${t.sellDate}"`,
+                `"${t.portfolioName || 'Główny'}"`,
+                `"${t.isTaxExempt ? 'IKE/IKZE (Zwolnione)' : 'Standard (19%)'}"`,
+                `"${t.ticker}"`,
+                t.shares,
+                t.sellPriceNative,
+                `"${t.sellCurrency}"`,
+                t.sellExchangeRate,
+                t.revenuePLN.toFixed(2),
+                t.costBasisPLN.toFixed(2),
+                t.totalCommissionPLN.toFixed(2),
+                t.totalCostPLN.toFixed(2),
+                t.gainLossPLN.toFixed(2),
+                t.taxLiabilityPLN.toFixed(2)
+            ].join(';')
+        );
 
         const summaryRows = [
             '',

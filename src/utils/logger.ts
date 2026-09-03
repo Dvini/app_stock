@@ -24,7 +24,7 @@ class Logger {
      * Debug logs - only in development
      * Use for detailed debugging information
      */
-    debug(...args: any[]): void {
+    debug(...args: unknown[]): void {
         if (this.isDev) {
             console.log(this.formatMessage('debug'), ...args);
         }
@@ -34,7 +34,7 @@ class Logger {
      * Info logs - only in development
      * Use for general information
      */
-    info(...args: any[]): void {
+    info(...args: unknown[]): void {
         if (this.isDev) {
             console.log(this.formatMessage('info'), ...args);
         }
@@ -44,7 +44,7 @@ class Logger {
      * Warning logs - always visible
      * Use for potential issues
      */
-    warn(...args: any[]): void {
+    warn(...args: unknown[]): void {
         console.warn(this.formatMessage('warn'), ...args);
     }
 
@@ -52,7 +52,7 @@ class Logger {
      * Error logs - always visible
      * Use for errors and exceptions
      */
-    error(...args: any[]): void {
+    error(...args: unknown[]): void {
         console.error(this.formatMessage('error'), ...args);
     }
 

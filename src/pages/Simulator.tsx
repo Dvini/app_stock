@@ -31,7 +31,7 @@ export const Simulator = () => {
     const [price, setPrice] = useState('');
     const [result, setResult] = useState<SimulatorResult | null>(null);
     const [plnRate, setPlnRate] = useState<number | null>(null);
-    
+
     // Live search states
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
@@ -232,263 +232,281 @@ export const Simulator = () => {
                 <FreeRideCalculator />
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
-                    <div className="mb-8">
-                        <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
-                            Rodzaj Operacji
-                        </label>
-                        <div className="bg-slate-800 p-1 rounded-xl flex">
-                            <button
-                                onClick={() => setMode('BUY')}
-                                className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${mode === 'BUY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                KUPNO
-                            </button>
-                            <button
-                                onClick={() => setMode('SELL')}
-                                className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${mode === 'SELL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                SPRZEDAŻ
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div>
+                    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
+                        <div className="mb-8">
                             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
-                                Wybierz Ticker
+                                Rodzaj Operacji
                             </label>
-                            {mode === 'SELL' ? (
-                                <select
-                                    value={selectedTicker}
-                                    onChange={handleAssetSelect}
-                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                            <div className="bg-slate-800 p-1 rounded-xl flex">
+                                <button
+                                    onClick={() => setMode('BUY')}
+                                    className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${mode === 'BUY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                                 >
-                                    <option value="">-- Wybierz Aktywo do Sprzedaży --</option>
-                                    {assets.map(a => (
-                                        <option key={a.ticker} value={a.ticker}>
-                                            {a.ticker} (Posiadasz: {a.amount})
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="relative">
-                                    <input
-                                        type="text"
+                                    KUPNO
+                                </button>
+                                <button
+                                    onClick={() => setMode('SELL')}
+                                    className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${mode === 'SELL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    SPRZEDAŻ
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                                    Wybierz Ticker
+                                </label>
+                                {mode === 'SELL' ? (
+                                    <select
                                         value={selectedTicker}
-                                        onChange={e => {
-                                            setSelectedTicker(e.target.value.toUpperCase());
-                                            setShowSuggestions(true);
-                                            setLiveCurrency(null);
-                                        }}
-                                        onFocus={() => setShowSuggestions(true)}
-                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                        placeholder="np. NVDA, KGH.WA"
-                                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors uppercase font-bold placeholder:font-normal"
-                                    />
-                                    {showSuggestions && selectedTicker.length > 0 && (
-                                        <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
-                                            {(() => {
-                                                const local = searchTickers(selectedTicker);
-                                                const liveFiltered = liveSuggestions.filter(ls => !local.some(l => l.symbol === ls.symbol));
-                                                const all = [...local, ...liveFiltered];
+                                        onChange={handleAssetSelect}
+                                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                                    >
+                                        <option value="">-- Wybierz Aktywo do Sprzedaży --</option>
+                                        {assets.map(a => (
+                                            <option key={a.ticker} value={a.ticker}>
+                                                {a.ticker} (Posiadasz: {a.amount})
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={selectedTicker}
+                                            onChange={e => {
+                                                setSelectedTicker(e.target.value.toUpperCase());
+                                                setShowSuggestions(true);
+                                                setLiveCurrency(null);
+                                            }}
+                                            onFocus={() => setShowSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                            placeholder="np. NVDA, KGH.WA"
+                                            className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors uppercase font-bold placeholder:font-normal"
+                                        />
+                                        {showSuggestions && selectedTicker.length > 0 && (
+                                            <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
+                                                {(() => {
+                                                    const local = searchTickers(selectedTicker);
+                                                    const liveFiltered = liveSuggestions.filter(
+                                                        ls => !local.some(l => l.symbol === ls.symbol)
+                                                    );
+                                                    const all = [...local, ...liveFiltered];
 
-                                                if (all.length === 0 && !isSearching) {
-                                                    return <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>;
-                                                }
+                                                    if (all.length === 0 && !isSearching) {
+                                                        return (
+                                                            <div className="px-4 py-3 text-xs text-slate-500 italic">
+                                                                Brak wyników.
+                                                            </div>
+                                                        );
+                                                    }
 
-                                                return (
-                                                    <>
-                                                        {all.map(t => (
-                                                            <div
-                                                                key={t.symbol}
-                                                                onClick={() => handleTickerSelect(t)}
-                                                                className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
-                                                            >
-                                                                <div className="flex justify-between items-center w-full">
-                                                                    <div>
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <span className="font-bold text-white">{t.symbol}</span>
-                                                                            <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
-                                                                                {t.region}
+                                                    return (
+                                                        <>
+                                                            {all.map(t => (
+                                                                <div
+                                                                    key={t.symbol}
+                                                                    onClick={() => handleTickerSelect(t)}
+                                                                    className="px-4 py-3 hover:bg-blue-600/20 cursor-pointer border-b border-slate-700/50 last:border-0 group"
+                                                                >
+                                                                    <div className="flex justify-between items-center w-full">
+                                                                        <div>
+                                                                            <div className="flex items-center space-x-2">
+                                                                                <span className="font-bold text-white">
+                                                                                    {t.symbol}
+                                                                                </span>
+                                                                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                                                                                    {t.region}
+                                                                                </span>
+                                                                                {local.some(
+                                                                                    l => l.symbol === t.symbol
+                                                                                ) && (
+                                                                                    <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">
+                                                                                        Popularny
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
+                                                                                {t.name}
                                                                             </span>
-                                                                            {local.some(l => l.symbol === t.symbol) && (
-                                                                                <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">Popularny</span>
-                                                                            )}
                                                                         </div>
-                                                                        <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
-                                                                            {t.name}
-                                                                        </span>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                        {isSearching && (
-                                                            <div className="px-4 py-2 bg-slate-800/50 border-t border-slate-700 flex items-center justify-center space-x-2">
-                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">Szukam dalej...</span>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
-                                    Ilość
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    value={amount}
-                                    onChange={e => setAmount(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
-                                    Cena Symulowana{' '}
-                                    {currentCurrency && <span className="text-blue-400">({currentCurrency})</span>}
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={price}
-                                        onChange={e => setPrice(e.target.value)}
-                                        placeholder="0.00"
-                                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                                    />
-                                    {currentCurrency && (
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">
-                                            {currentCurrency}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleCalculate}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform active:scale-[0.98] mt-4"
-                        >
-                            PRZELICZ SCENARIUSZ
-                        </button>
-                    </div>
-                </div>
-
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 border-dashed rounded-3xl p-8 flex items-center justify-center relative overflow-hidden group">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700"></div>
-
-                    {!result ? (
-                        <div className="text-center text-slate-500 italic relative z-10">
-                            <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>Podgląd wyników symulacji</p>
-                        </div>
-                    ) : (
-                        <div className="w-full h-full flex flex-col relative z-10">
-                            <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
-                                Wynik Symulacji: <span className="text-blue-400">{result.ticker}</span>
-                            </h2>
-
-                            <div className="space-y-6 flex-1">
-                                <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                                    <div className="text-slate-400 text-xs uppercase mb-1">Średnia Cena Zakupu</div>
-                                    <div className="flex items-end justify-between">
-                                        <div>
-                                            {Math.abs(result.diff) > 0.001 && (
-                                                <>
-                                                    <span className="text-2xl font-mono text-slate-500 line-through mr-2">
-                                                        {formatNumber(result.oldAvg)}
-                                                    </span>
-                                                    <ArrowRight className="inline w-4 h-4 text-slate-600 mx-2" />
-                                                </>
-                                            )}
-                                            <span
-                                                className={`text-3xl font-mono font-bold ${Math.abs(result.diff) < 0.001 ? 'text-white' : result.diff < 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-                                            >
-                                                {formatNumber(result.newAvg)}
-                                            </span>
-                                        </div>
-                                        {mode === 'BUY' && Math.abs(result.diff) > 0.001 && (
-                                            <div
-                                                className={`text-sm ${result.diff < 0 ? 'text-emerald-500' : 'text-rose-500'} flex items-center font-bold`}
-                                            >
-                                                {result.diff < 0 ? (
-                                                    <TrendingDown className="w-4 h-4 mr-1" />
-                                                ) : (
-                                                    <TrendingUp className="w-4 h-4 mr-1" />
-                                                )}
-                                                {formatNumber(Math.abs(result.diff))} zmiana
+                                                            ))}
+                                                            {isSearching && (
+                                                                <div className="px-4 py-2 bg-slate-800/50 border-t border-slate-700 flex items-center justify-center space-x-2">
+                                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">
+                                                                        Szukam dalej...
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </div>
-                                    {mode === 'BUY' && result.oldQty > 0 && Math.abs(result.diff) > 0.001 && (
-                                        <div className="text-xs text-slate-500 mt-2">
-                                            Uśrednianie {result.diff < 0 ? 'w dół' : 'w górę'}
-                                        </div>
-                                    )}
-                                </div>
+                                )}
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                                        Ilość
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={amount}
+                                        onChange={e => setAmount(e.target.value)}
+                                        placeholder="0"
+                                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block">
+                                        Cena Symulowana{' '}
+                                        {currentCurrency && <span className="text-blue-400">({currentCurrency})</span>}
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={price}
+                                            onChange={e => setPrice(e.target.value)}
+                                            placeholder="0.00"
+                                            className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                                        />
+                                        {currentCurrency && (
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">
+                                                {currentCurrency}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleCalculate}
+                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform active:scale-[0.98] mt-4"
+                            >
+                                PRZELICZ SCENARIUSZ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 border-dashed rounded-3xl p-8 flex items-center justify-center relative overflow-hidden group">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700"></div>
+
+                        {!result ? (
+                            <div className="text-center text-slate-500 italic relative z-10">
+                                <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p>Podgląd wyników symulacji</p>
+                            </div>
+                        ) : (
+                            <div className="w-full h-full flex flex-col relative z-10">
+                                <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
+                                    Wynik Symulacji: <span className="text-blue-400">{result.ticker}</span>
+                                </h2>
+
+                                <div className="space-y-6 flex-1">
                                     <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                                        <div className="text-slate-400 text-xs uppercase mb-1">Nowa Ilość</div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xl font-mono text-white">{result.newQty}</span>
-                                            <span
-                                                className={`text-xs px-1.5 py-0.5 rounded ${mode === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                                        <div className="text-slate-400 text-xs uppercase mb-1">Średnia Cena Zakupu</div>
+                                        <div className="flex items-end justify-between">
+                                            <div>
+                                                {Math.abs(result.diff) > 0.001 && (
+                                                    <>
+                                                        <span className="text-2xl font-mono text-slate-500 line-through mr-2">
+                                                            {formatNumber(result.oldAvg)}
+                                                        </span>
+                                                        <ArrowRight className="inline w-4 h-4 text-slate-600 mx-2" />
+                                                    </>
+                                                )}
+                                                <span
+                                                    className={`text-3xl font-mono font-bold ${Math.abs(result.diff) < 0.001 ? 'text-white' : result.diff < 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                                                >
+                                                    {formatNumber(result.newAvg)}
+                                                </span>
+                                            </div>
+                                            {mode === 'BUY' && Math.abs(result.diff) > 0.001 && (
+                                                <div
+                                                    className={`text-sm ${result.diff < 0 ? 'text-emerald-500' : 'text-rose-500'} flex items-center font-bold`}
+                                                >
+                                                    {result.diff < 0 ? (
+                                                        <TrendingDown className="w-4 h-4 mr-1" />
+                                                    ) : (
+                                                        <TrendingUp className="w-4 h-4 mr-1" />
+                                                    )}
+                                                    {formatNumber(Math.abs(result.diff))} zmiana
+                                                </div>
+                                            )}
+                                        </div>
+                                        {mode === 'BUY' && result.oldQty > 0 && Math.abs(result.diff) > 0.001 && (
+                                            <div className="text-xs text-slate-500 mt-2">
+                                                Uśrednianie {result.diff < 0 ? 'w dół' : 'w górę'}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
+                                            <div className="text-slate-400 text-xs uppercase mb-1">Nowa Ilość</div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-mono text-white">{result.newQty}</span>
+                                                <span
+                                                    className={`text-xs px-1.5 py-0.5 rounded ${mode === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                                                >
+                                                    {mode === 'BUY' ? '+' : '-'}
+                                                    {Math.abs(result.newQty - result.oldQty)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
+                                            <div className="text-slate-400 text-xs uppercase mb-1">
+                                                Wpływ na Gotówkę
+                                            </div>
+                                            <div
+                                                className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
                                             >
-                                                {mode === 'BUY' ? '+' : '-'}
-                                                {Math.abs(result.newQty - result.oldQty)}
-                                            </span>
+                                                {result.cashChange > 0 ? '+' : ''}
+                                                {formatNumber(result.cashChange)}
+                                                <span className="text-sm font-normal text-slate-500 ml-1">
+                                                    {result.currency}
+                                                </span>
+                                            </div>
+                                            {result.currency !== 'PLN' &&
+                                                plnRate &&
+                                                Math.abs(result.cashChange) > 0 && (
+                                                    <div className="text-xs text-slate-500 mt-1">
+                                                        ≈ {formatNumber(result.cashChange * plnRate)} PLN
+                                                    </div>
+                                                )}
                                         </div>
                                     </div>
-                                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                                        <div className="text-slate-400 text-xs uppercase mb-1">Wpływ na Gotówkę</div>
-                                        <div
-                                            className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-                                        >
-                                            {result.cashChange > 0 ? '+' : ''}
-                                            {formatNumber(result.cashChange)}
-                                            <span className="text-sm font-normal text-slate-500 ml-1">
+
+                                    <div className="mt-auto bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
+                                        <div className="text-blue-300 text-xs uppercase mb-1">
+                                            Nowa Wartość Pozycji (Estymacja)
+                                        </div>
+                                        <div className="text-2xl font-bold text-white font-mono">
+                                            {formatNumber(result.projectedValue)}
+                                            <span className="text-sm font-normal text-blue-400 ml-1">
                                                 {result.currency}
                                             </span>
                                         </div>
-                                        {result.currency !== 'PLN' && plnRate && Math.abs(result.cashChange) > 0 && (
-                                            <div className="text-xs text-slate-500 mt-1">
-                                                ≈ {formatNumber(result.cashChange * plnRate)} PLN
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="mt-auto bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
-                                    <div className="text-blue-300 text-xs uppercase mb-1">
-                                        Nowa Wartość Pozycji (Estymacja)
-                                    </div>
-                                    <div className="text-2xl font-bold text-white font-mono">
-                                        {formatNumber(result.projectedValue)}
-                                        <span className="text-sm font-normal text-blue-400 ml-1">
-                                            {result.currency}
-                                        </span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
             )}
         </div>
     );

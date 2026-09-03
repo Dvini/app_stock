@@ -1,23 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-    ChevronDown,
-    Plus,
-    Settings2,
-    Layers,
-    Briefcase
-} from 'lucide-react';
+import { ChevronDown, Plus, Settings2, Layers, Briefcase } from 'lucide-react';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import { PortfolioModal } from './PortfolioModal';
 import type { PortfolioAccount } from '../types/database';
 
 export const PortfolioSwitcher: React.FC = () => {
-    const {
-        activePortfolioId,
-        isAllPortfolios,
-        currentPortfolio,
-        portfolios,
-        setActivePortfolioId
-    } = usePortfolioAccount();
+    const { activePortfolioId, isAllPortfolios, currentPortfolio, portfolios, setActivePortfolioId } =
+        usePortfolioAccount();
 
     const [isOpen, setIsOpen] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -65,9 +54,7 @@ export const PortfolioSwitcher: React.FC = () => {
                     <div
                         className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-inner"
                         style={{
-                            backgroundColor: isAllPortfolios
-                                ? '#6366f1'
-                                : currentPortfolio?.color || '#3b82f6'
+                            backgroundColor: isAllPortfolios ? '#6366f1' : currentPortfolio?.color || '#3b82f6'
                         }}
                     >
                         {isAllPortfolios ? <Layers size={16} /> : <Briefcase size={16} />}
@@ -76,9 +63,7 @@ export const PortfolioSwitcher: React.FC = () => {
                     <div className="min-w-0 text-left">
                         <div className="flex items-center gap-1.5">
                             <span className="font-bold text-sm text-white truncate block">
-                                {isAllPortfolios
-                                    ? 'Wszystkie Portfele'
-                                    : currentPortfolio?.name || 'Wybierz portfel'}
+                                {isAllPortfolios ? 'Wszystkie Portfele' : currentPortfolio?.name || 'Wybierz portfel'}
                             </span>
                             {!isAllPortfolios && currentPortfolio?.taxRate === 0 && (
                                 <span className="bg-emerald-500/20 text-emerald-400 text-[9px] px-1 py-0.2 rounded font-mono font-bold shrink-0">
@@ -136,12 +121,8 @@ export const PortfolioSwitcher: React.FC = () => {
                                     <Layers size={14} />
                                 </div>
                                 <div>
-                                    <span className="font-semibold text-xs text-white block">
-                                        Wszystkie Portfele
-                                    </span>
-                                    <span className="text-[10px] text-slate-400">
-                                        Widok zagregowany majątku
-                                    </span>
+                                    <span className="font-semibold text-xs text-white block">Wszystkie Portfele</span>
+                                    <span className="text-[10px] text-slate-400">Widok zagregowany majątku</span>
                                 </div>
                             </div>
                         </div>

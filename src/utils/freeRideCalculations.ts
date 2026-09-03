@@ -39,9 +39,7 @@ export interface FreeRideSharesToSellResult extends FreeRideTargetPriceResult {
  * Given M shares to sell, calculate the target price C_s to extract 100% of initial capital.
  * Formula: C_s = (C_k * (N - taxRate * M)) / ((1 - taxRate) * M)
  */
-export const calculateFreeRideTargetPrice = (
-    params: FreeRideTargetPriceParams
-): FreeRideTargetPriceResult => {
+export const calculateFreeRideTargetPrice = (params: FreeRideTargetPriceParams): FreeRideTargetPriceResult => {
     const { totalShares: N, sellShares: M, buyPrice: C_k, taxRate = 0 } = params;
 
     if (N <= 0 || M <= 0 || C_k <= 0) {
@@ -85,9 +83,7 @@ export const calculateFreeRideTargetPrice = (
  * Given target price C_s, calculate how many shares M must be sold to extract 100% initial capital.
  * Formula: M = (N * C_k) / (C_s * (1 - taxRate) + taxRate * C_k)
  */
-export const calculateFreeRideSharesToSell = (
-    params: FreeRideSharesToSellParams
-): FreeRideSharesToSellResult => {
+export const calculateFreeRideSharesToSell = (params: FreeRideSharesToSellParams): FreeRideSharesToSellResult => {
     const { totalShares: N, targetPrice: C_s, buyPrice: C_k, taxRate = 0 } = params;
 
     if (N <= 0 || C_s <= 0 || C_k <= 0) {

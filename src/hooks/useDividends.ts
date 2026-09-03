@@ -9,7 +9,7 @@ import { db } from '../db/db';
 import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import type { Dividend } from '../types/database';
+import type { Dividend, Asset } from '../types/database';
 
 interface DividendStats {
     ytdTotal: number;
@@ -33,7 +33,7 @@ interface UseDividendsReturn {
 }
 
 const EMPTY_DIVIDENDS: Dividend[] = [];
-const EMPTY_ASSETS_LIST: any[] = [];
+const EMPTY_ASSETS_LIST: Asset[] = [];
 
 export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividendsReturn => {
     const { activePortfolioId } = usePortfolioAccount();
@@ -138,11 +138,11 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                 ]);
 
                 // Calculate upcoming dividends
-                const upcomingDividends = await dividendService.calculateUpcomingDividends(assets, effectivePortfolioId);
-                const upcoming60Days = upcomingDividends.reduce(
-                    (sum: number, d: any) => sum + (d.estimatedPLN || 0),
-                    0
+                const upcomingDividends = await dividendService.calculateUpcomingDividends(
+                    assets,
+                    effectivePortfolioId
                 );
+                const upcoming60Days = upcomingDividends.reduce((sum: number, d) => sum + (d.estimatedPLN || 0), 0);
 
                 setStats({
                     ytdTotal,
@@ -266,7 +266,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
             ]);
 
             const upcomingDividends = await dividendService.calculateUpcomingDividends(assets, effectivePortfolioId);
-            const upcoming60Days = upcomingDividends.reduce((sum: number, d: any) => sum + (d.estimatedPLN || 0), 0);
+            const upcoming60Days = upcomingDividends.reduce((sum: number, d) => sum + (d.estimatedPLN || 0), 0);
 
             setStats({
                 ytdTotal,

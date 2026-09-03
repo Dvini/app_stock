@@ -42,7 +42,16 @@ export default defineConfig({
   },
   build: {
     minify: 'esbuild',
-    target: 'esnext'
+    target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'web-llm': ['@mlc-ai/web-llm'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'dexie': ['dexie', 'dexie-react-hooks'],
+        }
+      }
+    }
   },
   esbuild: {
     drop: ['console', 'debugger'], // Remove console.* and debugger in production

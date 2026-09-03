@@ -6,6 +6,7 @@ import { useDividends } from '../hooks/useDividends';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import { formatNumber } from '../utils/formatters';
 import { ErrorBanner, SkeletonLoader } from '../components/UIComponents';
+import type { Dividend, PortfolioAccount } from '../types/database';
 
 interface Tooltip {
     title: string;
@@ -84,7 +85,7 @@ export const Dividends = () => {
                 </div>
             )}
 
-            {error && !isLoading && <ErrorBanner error={error} onDismiss={() => { }} />}
+            {error && !isLoading && <ErrorBanner error={error} onDismiss={() => {}} />}
 
             <header className="shrink-0 flex items-center justify-between">
                 <div>
@@ -184,7 +185,11 @@ export const Dividends = () => {
                                                 <span className="text-xs text-slate-500">{div.currency}</span>
                                             </td>
                                             <td className="px-4 py-3 text-right font-mono text-emerald-400">
-                                                ~{formatNumber((div as any).estimatedPLN || 0)} PLN
+                                                ~
+                                                {formatNumber(
+                                                    (div as Dividend & { estimatedPLN?: number }).estimatedPLN || 0
+                                                )}{' '}
+                                                PLN
                                             </td>
                                         </tr>
                                     ))
@@ -208,10 +213,10 @@ export const Dividends = () => {
 
 // Virtualized table component for efficient rendering of large dividend lists
 interface VirtualizedDividendsTableProps {
-    received: any[];
+    received: Dividend[];
     isLoading: boolean;
     totalReceivedPLN: number;
-    portfolios: any[];
+    portfolios: PortfolioAccount[];
     isAllPortfolios: boolean;
 }
 
@@ -225,7 +230,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
     const parentRef = useRef<HTMLDivElement>(null);
 
     const portfolioMap = useMemo(() => {
-        const map = new Map<number, any>();
+        const map = new Map<number, PortfolioAccount>();
         portfolios.forEach(p => {
             if (p.id) map.set(p.id, p);
         });
@@ -303,6 +308,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                         >
                             {rowVirtualizer.getVirtualItems().map(virtualRow => {
                                 const div = received[virtualRow.index];
+                                if (!div) return null;
                                 const p = portfolioMap.get(div.portfolioId ?? 1);
                                 return (
                                     <div
@@ -337,9 +343,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                                                         className="w-1.5 h-1.5 rounded-full shrink-0"
                                                         style={{ backgroundColor: p?.color || '#3b82f6' }}
                                                     />
-                                                    <span className="truncate max-w-[80px]">
-                                                        {p?.name || 'Główny'}
-                                                    </span>
+                                                    <span className="truncate max-w-[80px]">{p?.name || 'Główny'}</span>
                                                 </span>
                                             </div>
                                         )}

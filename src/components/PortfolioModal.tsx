@@ -62,11 +62,7 @@ const PORTFOLIO_TYPES: Array<{
 
 const CURRENCIES: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
 
-export const PortfolioModal: React.FC<PortfolioModalProps> = ({
-    isOpen,
-    onClose,
-    portfolioToEdit
-}) => {
+export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose, portfolioToEdit }) => {
     const { createPortfolio, updatePortfolio, deletePortfolio, portfolios } = usePortfolioAccount();
 
     const isEdit = !!portfolioToEdit;
@@ -223,9 +219,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({
 
                     {/* Typ konta */}
                     <div>
-                        <label className="text-xs text-slate-400 uppercase font-bold ml-1 mb-1 block">
-                            Typ konta
-                        </label>
+                        <label className="text-xs text-slate-400 uppercase font-bold ml-1 mb-1 block">Typ konta</label>
                         <div className="grid grid-cols-1 gap-2">
                             {PORTFOLIO_TYPES.map(pt => (
                                 <div
@@ -331,7 +325,9 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({
                                     type="button"
                                     onClick={() => setColor(c.value)}
                                     className={`w-8 h-8 rounded-full transition-transform flex items-center justify-center text-white ${
-                                        color === c.value ? 'scale-125 ring-2 ring-white shadow-lg' : 'hover:scale-110 opacity-70 hover:opacity-100'
+                                        color === c.value
+                                            ? 'scale-125 ring-2 ring-white shadow-lg'
+                                            : 'hover:scale-110 opacity-70 hover:opacity-100'
                                     }`}
                                     style={{ backgroundColor: c.value }}
                                     title={c.name}

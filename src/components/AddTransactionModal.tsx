@@ -8,6 +8,7 @@ import { dividendService } from '../lib/DividendService';
 import { formatNumber } from '../utils/formatters';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
+import { isDepositTransaction, isWithdrawTransaction } from '../types/database';
 
 interface AddTransactionModalProps {
     onClose: () => void;
@@ -41,7 +42,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             const assets = await db.assets.where('portfolioId').equals(selectedPortfolioId).toArray();
             setOwnedAssets(assets.filter(a => a.amount > 0));
 
-            const cashEntry = await db.cash.where('[portfolioId+currency]').equals([selectedPortfolioId, 'PLN']).first();
+            const cashEntry = await db.cash
+                .where('[portfolioId+currency]')
+                .equals([selectedPortfolioId, 'PLN'])
+                .first();
             setAvailableCash(cashEntry ? cashEntry.amount : 0);
         };
         fetchData();
@@ -120,15 +124,16 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const numRate = parseFloat(exchangeRate) || 1.0;
     const numCommission = parseFloat(commission) || 0;
     // Convert commission to PLN
-    const commissionPLN = commissionCurrency === 'PLN'
-        ? numCommission
-        : commissionCurrency === currency
-            ? numCommission * numRate
-            : numCommission; // fallback: treat as PLN if unresolvable
+    const commissionPLN =
+        commissionCurrency === 'PLN'
+            ? numCommission
+            : commissionCurrency === currency
+              ? numCommission * numRate
+              : numCommission; // fallback: treat as PLN if unresolvable
     const totalCostPLN = numAmount * numPrice * numRate + (type === 'Kupno' ? commissionPLN : 0);
     const totalRevenuePLN = numAmount * numPrice * numRate - (type === 'Sprzedaż' ? commissionPLN : 0);
-    const isDeposit = (type as string) === 'Wpłata' || type === 'deposit' || type === 'Depozyt';
-    const isWithdraw = (type as string) === 'Wypłata' || type === 'withdraw';
+    const isDeposit = isDepositTransaction(type);
+    const isWithdraw = isWithdrawTransaction(type);
     const isInsufficientFunds =
         (type === 'Kupno' && totalCostPLN > availableCash) || (isWithdraw && numPrice > availableCash);
 
@@ -185,11 +190,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             const txCommission = parseFloat(commission) || 0;
 
             // Compute commissionPLN for cash impact
-            const txCommissionPLN = commissionCurrency === 'PLN'
-                ? txCommission
-                : commissionCurrency === currency
-                    ? txCommission * rate
-                    : txCommission;
+            const txCommissionPLN =
+                commissionCurrency === 'PLN'
+                    ? txCommission
+                    : commissionCurrency === currency
+                      ? txCommission * rate
+                      : txCommission;
 
             await db.transactions.add({
                 portfolioId: selectedPortfolioId,
@@ -217,11 +223,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                     if (type === 'Kupno') {
                         const totalCostOld = asset.amount * asset.avgPrice;
                         // Include commission in the cost basis (in asset's native currency)
-                        const commissionInAssetCurrency = commissionCurrency === currency
-                            ? (parseFloat(commission) || 0)
-                            : commissionCurrency === 'PLN'
-                                ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
-                                : (parseFloat(commission) || 0);
+                        const commissionInAssetCurrency =
+                            commissionCurrency === currency
+                                ? parseFloat(commission) || 0
+                                : commissionCurrency === 'PLN'
+                                  ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
+                                  : parseFloat(commission) || 0;
                         const totalCostNew = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
                         const totalAmount = asset.amount + parseFloat(amount);
                         newAvgPrice = (totalCostOld + totalCostNew) / totalAmount;
@@ -239,11 +246,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                     });
                 } else if (type === 'Kupno') {
                     // For new position, include commission in cost basis
-                    const commissionInAssetCurrency = commissionCurrency === currency
-                        ? (parseFloat(commission) || 0)
-                        : commissionCurrency === 'PLN'
-                            ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
-                            : (parseFloat(commission) || 0);
+                    const commissionInAssetCurrency =
+                        commissionCurrency === currency
+                            ? parseFloat(commission) || 0
+                            : commissionCurrency === 'PLN'
+                              ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
+                              : parseFloat(commission) || 0;
                     const totalCostWithCommission = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
                     await db.assets.add({
                         portfolioId: selectedPortfolioId,
@@ -274,8 +282,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
             let cashImpactPLN = txTotal * rate;
 
-            if (type === 'Kupno') currentCash -= (cashImpactPLN + txCommissionPLN);
-            if (type === 'Sprzedaż') currentCash += (cashImpactPLN - txCommissionPLN);
+            if (type === 'Kupno') currentCash -= cashImpactPLN + txCommissionPLN;
+            if (type === 'Sprzedaż') currentCash += cashImpactPLN - txCommissionPLN;
             if (isDeposit) {
                 currentCash += cashImpactPLN;
             }
@@ -299,11 +307,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
     const commonCurrencies: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
 
-    const handleTickerSelect = async (t: any) => {
+    const handleTickerSelect = async (t: Ticker) => {
         setTicker(t.symbol);
         setShowSuggestions(false);
         if (t.region === 'US' || t.region === 'USA') setCurrency('USD');
-        if (t.region === 'EU' || t.region === 'DE' || t.region === 'FR' || t.exchange?.includes('Paris')) setCurrency('EUR');
+        if (t.region === 'EU' || t.region === 'DE' || t.region === 'FR') setCurrency('EUR');
         if (t.region === 'WA' || t.region === 'PL' || t.symbol.endsWith('.WA')) setCurrency('PLN');
 
         try {
@@ -391,10 +399,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                             setExchangeRate('1.0');
                                         }
                                     }}
-                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${type === t
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                                        type === t
                                             ? 'bg-blue-600 text-white shadow-lg'
                                             : 'text-slate-500 hover:text-slate-300'
-                                        }`}
+                                    }`}
                                 >
                                     {t}
                                 </button>
@@ -464,11 +473,17 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                         <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
                                             {(() => {
                                                 const local = searchTickers(ticker);
-                                                const liveFiltered = liveSuggestions.filter(ls => !local.some(l => l.symbol === ls.symbol));
+                                                const liveFiltered = liveSuggestions.filter(
+                                                    ls => !local.some(l => l.symbol === ls.symbol)
+                                                );
                                                 const all = [...local, ...liveFiltered];
 
                                                 if (all.length === 0 && !isSearching) {
-                                                    return <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>;
+                                                    return (
+                                                        <div className="px-4 py-3 text-xs text-slate-500 italic">
+                                                            Brak wyników.
+                                                        </div>
+                                                    );
                                                 }
 
                                                 return (
@@ -482,12 +497,16 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                                                 <div className="flex justify-between items-center w-full">
                                                                     <div>
                                                                         <div className="flex items-center space-x-2">
-                                                                            <span className="font-bold text-white">{t.symbol}</span>
+                                                                            <span className="font-bold text-white">
+                                                                                {t.symbol}
+                                                                            </span>
                                                                             <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
                                                                                 {t.region}
                                                                             </span>
                                                                             {local.some(l => l.symbol === t.symbol) && (
-                                                                                <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">Popularny</span>
+                                                                                <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">
+                                                                                    Popularny
+                                                                                </span>
                                                                             )}
                                                                         </div>
                                                                         <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
@@ -502,7 +521,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">Szukam dalej...</span>
+                                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">
+                                                                    Szukam dalej...
+                                                                </span>
                                                             </div>
                                                         )}
                                                     </>
@@ -616,7 +637,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-amber-500 transition-colors font-bold text-center appearance-none"
                                 >
                                     {commonCurrencies.map(c => (
-                                        <option key={c} value={c}>{c}</option>
+                                        <option key={c} value={c}>
+                                            {c}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
@@ -638,9 +661,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             {numCommission > 0 && (
                                 <div className="flex justify-between items-center text-xs mb-1">
                                     <span className="text-slate-500">w tym prowizja:</span>
-                                    <span className="text-amber-400 font-mono">
-                                        {formatNumber(commissionPLN)} PLN
-                                    </span>
+                                    <span className="text-amber-400 font-mono">{formatNumber(commissionPLN)} PLN</span>
                                 </div>
                             )}
                             {type === 'Kupno' && (
@@ -671,10 +692,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             data-testid="submit-transaction-button"
                             onClick={handleSubmit}
                             disabled={isInsufficientFunds}
-                            className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${isInsufficientFunds
+                            className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${
+                                isInsufficientFunds
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
                                     : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40'
-                                }`}
+                            }`}
                         >
                             Zapisz
                         </button>

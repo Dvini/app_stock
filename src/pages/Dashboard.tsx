@@ -9,6 +9,7 @@ import { fetchHistory, getCachedPrice, fetchCurrentPrice } from '../lib/api';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatNumber, formatQuantity } from '../utils/formatters';
+import type { WatchlistItem } from '../types/database';
 
 type ChartRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
 
@@ -29,7 +30,7 @@ interface AssetItemProps {
     onRemove?: (e: React.MouseEvent) => void;
 }
 
-const EMPTY_WATCHLIST: any[] = [];
+const EMPTY_WATCHLIST: WatchlistItem[] = [];
 
 export const Dashboard = () => {
     const { assets, portfolioSummary } = usePortfolio();
@@ -71,7 +72,7 @@ export const Dashboard = () => {
             const result = await fetchHistory(selectedTicker, chartRange, interval);
 
             if (result && result.data) {
-                setChartData(result.data as any);
+                setChartData(result.data.map(d => ({ time: d.timestamp, price: d.price })));
                 setChartCurrency(result.currency);
             } else if (Array.isArray(result)) {
                 setChartData(result);
@@ -201,7 +202,9 @@ export const Dashboard = () => {
                             ) : (
                                 <TrendingUp size={12} className="mr-1 shrink-0" />
                             )}
-                            <span>Brutto: {portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})</span>
+                            <span>
+                                Brutto: {portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})
+                            </span>
                         </div>
 
                         {portfolioSummary.isTaxExempt ? (

@@ -114,11 +114,15 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                             <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto left-0 custom-scrollbar">
                                 {(() => {
                                     const local = searchTickers(ticker);
-                                    const liveFiltered = liveSuggestions.filter(ls => !local.some(l => l.symbol === ls.symbol));
+                                    const liveFiltered = liveSuggestions.filter(
+                                        ls => !local.some(l => l.symbol === ls.symbol)
+                                    );
                                     const all = [...local, ...liveFiltered];
 
                                     if (all.length === 0 && !isSearching) {
-                                        return <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>;
+                                        return (
+                                            <div className="px-4 py-3 text-xs text-slate-500 italic">Brak wyników.</div>
+                                        );
                                     }
 
                                     return (
@@ -137,7 +141,9 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                                                                     {t.region}
                                                                 </span>
                                                                 {local.some(l => l.symbol === t.symbol) && (
-                                                                    <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">Popularny</span>
+                                                                    <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded uppercase">
+                                                                        Popularny
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                             <span className="text-xs text-slate-400 group-hover:text-blue-200 block truncate max-w-[200px]">
@@ -153,7 +159,9 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                                                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">Szukam dalej...</span>
+                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-2">
+                                                        Szukam dalej...
+                                                    </span>
                                                 </div>
                                             )}
                                         </>

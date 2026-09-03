@@ -8,11 +8,11 @@ import { db } from '../db/db';
 import { useMemo } from 'react';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { UseAssetsReturn } from '../types/hooks';
-import type { Asset } from '../types/database';
+import type { Asset, CurrencyCode } from '../types/database';
 
 const EMPTY_ASSETS: Asset[] = [];
 const EMPTY_STRINGS: string[] = [];
-const EMPTY_CURRENCIES: any[] = [];
+const EMPTY_CURRENCIES: CurrencyCode[] = [];
 
 /**
  * Custom hook to get user's assets from database
@@ -28,8 +28,7 @@ export const useAssets = (overridePortfolioId?: number | 'ALL'): UseAssetsReturn
     const assets: Asset[] = useMemo(() => {
         if (allAssets.length === 0) return EMPTY_ASSETS;
         return allAssets.filter(asset => {
-            const matchesPortfolio =
-                targetPortfolioId === 'ALL' || (asset.portfolioId ?? 1) === targetPortfolioId;
+            const matchesPortfolio = targetPortfolioId === 'ALL' || (asset.portfolioId ?? 1) === targetPortfolioId;
             return matchesPortfolio && asset.amount > 0.000001;
         });
     }, [allAssets, targetPortfolioId]);
@@ -43,7 +42,7 @@ export const useAssets = (overridePortfolioId?: number | 'ALL'): UseAssetsReturn
     // Get unique currencies used in assets
     const currencies = useMemo(() => {
         if (assets.length === 0) return EMPTY_CURRENCIES;
-        return [...new Set(assets.map(a => a.currency || 'PLN'))];
+        return [...new Set(assets.map(a => a.currency || 'PLN'))] as CurrencyCode[];
     }, [assets]);
 
     return {

@@ -339,9 +339,7 @@ export const Portfolio = () => {
                     <thead className="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4">Ticker</th>
-                            {isAllPortfolios && portfolios.length > 1 && (
-                                <th className="px-6 py-4">Portfel</th>
-                            )}
+                            {isAllPortfolios && portfolios.length > 1 && <th className="px-6 py-4">Portfel</th>}
                             <th className="px-6 py-4 text-right">Ilość</th>
                             <th className="px-6 py-4 text-right">Cena Akt.</th>
                             <th className="px-6 py-4 text-right">Śr. Kupna</th>
@@ -390,59 +388,64 @@ export const Portfolio = () => {
                                             </td>
                                         )}
                                         <td className="px-6 py-4 text-right">{formatQuantity(asset.amount)}</td>
-                                    <td className="px-6 py-4 text-right font-medium text-slate-300">
-                                        {asset.price !== null ? formatNumber(asset.price) : '---'}{' '}
-                                        <span className="text-xs text-slate-500">{asset.currency}</span>
-                                        {asset.isRealData && (
-                                            <span className="text-[10px] text-emerald-500 ml-1">●</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-right text-slate-500">
-                                        {formatNumber(asset.avgPrice)} <span className="text-xs">{asset.currency}</span>
-                                    </td>
-                                    <td
-                                        className={cn(
-                                            'px-6 py-4 text-right font-medium',
-                                            asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'
-                                        )}
-                                    >
-                                        {asset.pl}
-                                        <div className="text-[10px] text-slate-500 font-normal">
-                                            {formatNumber(asset.plValue * asset.rate)} {portfolioSummary.baseCurrency}
-                                        </div>
-                                        {asset.taxRate === 0 ? (
-                                            <div className="text-[10px] text-emerald-400 font-semibold mt-0.5">
-                                                0% Belki (ulga)
-                                            </div>
-                                        ) : asset.estimatedTax > 0 ? (
-                                            <div
-                                                className="text-[10px] text-slate-400 font-medium mt-0.5"
-                                                title={`Podatek Belki (19%): -${formatNumber(asset.estimatedTax * asset.rate)} ${portfolioSummary.baseCurrency}`}
-                                            >
-                                                netto: ~{formatNumber(asset.netPLValue * asset.rate)}{' '}
+                                        <td className="px-6 py-4 text-right font-medium text-slate-300">
+                                            {asset.price !== null ? formatNumber(asset.price) : '---'}{' '}
+                                            <span className="text-xs text-slate-500">{asset.currency}</span>
+                                            {asset.isRealData && (
+                                                <span className="text-[10px] text-emerald-500 ml-1">●</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-slate-500">
+                                            {formatNumber(asset.avgPrice)}{' '}
+                                            <span className="text-xs">{asset.currency}</span>
+                                        </td>
+                                        <td
+                                            className={cn(
+                                                'px-6 py-4 text-right font-medium',
+                                                asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'
+                                            )}
+                                        >
+                                            {asset.pl}
+                                            <div className="text-[10px] text-slate-500 font-normal">
+                                                {formatNumber(asset.plValue * asset.rate)}{' '}
                                                 {portfolioSummary.baseCurrency}
                                             </div>
-                                        ) : null}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-bold">
-                                        <div>
-                                            {asset.value}{' '}
-                                            <span className="text-xs font-normal text-slate-500">{asset.currency}</span>
-                                        </div>
-                                        {asset.currency !== portfolioSummary.baseCurrency && (
-                                            <div className="text-[10px] text-slate-400">
-                                                ~
-                                                {asset.valueBase.toLocaleString('pl-PL', {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2
-                                                })}{' '}
-                                                {portfolioSummary.baseCurrency}
+                                            {asset.taxRate === 0 ? (
+                                                <div className="text-[10px] text-emerald-400 font-semibold mt-0.5">
+                                                    0% Belki (ulga)
+                                                </div>
+                                            ) : asset.estimatedTax > 0 ? (
+                                                <div
+                                                    className="text-[10px] text-slate-400 font-medium mt-0.5"
+                                                    title={`Podatek Belki (19%): -${formatNumber(asset.estimatedTax * asset.rate)} ${portfolioSummary.baseCurrency}`}
+                                                >
+                                                    netto: ~{formatNumber(asset.netPLValue * asset.rate)}{' '}
+                                                    {portfolioSummary.baseCurrency}
+                                                </div>
+                                            ) : null}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold">
+                                            <div>
+                                                {asset.value}{' '}
+                                                <span className="text-xs font-normal text-slate-500">
+                                                    {asset.currency}
+                                                </span>
                                             </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            );
-                        }))}
+                                            {asset.currency !== portfolioSummary.baseCurrency && (
+                                                <div className="text-[10px] text-slate-400">
+                                                    ~
+                                                    {asset.valueBase.toLocaleString('pl-PL', {
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 2
+                                                    })}{' '}
+                                                    {portfolioSummary.baseCurrency}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>

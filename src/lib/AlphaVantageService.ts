@@ -90,7 +90,7 @@ class AlphaVantageService {
             // Extract dividends from monthly data
             const dividends: DividendRecord[] = [];
             for (const [date, values] of Object.entries(timeSeries)) {
-                const dividendAmount = parseFloat((values as any)['7. dividend amount']);
+                const dividendAmount = parseFloat((values as Record<string, string>)['7. dividend amount'] || '0');
 
                 // Only include months where dividends were paid
                 if (dividendAmount > 0) {
