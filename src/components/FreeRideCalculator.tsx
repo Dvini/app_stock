@@ -242,9 +242,9 @@ export const FreeRideCalculator: React.FC = () => {
             </div>
 
             {/* Main Form & Results Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                 {/* Left Column: Inputs */}
-                <div className="lg:col-span-6 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl">
+                <div className="lg:col-span-6 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl flex flex-col justify-between min-h-[580px] lg:min-h-[605px]">
                     {/* Calculation Mode Toggle */}
                     <div>
                         <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 block flex items-center gap-1.5">
@@ -282,10 +282,16 @@ export const FreeRideCalculator: React.FC = () => {
                     <div className="space-y-4">
                         {/* Total shares (N) */}
                         <div>
-                            <label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block flex justify-between">
-                                <span>Całkowita liczba kupionych akcji (N):</span>
-                                {selectedTicker && <span className="text-blue-400 font-normal">{selectedTicker}</span>}
-                            </label>
+                            <div className="flex justify-between items-center mb-1.5 min-h-[20px]">
+                                <label className="text-slate-300 text-xs font-bold uppercase tracking-wider">
+                                    Całkowita liczba kupionych akcji (N):
+                                </label>
+                                {selectedTicker ? (
+                                    <span className="text-blue-400 font-normal text-xs">{selectedTicker}</span>
+                                ) : (
+                                    <span className="text-slate-500 text-[11px]">Wielkość pozycji</span>
+                                )}
+                            </div>
                             <input
                                 type="number"
                                 min="1"
@@ -333,18 +339,16 @@ export const FreeRideCalculator: React.FC = () => {
                         {/* Dynamic Field based on mode */}
                         {calcMode === 'CALC_TARGET_PRICE' ? (
                             <div>
-                                <div className="flex justify-between items-center mb-1.5">
+                                <div className="flex justify-between items-center mb-1.5 min-h-[20px]">
                                     <label className="text-slate-300 text-xs font-bold uppercase tracking-wider">
                                         Liczba akcji do sprzedaży (M):
                                     </label>
-                                    {N > 0 && (
-                                        <span className="text-[11px] text-slate-400">
-                                            Zostanie za darmo:{' '}
-                                            <span className="text-emerald-400 font-bold font-mono">
-                                                {Math.max(0, N - (parseFloat(sellShares) || 0))} szt.
-                                            </span>
+                                    <span className="text-[11px] text-slate-400">
+                                        Zostanie za darmo:{' '}
+                                        <span className="text-emerald-400 font-bold font-mono">
+                                            {N > 0 ? Math.max(0, N - (parseFloat(sellShares) || 0)) : 0} szt.
                                         </span>
-                                    )}
+                                    </span>
                                 </div>
                                 <input
                                     type="number"
@@ -354,26 +358,41 @@ export const FreeRideCalculator: React.FC = () => {
                                     value={sellShares}
                                     onChange={e => setSellShares(e.target.value)}
                                     placeholder="np. 40"
-                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 font-mono text-sm transition"
+                                    className={`w-full bg-slate-950 border text-white rounded-xl px-4 py-3 focus:outline-none font-mono text-sm transition ${
+                                        parseFloat(sellShares) >= N && N > 0
+                                            ? 'border-rose-500/80 focus:border-rose-500'
+                                            : 'border-slate-700 focus:border-emerald-500'
+                                    }`}
                                 />
-                                {parseFloat(sellShares) >= N && N > 0 && (
-                                    <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                        <AlertCircle size={13} /> Liczba akcji do sprzedaży musi być mniejsza niż łączna
-                                        liczba akcji ({N})!
-                                    </p>
-                                )}
+                                <div className="min-h-[22px] mt-1.5 flex items-center text-xs">
+                                    {parseFloat(sellShares) >= N && N > 0 ? (
+                                        <span className="text-rose-400 flex items-center gap-1">
+                                            <AlertCircle size={13} className="shrink-0" /> Liczba akcji do sprzedaży musi być mniejsza niż łączna liczba akcji ({N})!
+                                        </span>
+                                    ) : parseFloat(sellShares) <= 0 && sellShares !== '' ? (
+                                        <span className="text-rose-400 flex items-center gap-1">
+                                            <AlertCircle size={13} className="shrink-0" /> Liczba akcji do sprzedaży musi być większa od 0
+                                        </span>
+                                    ) : N <= 0 ? (
+                                        <span className="text-slate-500">
+                                            Wprowadź łączną liczbę kupionych akcji (N)
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-500">
+                                            Maksymalnie {Math.max(0, N - 1)} szt., aby zachować darmowe akcje
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div>
-                                <div className="flex justify-between items-center mb-1.5">
+                                <div className="flex justify-between items-center mb-1.5 min-h-[20px]">
                                     <label className="text-slate-300 text-xs font-bold uppercase tracking-wider">
                                         Oczekiwana cena docelowa (Cs):
                                     </label>
-                                    {C_k > 0 && (
-                                        <span className="text-[11px] text-slate-400">
-                                            Musi być &gt; {formatNumber(C_k)} {currency}
-                                        </span>
-                                    )}
+                                    <span className="text-[11px] text-slate-400">
+                                        {C_k > 0 ? `Musi być > ${formatNumber(C_k)} ${currency}` : `Musi być > 0 ${currency}`}
+                                    </span>
                                 </div>
                                 <input
                                     type="number"
@@ -382,8 +401,27 @@ export const FreeRideCalculator: React.FC = () => {
                                     value={targetPriceInput}
                                     onChange={e => setTargetPriceInput(e.target.value)}
                                     placeholder={`np. ${C_k ? (C_k * 1.5).toFixed(2) : '35.00'}`}
-                                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 font-mono text-sm transition"
+                                    className={`w-full bg-slate-950 border text-white rounded-xl px-4 py-3 focus:outline-none font-mono text-sm transition ${
+                                        parseFloat(targetPriceInput) <= C_k && targetPriceInput !== '' && C_k > 0
+                                            ? 'border-rose-500/80 focus:border-rose-500'
+                                            : 'border-slate-700 focus:border-emerald-500'
+                                    }`}
                                 />
+                                <div className="min-h-[22px] mt-1.5 flex items-center text-xs">
+                                    {parseFloat(targetPriceInput) <= C_k && targetPriceInput !== '' && C_k > 0 ? (
+                                        <span className="text-rose-400 flex items-center gap-1">
+                                            <AlertCircle size={13} className="shrink-0" /> Cena docelowa musi być wyższa niż cena zakupu ({formatNumber(C_k)} {currency})
+                                        </span>
+                                    ) : parseFloat(targetPriceInput) > C_k && C_k > 0 ? (
+                                        <span className="text-emerald-400/90 flex items-center gap-1">
+                                            <TrendingUp size={12} className="shrink-0" /> Wymagany wzrost o +{formatNumber(((parseFloat(targetPriceInput) - C_k) / C_k) * 100)}%
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-500">
+                                            Cena docelowa, po której sprzedaż pokryje 100% wkładu
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -416,8 +454,8 @@ export const FreeRideCalculator: React.FC = () => {
                                 )}
                             </div>
 
-                            {useTax && (
-                                <div className="flex items-center gap-3 pt-2 border-t border-slate-800/50">
+                            {useTax ? (
+                                <div className="flex items-center gap-3 pt-2 border-t border-slate-800/50 min-h-[38px]">
                                     <span className="text-xs text-slate-400">Stawka podatku:</span>
                                     <div className="relative w-28">
                                         <input
@@ -437,11 +475,9 @@ export const FreeRideCalculator: React.FC = () => {
                                         (Standardowo w PL: 19% podatek Belki)
                                     </span>
                                 </div>
-                            )}
-
-                            {!useTax && (
-                                <div className="text-[11px] text-emerald-400/90 flex items-center gap-1.5 pt-1">
-                                    <Info size={13} />
+                            ) : (
+                                <div className="text-[11px] text-emerald-400/90 flex items-center gap-1.5 pt-2 border-t border-slate-800/50 min-h-[38px]">
+                                    <Info size={13} className="shrink-0" />
                                     Brak podatku (np. konto IKE / IKZE lub rozliczenie z innych strat).
                                 </div>
                             )}
@@ -450,74 +486,88 @@ export const FreeRideCalculator: React.FC = () => {
                 </div>
 
                 {/* Right Column: Results & Mathematical Proof */}
-                <div className="lg:col-span-6 space-y-6">
+                <div className="lg:col-span-6 flex flex-col min-h-[580px] lg:min-h-[605px]">
                     {!calculation.valid ? (
-                        <div className="h-full min-h-[400px] bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center text-slate-500">
-                            <ShieldCheck className="w-16 h-16 opacity-30 text-emerald-500 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-400 mb-2">Wprowadź parametry symulacji</h3>
-                            <p className="text-xs max-w-sm text-slate-500">
+                        <div className="h-full flex-1 min-h-[580px] lg:min-h-[605px] bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center text-slate-500">
+                            <div className="p-4 bg-slate-800/40 rounded-3xl border border-slate-700/40 mb-4">
+                                <ShieldCheck className="w-16 h-16 opacity-40 text-emerald-500" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-300 mb-2">Wprowadź parametry symulacji</h3>
+                            <p className="text-xs max-w-sm text-slate-400 leading-relaxed">
                                 {calculation.error ||
                                     'Uzupełnij liczbę akcji oraz cenę zakupu, aby zobaczyć docelową cenę i liczbę darmowych akcji.'}
                             </p>
                         </div>
                     ) : (
-                        <div className="space-y-6">
+                        <div className="flex-1 flex flex-col justify-between space-y-6">
                             {/* Primary Result Cards */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {/* Target Price Card */}
-                                <div className="bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
-                                    <div className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                        <Target size={14} className="text-blue-400" />
-                                        Docelowa Cena Sprzedaży (Cs)
-                                    </div>
-                                    <div className="text-2xl sm:text-3xl font-extrabold font-mono text-white mt-2">
-                                        {formatCurrency(calculation.C_s, currency)}
-                                    </div>
-
-                                    <div className="mt-3 pt-3 border-t border-blue-500/20 flex flex-wrap items-center justify-between text-xs gap-2">
-                                        <span className="text-slate-400">Wymagany wzrost:</span>
-                                        <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1">
-                                            <TrendingUp size={12} />+{formatNumber(calculation.requiredGrowth)}%
-                                        </span>
+                                <div className="bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Target size={14} className="text-blue-400" />
+                                            Docelowa Cena Sprzedaży (Cs)
+                                        </div>
+                                        <div className="text-2xl sm:text-3xl font-extrabold font-mono text-white mt-2">
+                                            {formatCurrency(calculation.C_s, currency)}
+                                        </div>
                                     </div>
 
-                                    {typeof calculation.distanceToMarket === 'number' && (
-                                        <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between">
-                                            <span>Do obecnego kursu:</span>
-                                            <span
-                                                className={`font-mono font-bold ${
-                                                    calculation.distanceToMarket <= 0
-                                                        ? 'text-emerald-400'
-                                                        : 'text-amber-400'
-                                                }`}
-                                            >
-                                                {calculation.distanceToMarket <= 0
-                                                    ? 'Cel osiągnięty! 🎯'
-                                                    : `+${formatNumber(calculation.distanceToMarket)}%`}
+                                    <div className="mt-3 pt-3 border-t border-blue-500/20 space-y-2">
+                                        <div className="flex flex-wrap items-center justify-between text-xs gap-2">
+                                            <span className="text-slate-400">Wymagany wzrost:</span>
+                                            <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1">
+                                                <TrendingUp size={12} />+{formatNumber(calculation.requiredGrowth)}%
                                             </span>
                                         </div>
-                                    )}
+
+                                        <div className="text-[11px] text-slate-400 flex items-center justify-between min-h-[18px]">
+                                            {typeof calculation.distanceToMarket === 'number' ? (
+                                                <>
+                                                    <span>Do obecnego kursu:</span>
+                                                    <span
+                                                        className={`font-mono font-bold ${
+                                                            calculation.distanceToMarket <= 0
+                                                                ? 'text-emerald-400'
+                                                                : 'text-amber-400'
+                                                        }`}
+                                                    >
+                                                        {calculation.distanceToMarket <= 0
+                                                            ? 'Cel osiągnięty! 🎯'
+                                                            : `+${formatNumber(calculation.distanceToMarket)}%`}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-slate-500">Cena pokrywająca 100% wkładu</span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Free Shares Card */}
-                                <div className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
-                                    <div className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                        <Sparkles size={14} className="text-emerald-400" />
-                                        Darmowe Akcje w Portfelu
-                                    </div>
-                                    <div className="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400 mt-2">
-                                        {formatNumber(calculation.freeShares, 0, 2)} szt.
-                                    </div>
-
-                                    <div className="mt-3 pt-3 border-t border-emerald-500/20 flex flex-wrap items-center justify-between text-xs gap-2">
-                                        <span className="text-slate-400">Wartość darmowych akcji:</span>
-                                        <span className="font-mono font-bold text-slate-200">
-                                            {formatCurrency(calculation.freeSharesValue, currency)}
-                                        </span>
+                                <div className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Sparkles size={14} className="text-emerald-400" />
+                                            Darmowe Akcje w Portfelu
+                                        </div>
+                                        <div className="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400 mt-2">
+                                            {formatNumber(calculation.freeShares, 0, 2)} szt.
+                                        </div>
                                     </div>
 
-                                    <div className="mt-2 text-[11px] text-emerald-400/80 font-medium">
-                                        Pozycja bez ryzyka (100% czysty zysk)
+                                    <div className="mt-3 pt-3 border-t border-emerald-500/20 space-y-2">
+                                        <div className="flex flex-wrap items-center justify-between text-xs gap-2">
+                                            <span className="text-slate-400">Wartość darmowych akcji:</span>
+                                            <span className="font-mono font-bold text-slate-200">
+                                                {formatCurrency(calculation.freeSharesValue, currency)}
+                                            </span>
+                                        </div>
+
+                                        <div className="text-[11px] text-emerald-400/80 font-medium min-h-[18px] flex items-center">
+                                            Pozycja bez ryzyka (100% czysty zysk)
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -563,11 +613,18 @@ export const FreeRideCalculator: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    {useTax && (
+                                    {useTax ? (
                                         <div className="flex justify-between items-center py-1 border-b border-slate-800/40 text-rose-300/90">
                                             <span>Należny podatek Belki ({taxRatePercent}%):</span>
                                             <span className="font-mono font-bold">
                                                 -{formatCurrency(calculation.tax, currency)}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-between items-center py-1 border-b border-slate-800/40 text-emerald-400/80">
+                                            <span>Podatek od zysków (IKE / IKZE):</span>
+                                            <span className="font-mono font-semibold">
+                                                0,00 {currency} (zwolniony)
                                             </span>
                                         </div>
                                     )}
