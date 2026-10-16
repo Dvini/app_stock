@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
+import { MissingRatesNotice } from '../components/UIComponents';
 import { cn } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
@@ -8,6 +11,7 @@ import { PieChart } from '../components/PieChart';
 import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { formatNumber, formatQuantity } from '../utils/formatters';
+import type { Dividend } from '../types/database';
 
 type ViewMode = 'pie' | 'history';
 type HistoryRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
@@ -18,10 +22,17 @@ interface HistoryDataPoint {
     value: number;
 }
 
+const EMPTY_DIVIDENDS: Dividend[] = [];
+
 export const Portfolio = () => {
     const { assets, portfolioSummary, transactions } = usePortfolio();
-    const { portfolios, isAllPortfolios } = usePortfolioAccount();
+    const { portfolios, isAllPortfolios, activePortfolioId } = usePortfolioAccount();
     const [showAddModal, setShowAddModal] = useState(false);
+    const dividends =
+        useLiveQuery(
+            () => db.dividends.filter(d => isAllPortfolios || (d.portfolioId ?? 1) === activePortfolioId).toArray(),
+            [isAllPortfolios, activePortfolioId]
+        ) ?? EMPTY_DIVIDENDS;
 
     const portfolioMap = useMemo(() => {
         const map = new Map<number, (typeof portfolios)[0]>();
@@ -55,7 +66,7 @@ export const Portfolio = () => {
                 let data;
                 let newSessionDate: string | undefined;
                 if (selectedTicker === 'PORTFOLIO') {
-                    const result = await calculatePortfolioHistory(transactions, historyRange, false, false);
+                    const result = await calculatePortfolioHistory(transactions, historyRange, false, false, dividends);
                     data = result.data;
                     newSessionDate = result.sessionDate;
                 } else {
@@ -83,7 +94,7 @@ export const Portfolio = () => {
         if (transactions.length > 0) {
             loadHistory();
         }
-    }, [transactions.length, viewMode, historyRange, selectedTicker]);
+    }, [transactions, dividends, viewMode, historyRange, selectedTicker]);
 
     return (
         <div
@@ -101,6 +112,8 @@ export const Portfolio = () => {
                     Nowa Transakcja
                 </button>
             </header>
+
+            <MissingRatesNotice currencies={portfolioSummary.missingRateCurrencies} />
 
             <div data-testid="portfolio-summary-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div

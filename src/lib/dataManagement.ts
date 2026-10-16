@@ -13,6 +13,8 @@ export interface ExportDataV3 {
     version: 3;
     timestamp: string;
     exportScope: 'ALL' | 'SINGLE';
+    /** Stored cash already includes net dividends (exports made after dividends were credited to cash) */
+    cashIncludesDividends?: boolean;
     portfolioInfo?: {
         id?: number;
         name: string;
@@ -137,6 +139,7 @@ export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean>
         const data: ExportDataV3 = {
             version: 3,
             timestamp: new Date().toISOString(),
+            cashIncludesDividends: true,
             exportScope: isSingle ? 'SINGLE' : 'ALL',
             portfolioInfo:
                 isSingle && targetPortfolio
@@ -295,7 +298,9 @@ export const importData = async (file: File): Promise<boolean> => {
                 }
 
                 // Holdings and cash are derived from transactions; align imported balances with history
-                await reconcileDatabase('import');
+                await reconcileDatabase('import', {
+                    storedCashIncludesDividends: (imported as ExportDataV3).cashIncludesDividends === true
+                });
 
                 resolve(true);
             } catch (error) {

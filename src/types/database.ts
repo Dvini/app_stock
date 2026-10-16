@@ -75,7 +75,8 @@ export interface Transaction {
     price?: number; // Price per unit (for buy/sell)
     total: number; // Total transaction value
     currency?: CurrencyCode;
-    exchangeRate?: number; // Exchange rate at time of transaction
+    exchangeRate?: number; // Broker exchange rate actually applied (drives cash)
+    taxExchangeRate?: number; // NBP average rate from the business day before the transaction (PIT, art. 11a)
     commission?: number; // Broker commission/fee amount
     commissionCurrency?: CurrencyCode; // Currency of the commission
     note?: string; // Free-text note (e.g. automatic balance correction)
@@ -114,7 +115,8 @@ export interface Dividend {
     amountPerShare: number; // Amount per share
     totalAmount?: number; // Total amount for owned shares
     currency: CurrencyCode;
-    exchangeRate?: number; // Exchange rate to PLN
+    exchangeRate?: number; // NBP average rate from the business day before payment (PIT, art. 11a)
+    withholdingTaxRate?: number; // Tax withheld at source, % of gross (e.g. 15 for US with W-8BEN)
     valuePLN?: number; // Total value in PLN
     sharesOwned?: number; // Shares owned on record date
     status: 'upcoming' | 'paid' | 'expected' | 'received';

@@ -85,13 +85,45 @@ class NBPService {
     }
 
     /**
+     * Rate for tax purposes (art. 11a ustawy o PIT): NBP average rate (table A) from the last
+     * business day BEFORE `dateStr`. One range request covers weekends and holidays.
+     * Returns null on any failure - callers must not substitute another rate silently.
+     */
+    async getTaxRate(currency: string, dateStr: string): Promise<NBPRateResponse | null> {
+        if (!currency || currency === 'PLN') return { rate: 1, date: dateStr };
+        if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(dateStr)) return null;
+
+        const cacheKey = `nbp_tax_rate_${currency}_${dateStr}`;
+        const cached = cacheService.get<NBPRateResponse>(cacheKey);
+        if (cached) return cached;
+
+        const from = addDaysISO(dateStr, -14);
+        const to = addDaysISO(dateStr, -1);
+        try {
+            const url = `${this.baseUrl}/a/${currency.toLowerCase()}/${from}/${to}/?format=json`;
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            const data = await response.json();
+            const rates: Array<{ mid: number; effectiveDate: string }> = data.rates ?? [];
+            const last = rates[rates.length - 1];
+            if (!last?.mid) return null;
+            const rateData: NBPRateResponse = { rate: last.mid, date: last.effectiveDate };
+            cacheService.set(cacheKey, rateData);
+            return rateData;
+        } catch (error) {
+            console.error(`[NBPService] Failed to fetch tax rate for ${currency} before ${dateStr}:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Get rate from previous day (for weekends/holidays)
      */
     private async _getRateFromPreviousDay(
         currency: string,
         dateStr: string,
         table: 'A' | 'B',
-        maxAttempts = 5
+        maxAttempts = 10
     ): Promise<NBPRateResponse | null> {
         for (let i = 1; i <= maxAttempts; i++) {
             const prevDateStr = addDaysISO(dateStr, -i);
@@ -121,11 +153,14 @@ class NBPService {
                         return rateData;
                     }
                 }
+                // Only 404 means "no table that day"; anything else must not skip to an older day
+                if (response.status !== 404) return null;
             } catch (error) {
                 console.warn(
                     `[NBPService] Failed to fetch from ${prevDateStr}:`,
                     error instanceof Error ? error.message : 'Unknown error'
                 );
+                return null;
             }
         }
 

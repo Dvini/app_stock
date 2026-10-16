@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { initDB } from './db/db';
 import { cacheService } from './lib/CacheService';
 import { loadLedgerReport } from './lib/ledgerReconcile';
+import { refreshSnapshots } from './lib/ledgerStore';
 import { PortfolioProvider, usePortfolioAccount } from './context/PortfolioContext';
 
 // Lazy load all page components for code splitting
@@ -47,7 +48,9 @@ const HomeRoute = () => {
 function App() {
     useEffect(() => {
         // Opening the DB runs pending migrations; a reconciliation report may appear afterwards
-        initDB().then(() => {
+        initDB().then(async () => {
+            // Dividends whose payment date has passed since the last run must reach cash
+            await refreshSnapshots().catch(error => console.error('Snapshot refresh failed', error));
             const report = loadLedgerReport();
             if (report) {
                 toast.warning('Dane portfela zostały uzgodnione z historią transakcji', {

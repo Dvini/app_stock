@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { MissingRatesNotice } from '../components/UIComponents';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { AddToWatchlistModal } from '../components/AddToWatchlistModal';
@@ -146,6 +147,8 @@ export const Dashboard = () => {
             data-testid="dashboard-page"
             className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500"
         >
+            <MissingRatesNotice currencies={portfolioSummary.missingRateCurrencies} />
+
             <div
                 data-testid="dashboard-summary-cards"
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0"

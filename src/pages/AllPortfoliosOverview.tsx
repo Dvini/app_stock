@@ -17,6 +17,7 @@ import { usePrices } from '../hooks/usePrices';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { PieChart } from '../components/PieChart';
 import { PortfolioModal } from '../components/PortfolioModal';
+import { MissingRatesNotice } from '../components/UIComponents';
 import { formatNumber } from '../utils/formatters';
 import type { PortfolioAccount, CurrencyCode } from '../types/database';
 import { isDepositTransaction } from '../types/database';
@@ -49,9 +50,22 @@ export const AllPortfoliosOverview: React.FC = () => {
     }, [allAssets, allCash]);
 
     // Exchange rates to PLN
-    const { rates } = useExchangeRates(neededCurrencies, { targetCurrency: 'PLN' });
+    const { rates, isLoading: isLoadingRates } = useExchangeRates(neededCurrencies, { targetCurrency: 'PLN' });
 
     // Calculate metrics per portfolio
+    // Positions in currencies without a live rate are left out of PLN totals (never counted 1:1)
+    const missingRateCurrencies = useMemo(() => {
+        if (isLoadingRates) return [];
+        const missing = new Set<string>();
+        allAssets
+            .filter(a => a.amount > 0.000001)
+            .forEach(a => {
+                const currency = prices[a.ticker]?.currency || a.currency || 'PLN';
+                if (currency !== 'PLN' && !(rates[currency as CurrencyCode]! > 0)) missing.add(currency);
+            });
+        return [...missing];
+    }, [allAssets, prices, rates, isLoadingRates]);
+
     const portfolioMetrics = useMemo(() => {
         const currentYear = new Date().getFullYear().toString();
 
@@ -68,7 +82,7 @@ export const AllPortfoliosOverview: React.FC = () => {
             pAssets.forEach(a => {
                 const livePrice = prices[a.ticker]?.price ?? a.avgPrice;
                 const assetCurrency = (prices[a.ticker]?.currency || a.currency || 'PLN') as CurrencyCode;
-                const rateToPLN = assetCurrency === 'PLN' ? 1 : rates[assetCurrency] || 1;
+                const rateToPLN = assetCurrency === 'PLN' ? 1 : (rates[assetCurrency] ?? 0);
 
                 const valPLN = a.amount * livePrice * rateToPLN;
                 const costPLN = a.amount * a.avgPrice * rateToPLN;
@@ -81,7 +95,7 @@ export const AllPortfoliosOverview: React.FC = () => {
             let cashValPLN = 0;
             let cashNative = 0;
             pCash.forEach(c => {
-                const rateToPLN = c.currency === 'PLN' ? 1 : rates[c.currency] || 1;
+                const rateToPLN = c.currency === 'PLN' ? 1 : (rates[c.currency] ?? 0);
                 cashValPLN += (c.amount || 0) * rateToPLN;
                 if (c.currency === p.currency) {
                     cashNative += c.amount || 0;
@@ -93,8 +107,8 @@ export const AllPortfoliosOverview: React.FC = () => {
             const plPercent = costBasisPLN > 0 ? (plValPLN / costBasisPLN) * 100 : 0;
 
             // Total in portfolio base currency
-            const portCurrencyRateToPLN = p.currency === 'PLN' ? 1 : rates[p.currency] || 1;
-            const totalValNative = portCurrencyRateToPLN > 0 ? totalValPLN / portCurrencyRateToPLN : totalValPLN;
+            // All accounts are PLN-denominated
+            const totalValNative = totalValPLN;
 
             // Annual contributions for current year (for IKE/IKZE limits)
             const yearDepositsPLN = pTx
@@ -157,6 +171,8 @@ export const AllPortfoliosOverview: React.FC = () => {
             data-testid="all-portfolios-overview"
             className="flex-1 flex flex-col space-y-8 animate-in fade-in duration-300"
         >
+            <MissingRatesNotice currencies={missingRateCurrencies} />
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>

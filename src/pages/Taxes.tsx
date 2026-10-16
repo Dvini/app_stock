@@ -1,8 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import { matchFIFOClosedTrades, generatePIT38Report, exportPIT38ToCSV } from '../utils/taxCalculations';
+import {
+    matchFIFOClosedTrades,
+    generatePIT38Report,
+    generateForeignDividendReport,
+    exportPIT38ToCSV
+} from '../utils/taxCalculations';
+import { backfillTaxRates } from '../lib/taxRates';
 import { formatNumber } from '../utils/formatters';
 import { cn } from '../lib/utils';
 import {
@@ -14,7 +21,9 @@ import {
     HelpCircle,
     ChevronDown,
     Calendar,
-    AlertTriangle
+    AlertTriangle,
+    Coins,
+    RefreshCw
 } from 'lucide-react';
 
 export const Taxes: React.FC = () => {
@@ -26,6 +35,36 @@ export const Taxes: React.FC = () => {
     const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
 
     const allTransactions = useLiveQuery(() => db.transactions.toArray()) || [];
+    const allDividends = useLiveQuery(() => db.dividends.toArray()) || [];
+    const [isFetchingRates, setIsFetchingRates] = useState(false);
+
+    // Fetch missing NBP tax rates (trades and dividends recorded without one)
+    const fetchMissingRates = useCallback(async (silent: boolean) => {
+        setIsFetchingRates(true);
+        try {
+            const { filled, missing } = await backfillTaxRates();
+            if (!silent || filled > 0) {
+                if (missing > 0) {
+                    toast.warning(`Uzupełniono kursy NBP: ${filled}, nadal brakuje: ${missing}`, {
+                        description: 'Sprawdź połączenie z api.nbp.pl i spróbuj ponownie.'
+                    });
+                } else {
+                    toast.success(
+                        filled > 0 ? `Uzupełniono kursy NBP: ${filled}` : 'Wszystkie kursy NBP są uzupełnione'
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('Tax rate backfill failed', error);
+            if (!silent) toast.error('Nie udało się pobrać kursów NBP');
+        } finally {
+            setIsFetchingRates(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchMissingRates(true);
+    }, [fetchMissingRates]);
 
     // Match closed trades using FIFO
     const allClosedTrades = useMemo(() => {
@@ -36,8 +75,12 @@ export const Taxes: React.FC = () => {
     const availableYears = useMemo(() => {
         const yearsSet = new Set<number>([currentYear]);
         allClosedTrades.forEach(t => yearsSet.add(t.sellYear));
+        allDividends.forEach(d => {
+            const year = parseInt(d.paymentDate?.slice(0, 4) ?? '', 10);
+            if (year && year <= currentYear) yearsSet.add(year);
+        });
         return Array.from(yearsSet).sort((a, b) => b - a);
-    }, [allClosedTrades, currentYear]);
+    }, [allClosedTrades, allDividends, currentYear]);
 
     // Generate PIT-38 summary report
     const summary = useMemo(() => {
@@ -63,8 +106,15 @@ export const Taxes: React.FC = () => {
 
     const unmatchedTrades = useMemo(() => displayedTrades.filter(t => t.unmatchedShares > 0), [displayedTrades]);
 
+    const dividendReport = useMemo(
+        () => generateForeignDividendReport(allDividends, portfolios, selectedYear, selectedPortfolioId),
+        [allDividends, portfolios, selectedYear, selectedPortfolioId]
+    );
+
+    const missingRateCount = summary.brokerRateTradeCount + dividendReport.missingRateCount;
+
     const handleExport = () => {
-        exportPIT38ToCSV(displayedTrades, summary, selectedYear);
+        exportPIT38ToCSV(displayedTrades, summary, selectedYear, dividendReport);
     };
 
     return (
@@ -90,6 +140,7 @@ export const Taxes: React.FC = () => {
                     <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1.5 rounded-2xl">
                         <Calendar size={15} className="text-slate-400 ml-2" />
                         <select
+                            data-testid="tax-year-select"
                             value={selectedYear}
                             onChange={e => setSelectedYear(Number(e.target.value))}
                             className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-white outline-none focus:border-blue-500 transition"
@@ -126,13 +177,41 @@ export const Taxes: React.FC = () => {
                     {/* Export Button */}
                     <button
                         onClick={handleExport}
-                        disabled={displayedTrades.length === 0}
+                        disabled={displayedTrades.length === 0 && dividendReport.rows.length === 0}
                         className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white px-4 py-2.5 rounded-2xl font-bold text-xs transition shadow-lg shadow-blue-600/30 flex items-center gap-2"
                     >
                         <Download size={15} /> Eksportuj Zestawienie (CSV)
                     </button>
                 </div>
             </header>
+
+            {/* Missing NBP rates: PIT figures are provisional until filled */}
+            {missingRateCount > 0 && (
+                <div
+                    data-testid="missing-tax-rates-warning"
+                    className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 flex items-start gap-3"
+                >
+                    <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="text-sm font-bold text-amber-400">Brak kursów NBP</h4>
+                        <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                            {summary.brokerRateTradeCount > 0 &&
+                                `${summary.brokerRateTradeCount} sprzedaży przeliczono kursem brokera zamiast kursu NBP z dnia roboczego przed transakcją. `}
+                            {dividendReport.missingRateCount > 0 &&
+                                `${dividendReport.missingRateCount} dywidend pominięto w części G (brak kursu). `}
+                            Kwoty poniżej są orientacyjne, dopóki kursy nie zostaną uzupełnione.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => fetchMissingRates(false)}
+                        disabled={isFetchingRates}
+                        className="shrink-0 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <RefreshCw size={13} className={isFetchingRates ? 'animate-spin' : ''} />
+                        Pobierz kursy NBP
+                    </button>
+                </div>
+            )}
 
             {/* Sells without a matching earlier buy: cost basis missing, gain overstated */}
             {unmatchedTrades.length > 0 && (
@@ -177,12 +256,12 @@ export const Taxes: React.FC = () => {
 
             {/* PIT-38 Summary Cards (Część C PIT-38) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Przychód - poz. 20 */}
+                {/* Przychód */}
                 <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 relative overflow-hidden">
                     <div className="flex justify-between items-center text-slate-400 mb-1">
                         <span className="text-xs font-bold uppercase tracking-wider">Przychód</span>
                         <span className="text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
-                            poz. 20 PIT-38
+                            PIT-38
                         </span>
                     </div>
                     <div className="text-2xl font-black text-white mt-1">
@@ -192,12 +271,12 @@ export const Taxes: React.FC = () => {
                     <p className="text-[11px] text-slate-500 mt-1">Suma kwot uzyskanych ze sprzedaży</p>
                 </div>
 
-                {/* Koszty KUP - poz. 21 */}
+                {/* Koszty KUP */}
                 <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 relative overflow-hidden">
                     <div className="flex justify-between items-center text-slate-400 mb-1">
                         <span className="text-xs font-bold uppercase tracking-wider">Koszty (KUP)</span>
                         <span className="text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
-                            poz. 21 PIT-38
+                            PIT-38
                         </span>
                     </div>
                     <div className="text-2xl font-black text-white mt-1">
@@ -206,14 +285,14 @@ export const Taxes: React.FC = () => {
                     <p className="text-[11px] text-slate-500 mt-1">Koszt nabycia partii FIFO + prowizje</p>
                 </div>
 
-                {/* Dochód lub Strata - poz. 22 / 23 */}
+                {/* Dochód lub Strata */}
                 <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 relative overflow-hidden">
                     <div className="flex justify-between items-center text-slate-400 mb-1">
                         <span className="text-xs font-bold uppercase tracking-wider">
                             {summary.lossPLN > 0 ? 'Strata' : 'Dochód'}
                         </span>
                         <span className="text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
-                            {summary.lossPLN > 0 ? 'poz. 23 PIT-38' : 'poz. 22 PIT-38'}
+                            PIT-38
                         </span>
                     </div>
                     <div
@@ -247,12 +326,12 @@ export const Taxes: React.FC = () => {
                     </p>
                 </div>
 
-                {/* Należny podatek 19% - poz. 31 */}
+                {/* Należny podatek 19% */}
                 <div className="bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-800/40 rounded-3xl p-5 relative overflow-hidden shadow-lg shadow-blue-950/20">
                     <div className="flex justify-between items-center text-blue-400 mb-1">
                         <span className="text-xs font-bold uppercase tracking-wider">Podatek 19%</span>
                         <span className="text-[10px] font-mono bg-blue-900/60 px-1.5 py-0.5 rounded text-blue-300">
-                            poz. 31 PIT-38
+                            PIT-38
                         </span>
                     </div>
                     <div className="text-2xl font-black text-white mt-1">
@@ -260,7 +339,9 @@ export const Taxes: React.FC = () => {
                         <span className="text-xs font-normal text-slate-400">PLN</span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1">
-                        {summary.taxDuePLN > 0 ? 'Należny podatek do 30 kwietnia' : 'Brak podatku do zapłacenia'}
+                        {summary.taxDuePLN > 0
+                            ? `19% od podstawy ${summary.taxBasePLN.toLocaleString('pl-PL')} zł (zaokr. do zł)`
+                            : 'Brak podatku do zapłacenia'}
                     </p>
 
                     {summary.taxSavedIKEPLN > 0 && (
@@ -423,6 +504,100 @@ export const Taxes: React.FC = () => {
                 </div>
             </div>
 
+            {/* Foreign dividends - PIT-38 part G */}
+            <div
+                data-testid="foreign-dividends-section"
+                className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden flex flex-col shadow-xl"
+            >
+                <div className="px-6 py-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <Coins size={20} className="text-amber-400" />
+                        <div>
+                            <h2 className="text-lg font-bold text-white">
+                                Dywidendy zagraniczne ({dividendReport.rows.length})
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                PIT-38 część G • wypłacone w roku {selectedYear} na rachunkach opodatkowanych
+                            </p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-1 text-xs">
+                        <div>
+                            <div className="text-slate-500">Przychód brutto</div>
+                            <div className="font-bold font-mono text-slate-200">
+                                {formatNumber(dividendReport.grossPLN)} zł
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-slate-500">Podatek 19%</div>
+                            <div className="font-bold font-mono text-slate-200">{dividendReport.taxPLN} zł</div>
+                        </div>
+                        <div>
+                            <div className="text-slate-500">Zapłacony za granicą</div>
+                            <div className="font-bold font-mono text-slate-200">{dividendReport.creditPLN} zł</div>
+                        </div>
+                        <div>
+                            <div className="text-slate-500">Do dopłaty</div>
+                            <div data-testid="dividend-tax-to-pay" className="font-black font-mono text-amber-400">
+                                {dividendReport.toPayPLN} zł
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {dividendReport.rows.length > 0 && (
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-slate-950 text-slate-400 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th className="px-6 py-3">Wypłata</th>
+                                    <th className="px-6 py-3">Ticker</th>
+                                    <th className="px-6 py-3 text-right">Brutto</th>
+                                    <th className="px-6 py-3 text-right">Kurs NBP</th>
+                                    <th className="px-6 py-3 text-right">Brutto (PLN)</th>
+                                    <th className="px-6 py-3 text-right">Podatek u źródła</th>
+                                    <th className="px-6 py-3 text-right">Do dopłaty (PLN)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                                {dividendReport.rows.map((r, i) => (
+                                    <tr key={r.id ?? i} className="hover:bg-slate-800/40">
+                                        <td className="px-6 py-3 text-slate-400">{r.paymentDate}</td>
+                                        <td className="px-6 py-3 font-bold text-blue-400">{r.ticker}</td>
+                                        <td className="px-6 py-3 text-right font-mono">
+                                            {formatNumber(r.grossNative)}{' '}
+                                            <span className="text-xs text-slate-500">{r.currency}</span>
+                                        </td>
+                                        <td className="px-6 py-3 text-right font-mono text-xs text-slate-400">
+                                            {r.exchangeRate !== null ? (
+                                                formatNumber(r.exchangeRate, 4, 4)
+                                            ) : (
+                                                <span className="text-amber-400">brak</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-3 text-right font-mono">
+                                            {r.grossPLN !== null ? formatNumber(r.grossPLN) : '—'}
+                                        </td>
+                                        <td className="px-6 py-3 text-right font-mono text-xs">
+                                            {r.withholdingRate}%
+                                            {r.foreignTaxPLN !== null && (
+                                                <span className="text-slate-500">
+                                                    {' '}
+                                                    ({formatNumber(r.foreignTaxPLN)})
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-3 text-right font-mono font-bold">
+                                            {r.taxToPayPLN !== null ? formatNumber(r.taxToPayPLN) : '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
             {/* Information & Legal notes */}
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 space-y-3">
                 <div className="flex items-center gap-2 text-slate-300 font-bold text-sm">
@@ -443,6 +618,17 @@ export const Taxes: React.FC = () => {
                         <strong className="text-slate-300">Kompensacja strat:</strong> Stratę z danego roku można
                         odliczyć od dochodów z giełdy w najbliższych kolejno po sobie następujących 5 latach podatkowych
                         (do 50% kwoty straty w jednym roku).
+                    </div>
+                    <div>
+                        <strong className="text-slate-300">Kursy walut:</strong> Przychody i koszty w walutach obcych
+                        przelicza się po średnim kursie NBP z ostatniego dnia roboczego poprzedzającego dzień transakcji
+                        lub wypłaty dywidendy (art. 11a ustawy o PIT).
+                    </div>
+                    <div>
+                        <strong className="text-slate-300">Dywidendy:</strong> Od dywidend z polskich spółek podatek
+                        pobiera broker. Od zagranicznych należy się 19% w Polsce, pomniejszone o podatek pobrany za
+                        granicą (najwyżej do 19%). Domyślne stawki u źródła (np. USA 15% przy W-8BEN) możesz zmienić
+                        przy dywidendzie.
                     </div>
                     <div>
                         <strong className="text-slate-300">Termin złożenia deklaracji:</strong> Zeznanie PIT-38 składa

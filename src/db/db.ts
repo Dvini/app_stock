@@ -9,6 +9,7 @@ import type {
     PortfolioType
 } from '../types/database';
 import { reconcileAll, saveLedgerReport, type LedgerTables } from '../lib/ledgerReconcile';
+import { defaultWithholdingRate } from '../utils/dividendTax';
 
 const PORTFOLIO_TYPES: readonly PortfolioType[] = ['standard', 'ike', 'ikze', 'custom'];
 
@@ -160,18 +161,38 @@ export class StockTrackerDatabase extends Dexie {
                     });
             });
 
-        // Version 9: holdings and cash become a snapshot derived from transactions (ledger).
-        // Align stored balances with history once; differences are reported in Settings.
-        this.version(9)
+        // Version 9: ledger introduced. Its reconciliation now runs as part of v10.
+        this.version(9).stores({});
+
+        // Version 10: holdings and cash are a snapshot derived from transactions and net dividends.
+        // Backfill dividend withholding rates, drop placeholder FX rates (1.0 for a foreign currency
+        // came from failed NBP fetches), then align stored balances with history once.
+        this.version(10)
             .stores({})
             .upgrade(async tx => {
+                const portfolios: PortfolioAccount[] = await tx.table('portfolios').toArray();
+                const exempt = new Set(portfolios.filter(p => p.taxRate === 0).map(p => p.id ?? 1));
+                await tx
+                    .table('dividends')
+                    .toCollection()
+                    .modify((d: Dividend) => {
+                        const currency = d.currency || 'PLN';
+                        if (d.withholdingTaxRate === undefined) {
+                            d.withholdingTaxRate = defaultWithholdingRate(currency, exempt.has(d.portfolioId ?? 1));
+                        }
+                        if (currency !== 'PLN' && d.exchangeRate === 1) {
+                            delete d.exchangeRate;
+                            delete d.valuePLN;
+                        }
+                    });
+
                 const tables: LedgerTables = {
                     transactions: tx.table('transactions'),
                     assets: tx.table('assets'),
-                    cash: tx.table('portfolioCash')
+                    cash: tx.table('portfolioCash'),
+                    dividends: tx.table('dividends')
                 };
-                const portfolios = await tx.table('portfolios').toArray();
-                const report = await reconcileAll(tables, portfolios);
+                const report = await reconcileAll(tables, portfolios, { storedCashIncludesDividends: false });
                 saveLedgerReport('migration', report);
             });
     }

@@ -5,12 +5,14 @@
 
 import type { Table } from 'dexie';
 import { db } from '../db/db';
-import type { Asset, Cash, Transaction } from '../types/database';
+import type { Asset, Cash, Dividend, Transaction } from '../types/database';
 import { replayLedger, newViolations, type LedgerViolation } from './ledger';
 import {
+    loadPortfolioDividends,
     loadPortfolioTransactions,
     materializePortfolio,
     reconcileAll,
+    refreshPortfolio,
     saveLedgerReport,
     type LedgerReport,
     type LedgerTables
@@ -19,8 +21,11 @@ import {
 const dbTables = (): LedgerTables => ({
     transactions: db.transactions as Table<Transaction, number>,
     assets: db.assets as Table<Asset, number>,
-    cash: db.portfolioCash as Table<Cash, number>
+    cash: db.portfolioCash as Table<Cash, number>,
+    dividends: db.dividends as Table<Dividend, number>
 });
+
+const ledgerScope = () => [db.transactions, db.assets, db.portfolioCash, db.dividends];
 
 /**
  * Thrown when a change would make cash or shares negative at some point in history
@@ -42,10 +47,11 @@ const commitChange = async (
     write: (tables: LedgerTables) => Promise<number | void>
 ): Promise<number | void> => {
     const tables = dbTables();
-    return db.transaction('rw', [db.transactions, db.assets, db.portfolioCash], async () => {
+    return db.transaction('rw', ledgerScope(), async () => {
         const current = await loadPortfolioTransactions(tables, portfolioId);
-        const before = replayLedger(current);
-        const after = replayLedger(apply(current));
+        const dividends = await loadPortfolioDividends(tables, portfolioId);
+        const before = replayLedger(current, dividends);
+        const after = replayLedger(apply(current), dividends);
         const introduced = newViolations(before.violations, after.violations);
         if (introduced.length) throw new LedgerError(introduced);
 
@@ -97,15 +103,37 @@ export const deleteTransaction = async (tx: Transaction & { id: number }): Promi
 /**
  * Current violations of a portfolio (legacy data problems), without changing anything
  */
-export const getPortfolioViolations = async (portfolioId: number): Promise<LedgerViolation[]> =>
-    replayLedger(await loadPortfolioTransactions(dbTables(), portfolioId)).violations;
+export const getPortfolioViolations = async (portfolioId: number): Promise<LedgerViolation[]> => {
+    const tables = dbTables();
+    return replayLedger(
+        await loadPortfolioTransactions(tables, portfolioId),
+        await loadPortfolioDividends(tables, portfolioId)
+    ).violations;
+};
+
+/**
+ * Recompute snapshots after changes outside transactions (dividends added/edited/removed)
+ * or when the date moves on (dividends become paid). All portfolios when no ids are given.
+ */
+export const refreshSnapshots = async (portfolioIds?: number[]): Promise<void> => {
+    const tables = dbTables();
+    await db.transaction('rw', [db.portfolios, ...ledgerScope()], async () => {
+        const ids = portfolioIds ?? (await db.portfolios.toArray()).map(p => p.id ?? 1);
+        for (const id of new Set(ids)) {
+            await refreshPortfolio(tables, id);
+        }
+    });
+};
 
 /**
  * Reconcile the whole database (after JSON import)
  */
-export const reconcileDatabase = async (source: LedgerReport['source']): Promise<string[]> => {
-    const items = await db.transaction('rw', [db.portfolios, db.transactions, db.assets, db.portfolioCash], async () =>
-        reconcileAll(dbTables(), await db.portfolios.toArray())
+export const reconcileDatabase = async (
+    source: LedgerReport['source'],
+    options: { storedCashIncludesDividends: boolean }
+): Promise<string[]> => {
+    const items = await db.transaction('rw', [db.portfolios, ...ledgerScope()], async () =>
+        reconcileAll(dbTables(), await db.portfolios.toArray(), options)
     );
     saveLedgerReport(source, items);
     return items;

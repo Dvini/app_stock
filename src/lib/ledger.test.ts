@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { replayLedger, newViolations, sortTransactions, cashImpactPLN } from './ledger';
-import type { Transaction } from '../types/database';
+import type { Dividend, Transaction } from '../types/database';
 
 let nextId = 1;
 const deposit = (date: string, amount: number): Transaction => ({
@@ -187,5 +187,53 @@ describe('newViolations', () => {
         expect(newViolations(legacy, legacy)).toEqual([]);
         expect(newViolations(legacy, after)).toHaveLength(1);
         expect(newViolations(legacy, after)[0]!.type).toBe('Wypłata');
+    });
+});
+
+describe('replayLedger with dividends', () => {
+    const div = (paymentDate: string, totalAmount: number, extra: Partial<Dividend> = {}): Dividend => ({
+        id: nextId++,
+        ticker: 'AAPL',
+        recordDate: paymentDate,
+        paymentDate,
+        amountPerShare: 1,
+        totalAmount,
+        currency: 'USD',
+        exchangeRate: 4,
+        withholdingTaxRate: 15,
+        status: 'received',
+        ...extra
+    });
+
+    it('credits the net foreign dividend in PLN on the payment date', () => {
+        const r = replayLedger([deposit('2025-01-01', 100)], [div('2025-02-01', 10)], '2025-12-31');
+        expect(r.dividendsPLN).toBeCloseTo(34);
+        expect(r.cashPLN).toBeCloseTo(134);
+    });
+
+    it('applies the default 19% withholding to PLN dividends without a stored rate', () => {
+        const d = div('2025-02-01', 100, { currency: 'PLN', exchangeRate: 1, withholdingTaxRate: undefined });
+        expect(replayLedger([], [d], '2025-12-31').cashPLN).toBeCloseTo(81);
+    });
+
+    it('ignores dividends paid after today', () => {
+        const r = replayLedger([], [div('2026-02-01', 10)], '2026-01-15');
+        expect(r.dividendsPLN).toBe(0);
+    });
+
+    it('skips dividends without an exchange rate and reports them', () => {
+        const r = replayLedger([], [div('2025-02-01', 10, { exchangeRate: 1 })], '2025-12-31');
+        expect(r.cashPLN).toBe(0);
+        expect(r.unpricedDividends).toHaveLength(1);
+    });
+
+    it('lets a dividend fund a buy on the same day', () => {
+        const r = replayLedger(
+            [buy('2025-03-03', 'CDR', 1, 30)],
+            [div('2025-03-03', 50, { currency: 'PLN', exchangeRate: 1, withholdingTaxRate: 0 })],
+            '2025-12-31'
+        );
+        expect(r.violations).toEqual([]);
+        expect(r.cashPLN).toBeCloseTo(20);
     });
 });

@@ -6,9 +6,10 @@
  * edited directly.
  */
 
-import type { CurrencyCode, Transaction } from '../types/database';
+import type { CurrencyCode, Dividend, Transaction } from '../types/database';
 import { isBuyTransaction, isSellTransaction, isDepositTransaction, isWithdrawTransaction } from '../types/database';
-import { datePart } from '../utils/dates';
+import { datePart, todayLocal } from '../utils/dates';
+import { dividendNetPLN } from '../utils/dividendTax';
 
 const EPS = 0.000001;
 const CASH_EPS = 0.005; // half a grosz
@@ -40,6 +41,10 @@ export interface LedgerResult {
     holdings: LedgerHolding[];
     cashPLN: number;
     violations: LedgerViolation[];
+    /** Net dividends credited to cash, PLN */
+    dividendsPLN: number;
+    /** Paid dividends left out of cash because their exchange rate is missing */
+    unpricedDividends: Dividend[];
 }
 
 /**
@@ -110,13 +115,19 @@ const fmt = (n: number): string => n.toLocaleString('pl-PL', { minimumFractionDi
 
 /**
  * Replay transactions of ONE portfolio and return its holdings, cash and rule violations.
+ * Dividends paid up to `today` add their net amount (after withholding tax) to cash on the payment date,
+ * before that day's transactions.
  *
  * Violations (the replay continues past them so all problems are reported):
  * - cash: cash is below zero at the end of a day with outflows (attributed to the last outflow)
  * - shares: selling more shares than held on that date
  * - currency: buying/selling a ticker in a different currency than its first transaction
  */
-export const replayLedger = (transactions: Transaction[]): LedgerResult => {
+export const replayLedger = (
+    transactions: Transaction[],
+    dividends: Dividend[] = [],
+    today: string = todayLocal()
+): LedgerResult => {
     const positions = new Map<string, LedgerHolding>();
     const tickerCurrency = new Map<string, CurrencyCode>();
     const violations: LedgerViolation[] = [];
@@ -147,8 +158,35 @@ export const replayLedger = (transactions: Transaction[]): LedgerResult => {
         lastOutflow = null;
     };
 
+    const unpricedDividends: Dividend[] = [];
+    const credits = dividends
+        .filter(d => (d.totalAmount || 0) > 0 && d.paymentDate && datePart(d.paymentDate) <= today)
+        .flatMap(d => {
+            const net = dividendNetPLN(d);
+            if (net === null) {
+                unpricedDividends.push(d);
+                return [];
+            }
+            return [{ date: datePart(d.paymentDate), net }];
+        })
+        .sort((a, b) => a.date.localeCompare(b.date));
+    let dividendsPLN = 0;
+    let nextCredit = 0;
+    const creditDividendsUpTo = (date: string) => {
+        while (nextCredit < credits.length && credits[nextCredit]!.date <= date) {
+            const credit = credits[nextCredit++]!;
+            if (credit.date !== currentDay) {
+                closeDay();
+                currentDay = credit.date;
+            }
+            cash += credit.net;
+            dividendsPLN += credit.net;
+        }
+    };
+
     for (const tx of sortTransactions(transactions)) {
         const date = datePart(tx.date);
+        creditDividendsUpTo(date);
         const isTrade = isBuyTransaction(tx.type) || isSellTransaction(tx.type);
         const ticker = (tx.ticker || '').toUpperCase();
 
@@ -221,10 +259,11 @@ export const replayLedger = (transactions: Transaction[]): LedgerResult => {
             lastOutflow = tx;
         }
     }
+    creditDividendsUpTo('9999-12-31');
     closeDay();
 
     const holdings = [...positions.values()].filter(p => p.amount > EPS);
-    return { holdings, cashPLN: cash, violations };
+    return { holdings, cashPLN: cash, violations, dividendsPLN, unpricedDividends };
 };
 
 const violationKey = (v: LedgerViolation): string => `${v.kind}:${v.txId ?? ''}:${v.date}:${v.ticker ?? ''}`;

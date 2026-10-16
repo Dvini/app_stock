@@ -6,15 +6,10 @@ import { apiService } from './ApiService';
 import { TIME_CONSTANTS } from '../utils/constants';
 import type { Asset, Dividend, Transaction, CurrencyCode } from '../types/database';
 import { isBuyTransaction, isSellTransaction } from '../types/database';
-import { addDaysISO, datePart, toLocalISODate, todayLocal } from '../utils/dates';
+import { datePart, toLocalISODate, todayLocal } from '../utils/dates';
 import { sortTransactions } from './ledger';
-
-interface ProcessedDividend extends Dividend {
-    sharesOwned: number;
-    totalAmount: number;
-    exchangeRate: number;
-    valuePLN: number;
-}
+import { refreshSnapshots } from './ledgerStore';
+import { defaultWithholdingRate, dividendRate } from '../utils/dividendTax';
 
 interface UpcomingDividend extends Dividend {
     sharesOwned: number;
@@ -29,6 +24,7 @@ interface DividendData {
     paymentDate: string;
     amountPerShare: number;
     currency?: string;
+    withholdingTaxRate?: number;
     status?: 'upcoming' | 'paid' | 'expected' | 'received';
 }
 
@@ -37,63 +33,29 @@ interface SyncStatistics {
     skipped: number;
 }
 
+export interface DividendUpdate {
+    paymentDate?: string;
+    withholdingTaxRate?: number;
+}
+
 /**
  * Dividend Service
  * Handles dividend calculations, calendar, and historical tracking
  */
 class DividendService {
     /**
-     * Calculate received dividends based on transaction history
-     * Analyzes buy/sell transactions to determine share ownership on record dates
+     * NBP rate for a dividend (business day before payment, art. 11a), or undefined if unavailable.
+     * Never substitutes a placeholder: a missing rate keeps the dividend out of cash and PIT until fixed.
      */
-    async calculateReceivedDividends(): Promise<ProcessedDividend[]> {
-        try {
-            // Get all dividends from database
-            const dividends = await db.dividends.toArray();
+    private async _taxRate(currency: string, paymentDate: string): Promise<number | undefined> {
+        if (currency === 'PLN') return 1;
+        const rateData = await nbpService.getTaxRate(currency, paymentDate);
+        return rateData?.rate;
+    }
 
-            // Get all transactions to calculate share ownership on record dates
-            const transactions = await db.transactions.orderBy('date').toArray();
-
-            // Process each dividend to ensure accurate share counts
-            const processed = await Promise.all(
-                dividends.map(async dividend => {
-                    const pId = dividend.portfolioId ?? 1;
-                    const portTxs = transactions.filter(t => (t.portfolioId ?? 1) === pId);
-
-                    // Calculate shares owned on record date for this portfolio
-                    const sharesOnRecordDate = this._calculateSharesOnDate(
-                        portTxs,
-                        dividend.ticker,
-                        dividend.recordDate
-                    );
-
-                    // Get NBP rate for the payment date (previous day)
-                    let exchangeRate = dividend.exchangeRate;
-                    if (!exchangeRate && dividend.currency !== 'PLN') {
-                        const prevDate = this._getPreviousDay(dividend.paymentDate);
-                        const rateData = await nbpService.getHistoricalRate(dividend.currency || 'USD', prevDate);
-                        exchangeRate = rateData?.rate || 1.0;
-                    }
-
-                    // Calculate values
-                    const totalAmount = sharesOnRecordDate * dividend.amountPerShare;
-                    const valuePLN = totalAmount * (exchangeRate || 1.0);
-
-                    return {
-                        ...dividend,
-                        sharesOwned: sharesOnRecordDate,
-                        totalAmount,
-                        exchangeRate: exchangeRate || 1.0,
-                        valuePLN
-                    };
-                })
-            );
-
-            return processed.filter(d => d.sharesOwned > 0);
-        } catch (error) {
-            console.error('[DividendService] Failed to calculate received dividends:', error);
-            return [];
-        }
+    private async _isTaxExempt(portfolioId: number): Promise<boolean> {
+        const portfolio = await db.portfolios.get(portfolioId);
+        return portfolio?.taxRate === 0;
     }
 
     /**
@@ -119,13 +81,6 @@ class DividendService {
     }
 
     /**
-     * Get previous day (for finding NBP rate)
-     */
-    private _getPreviousDay(dateStr: string): string {
-        return addDaysISO(dateStr, -1);
-    }
-
-    /**
      * Calculate upcoming dividends for next 60 days
      */
     async calculateUpcomingDividends(assets: Asset[], portfolioId?: number | 'ALL'): Promise<UpcomingDividend[]> {
@@ -141,6 +96,12 @@ class DividendService {
                 .and(d => d.status === 'expected' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
+            // Rate for the estimate: stored NBP rate, otherwise the current NBP rate
+            const currentRates = new Map<string, number | undefined>();
+            for (const currency of new Set(upcomingDividends.map(d => d.currency || 'PLN'))) {
+                currentRates.set(currency, currency === 'PLN' ? 1 : (await nbpService.getCurrentRate(currency))?.rate);
+            }
+
             // Calculate estimated amounts based on current holdings
             const processed: UpcomingDividend[] = upcomingDividends.map(dividend => {
                 const pId = dividend.portfolioId ?? 1;
@@ -148,8 +109,8 @@ class DividendService {
                 const sharesOwned = asset?.amount || 0;
                 const estimatedTotal = sharesOwned * dividend.amountPerShare;
 
-                // Use current exchange rate for estimation
-                const estimatedPLN = estimatedTotal * (dividend.exchangeRate || 1.0);
+                const rate = dividendRate(dividend) ?? currentRates.get(dividend.currency || 'PLN');
+                const estimatedPLN = rate ? estimatedTotal * rate : 0;
 
                 return {
                     ...dividend,
@@ -165,24 +126,6 @@ class DividendService {
         } catch (error) {
             console.error('[DividendService] Failed to calculate upcoming dividends:', error);
             return [];
-        }
-    }
-
-    /**
-     * Fetch dividend calendar from Yahoo Finance API
-     * Note: Yahoo Finance doesn't have a dedicated dividend endpoint
-     * This is a placeholder - real implementation may require different approach
-     */
-    async fetchDividendCalendar(ticker: string): Promise<object | null> {
-        try {
-            // Yahoo Finance doesn't have reliable dividend data via their chart API
-            // This would require scraping or alternative API
-            // For now, return null - dividends should be added manually
-            console.warn('[DividendService] fetchDividendCalendar not fully implemented - use manual entry');
-            return null;
-        } catch (error) {
-            console.error(`[DividendService] Failed to fetch dividend calendar for ${ticker}:`, error);
-            return null;
         }
     }
 
@@ -205,13 +148,7 @@ class DividendService {
                 throw new Error('Missing required dividend fields');
             }
 
-            // Get NBP rate for payment date (previous day)
-            let exchangeRate = 1.0;
-            if (currency !== 'PLN') {
-                const prevDate = this._getPreviousDay(paymentDate);
-                const rateData = await nbpService.getHistoricalRate(currency, prevDate);
-                exchangeRate = rateData?.rate || 1.0;
-            }
+            const exchangeRate = await this._taxRate(currency, paymentDate);
 
             // Calculate shares owned on record date
             const portfolioId = dividendData.portfolioId ?? 1;
@@ -220,11 +157,14 @@ class DividendService {
 
             // Calculate values
             const totalAmount = sharesOwned * amountPerShare;
-            const valuePLN = totalAmount * exchangeRate;
+            const valuePLN = exchangeRate ? totalAmount * exchangeRate : undefined;
 
             // Add to database
             const id = await db.dividends.add({
-                portfolioId: dividendData.portfolioId ?? 1,
+                portfolioId,
+                withholdingTaxRate:
+                    dividendData.withholdingTaxRate ??
+                    defaultWithholdingRate(currency, await this._isTaxExempt(portfolioId)),
                 ticker,
                 recordDate,
                 paymentDate,
@@ -238,6 +178,7 @@ class DividendService {
             });
 
             console.log(`[DividendService] Added dividend for ${ticker}: ${amountPerShare} ${currency} (ID: ${id})`);
+            await refreshSnapshots([portfolioId]);
             return id;
         } catch (error) {
             console.error('[DividendService] Failed to add dividend:', error);
@@ -369,6 +310,10 @@ class DividendService {
 
             let added = 0;
             let skipped = 0;
+            const touchedPortfolios = new Set<number>();
+            const exemptPortfolios = new Set(
+                (await db.portfolios.toArray()).filter(p => p.taxRate === 0).map(p => p.id ?? 1)
+            );
 
             // Process each ticker with fallback logic
             for (const ticker of tickers) {
@@ -447,17 +392,12 @@ class DividendService {
                             continue;
                         }
 
-                        // Get NBP rate for the ex-date (use ex-date as payment approximation)
-                        let exchangeRate = 1.0;
-                        if (div.currency !== 'PLN') {
-                            const prevDate = this._getPreviousDay(div.exDate);
-                            const rateData = await nbpService.getHistoricalRate(div.currency, prevDate);
-                            exchangeRate = rateData?.rate || 1.0;
-                        }
+                        // Sources give only the ex-date; it stands in for the payment date until edited
+                        const exchangeRate = await this._taxRate(div.currency, div.exDate);
 
                         // Calculate values
                         const totalAmount = sharesOwned * div.amount;
-                        const valuePLN = totalAmount * exchangeRate;
+                        const valuePLN = exchangeRate ? totalAmount * exchangeRate : undefined;
 
                         // Determine status based on payment date
                         const today = todayLocal();
@@ -475,10 +415,12 @@ class DividendService {
                             exchangeRate,
                             valuePLN,
                             sharesOwned,
-                            status
+                            status,
+                            withholdingTaxRate: defaultWithholdingRate(div.currency, exemptPortfolios.has(targetPortId))
                         });
 
                         added++;
+                        touchedPortfolios.add(targetPortId);
                         console.log(
                             `[DividendService] Added dividend from ${source} for portfolio #${targetPortId}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`
                         );
@@ -487,6 +429,7 @@ class DividendService {
             }
 
             console.log(`[DividendService] Sync complete: ${added} added, ${skipped} skipped`);
+            if (touchedPortfolios.size) await refreshSnapshots([...touchedPortfolios]);
             return { added, skipped };
         } catch (error) {
             console.error('[DividendService] Failed to sync dividends:', error);
@@ -499,12 +442,50 @@ class DividendService {
      */
     async deleteDividend(id: number): Promise<void> {
         try {
+            const dividend = await db.dividends.get(id);
             await db.dividends.delete(id);
             console.log(`[DividendService] Deleted dividend ID: ${id}`);
+            if (dividend) await refreshSnapshots([dividend.portfolioId ?? 1]);
         } catch (error) {
             console.error('[DividendService] Failed to delete dividend:', error);
             throw error;
         }
+    }
+
+    /**
+     * Edit payment date and/or withholding tax rate. A new payment date re-fetches the NBP rate.
+     */
+    async updateDividend(id: number, changes: DividendUpdate): Promise<void> {
+        const dividend = await db.dividends.get(id);
+        if (!dividend) throw new Error(`Dividend ${id} not found`);
+
+        const update: Partial<Dividend> = { ...changes };
+        if (changes.paymentDate && changes.paymentDate !== dividend.paymentDate) {
+            const rate = await this._taxRate(dividend.currency || 'PLN', changes.paymentDate);
+            update.exchangeRate = rate;
+            update.valuePLN = rate ? (dividend.totalAmount || 0) * rate : undefined;
+            update.status = changes.paymentDate > todayLocal() ? 'expected' : 'received';
+        }
+        await db.dividends.update(id, update);
+        await refreshSnapshots([dividend.portfolioId ?? 1]);
+    }
+
+    /**
+     * Fetch missing NBP rates for foreign dividends. Returns how many were filled and how many still lack a rate.
+     */
+    async backfillMissingRates(): Promise<{ filled: number; missing: number }> {
+        const candidates = (await db.dividends.toArray()).filter(d => dividendRate(d) === null);
+        let filled = 0;
+        const touched = new Set<number>();
+        for (const d of candidates) {
+            const rate = await this._taxRate(d.currency || 'PLN', d.paymentDate);
+            if (!rate) continue;
+            await db.dividends.update(d.id!, { exchangeRate: rate, valuePLN: (d.totalAmount || 0) * rate });
+            filled++;
+            touched.add(d.portfolioId ?? 1);
+        }
+        if (touched.size) await refreshSnapshots([...touched]);
+        return { filled, missing: candidates.length - filled };
     }
 
     /**
@@ -546,7 +527,8 @@ class DividendService {
 
                 // Recalculate values
                 const totalAmount = sharesOwned * dividend.amountPerShare;
-                const valuePLN = totalAmount * (dividend.exchangeRate || 1.0);
+                const rate = dividendRate(dividend);
+                const valuePLN = rate === null ? undefined : totalAmount * rate;
 
                 // Update the dividend
                 await db.dividends.update(dividend.id!, {
@@ -562,6 +544,7 @@ class DividendService {
             }
 
             console.log(`[DividendService] Recalculated ${updated} dividends for ${ticker}`);
+            await refreshSnapshots([...new Set(dividends.map(d => d.portfolioId ?? 1))]);
             return updated;
         } catch (error) {
             console.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
@@ -600,6 +583,7 @@ class DividendService {
             }
 
             console.log(`[DividendService] Migration complete: ${updated} updated, ${skipped} already correct`);
+            if (updated > 0) await refreshSnapshots();
             return { updated, skipped };
         } catch (error) {
             console.error('[DividendService] Failed to migrate dividend status:', error);

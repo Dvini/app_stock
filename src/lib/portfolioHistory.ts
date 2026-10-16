@@ -1,6 +1,8 @@
-import { getExchangeRateWithFallback } from '../utils/currencyHelpers';
 import { getPriceAt, fetchHistoricalData } from './portfolioHistoryHelpers';
-import type { Transaction } from '../types/database';
+import type { Dividend, Transaction } from '../types/database';
+import { sortTransactions } from './ledger';
+import { datePart, toLocalISODate } from '../utils/dates';
+import { dividendNetPLN } from '../utils/dividendTax';
 import { isBuyTransaction, isSellTransaction, isDepositTransaction, isWithdrawTransaction } from '../types/database';
 
 interface HistoryDataPoint {
@@ -18,12 +20,27 @@ export const calculatePortfolioHistory = async (
     transactions: Transaction[],
     range: string = '1mo',
     excludeCash: boolean = false,
-    returnNative: boolean = false
+    returnNative: boolean = false,
+    dividends: Dividend[] = []
 ): Promise<PortfolioHistoryResult> => {
     if (!transactions || transactions.length === 0) return { data: [], sessionDate: undefined };
 
     // Sort transactions by date first to ensure correct timeline
-    const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedTx = sortTransactions(transactions);
+
+    // Last rate actually applied per currency - used when FX history has no point for a day
+    const lastTxRate: Record<string, number> = {};
+    sortedTx.forEach(t => {
+        if (t.currency && t.currency !== 'PLN' && t.exchangeRate) lastTxRate[t.currency] = t.exchangeRate;
+    });
+
+    // Net dividends credited to cash on payment date (same rule as the ledger)
+    const dividendCredits = excludeCash
+        ? []
+        : dividends.flatMap(d => {
+              const net = dividendNetPLN(d);
+              return net !== null && (d.totalAmount || 0) > 0 ? [{ date: datePart(d.paymentDate), net }] : [];
+          });
     const now = new Date();
     let startDate = new Date();
 
@@ -172,7 +189,9 @@ export const calculatePortfolioHistory = async (
 
     const resultSeries: HistoryDataPoint[] = timeline.map(day => {
         // IMPORTANT: Use ALL transactions up to this point for accurate P/L
-        const relevantTx = sortedTx.filter(t => new Date(t.date) <= day);
+        // Compare calendar dates: new Date('YYYY-MM-DD') is UTC midnight, `day` is local
+        const dayStr = toLocalISODate(day);
+        const relevantTx = sortedTx.filter(t => datePart(t.date) <= dayStr);
         const portfolio: Record<string, number> = {};
         let cash = 0;
         let investedPLN = 0;
@@ -182,24 +201,9 @@ export const calculatePortfolioHistory = async (
         relevantTx.forEach(tx => {
             let txTotalPLN = tx.total;
 
-            // Calculate Cash Deduction in PLN
+            // Cash movement in PLN at the rate actually applied (same as the ledger)
             if (tx.currency && tx.currency !== 'PLN' && !excludeCash) {
-                const txDate = new Date(tx.date);
-                let rateAtTx = 0;
-                const fxHistory = fxHistories[tx.currency];
-                if (fxHistory) {
-                    rateAtTx = getPriceAt(fxHistory, txDate);
-                }
-
-                // Fallback if History missing for that date (e.g. today)
-                if (!rateAtTx || rateAtTx === 0) {
-                    if (fxHistory && fxHistory.length > 0) {
-                        rateAtTx = fxHistory[fxHistory.length - 1]?.price || 0;
-                    }
-                }
-
-                rateAtTx = getExchangeRateWithFallback(tx.currency, rateAtTx);
-                txTotalPLN = tx.total * rateAtTx;
+                txTotalPLN = tx.total * (tx.exchangeRate || lastTxRate[tx.currency] || 0);
             }
 
             // --- TRACKING INVESTED CAPITAL & COST BASIS ---
@@ -269,7 +273,7 @@ export const calculatePortfolioHistory = async (
                         if (fxHistory && fxHistory.length > 0) {
                             rate = getPriceAt(fxHistory, queryDate);
                         }
-                        rate = getExchangeRateWithFallback(currency, rate);
+                        if (!rate) rate = lastTxRate[currency] ?? 0;
                         valuePLN = valueNative * rate;
                     }
                     totalValue += valuePLN;
@@ -280,7 +284,7 @@ export const calculatePortfolioHistory = async (
         if (returnNative) {
             totalPL = totalValue - investedNative;
         } else {
-            totalValue += cash;
+            totalValue += cash + dividendCredits.reduce((s, c) => (c.date <= dayStr ? s + c.net : s), 0);
             totalPL = totalValue - investedPLN;
         }
 

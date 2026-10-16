@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { calculateNetProfitLoss, matchFIFOClosedTrades, generatePIT38Report } from './taxCalculations';
-import type { Transaction, PortfolioAccount } from '../types/database';
+import {
+    calculateNetProfitLoss,
+    matchFIFOClosedTrades,
+    generatePIT38Report,
+    generateForeignDividendReport
+} from './taxCalculations';
+import type { Transaction, PortfolioAccount, Dividend } from '../types/database';
 
 describe('taxCalculations', () => {
     describe('calculateNetProfitLoss', () => {
@@ -263,7 +268,8 @@ describe('taxCalculations', () => {
                     gainLossPLN: 290,
                     taxLiabilityPLN: 55.1,
                     lots: [],
-                    unmatchedShares: 0
+                    unmatchedShares: 0,
+                    usesBrokerRate: false
                 }
             ];
 
@@ -298,7 +304,8 @@ describe('taxCalculations', () => {
                     gainLossPLN: 1000,
                     taxLiabilityPLN: 0,
                     lots: [],
-                    unmatchedShares: 0
+                    unmatchedShares: 0,
+                    usesBrokerRate: false
                 }
             ];
 
@@ -306,5 +313,139 @@ describe('taxCalculations', () => {
             expect(report.taxDuePLN).toBe(0); // Exempt!
             expect(report.taxSavedIKEPLN).toBe(190); // 1000 * 19%
         });
+    });
+});
+
+describe('tax exchange rates and rounding', () => {
+    const portfolio: PortfolioAccount = {
+        id: 1,
+        name: 'Standard',
+        type: 'standard',
+        currency: 'PLN',
+        taxRate: 19,
+        createdAt: ''
+    };
+    const usdTrade = (
+        id: number,
+        type: 'Kupno' | 'Sprzedaż',
+        date: string,
+        price: number,
+        extra: Partial<Transaction> = {}
+    ): Transaction => ({
+        id,
+        portfolioId: 1,
+        date,
+        type,
+        ticker: 'AAPL',
+        amount: 10,
+        price,
+        total: 10 * price,
+        currency: 'USD',
+        exchangeRate: 4.2,
+        ...extra
+    });
+
+    it('uses the NBP tax rate (D-1) instead of the broker rate', () => {
+        const trades = matchFIFOClosedTrades(
+            [
+                usdTrade(1, 'Kupno', '2025-01-10', 100, { taxExchangeRate: 4.0 }),
+                usdTrade(2, 'Sprzedaż', '2025-02-10', 120, { taxExchangeRate: 4.1 })
+            ],
+            [portfolio]
+        );
+        expect(trades[0]!.revenuePLN).toBeCloseTo(10 * 120 * 4.1);
+        expect(trades[0]!.costBasisPLN).toBeCloseTo(10 * 100 * 4.0);
+        expect(trades[0]!.usesBrokerRate).toBe(false);
+    });
+
+    it('flags trades converted at the broker rate when the NBP rate is missing', () => {
+        const trades = matchFIFOClosedTrades(
+            [
+                usdTrade(1, 'Kupno', '2025-01-10', 100),
+                usdTrade(2, 'Sprzedaż', '2025-02-10', 120, { taxExchangeRate: 4.1 })
+            ],
+            [portfolio]
+        );
+        expect(trades[0]!.usesBrokerRate).toBe(true);
+        expect(generatePIT38Report(trades, 2025).brokerRateTradeCount).toBe(1);
+    });
+
+    it('rounds the tax base and the tax to full złoty (art. 63)', () => {
+        const pln = (id: number, type: 'Kupno' | 'Sprzedaż', price: number): Transaction => ({
+            id,
+            portfolioId: 1,
+            date: type === 'Kupno' ? '2025-01-10' : '2025-02-10',
+            type,
+            ticker: 'CDR',
+            amount: 1,
+            price,
+            total: price,
+            currency: 'PLN',
+            exchangeRate: 1
+        });
+        // income 102.49 -> base 102 -> tax 19.38 -> 19
+        const r1 = generatePIT38Report(
+            matchFIFOClosedTrades([pln(1, 'Kupno', 100), pln(2, 'Sprzedaż', 202.49)], [portfolio]),
+            2025
+        );
+        expect(r1.taxBasePLN).toBe(102);
+        expect(r1.taxDuePLN).toBe(19);
+        // income 102.50 -> base 103 -> tax 19.57 -> 20
+        const r2 = generatePIT38Report(
+            matchFIFOClosedTrades([pln(1, 'Kupno', 100), pln(2, 'Sprzedaż', 202.5)], [portfolio]),
+            2025
+        );
+        expect(r2.taxBasePLN).toBe(103);
+        expect(r2.taxDuePLN).toBe(20);
+    });
+});
+
+describe('generateForeignDividendReport', () => {
+    const portfolios: PortfolioAccount[] = [
+        { id: 1, name: 'Standard', type: 'standard', currency: 'PLN', taxRate: 19, createdAt: '' },
+        { id: 2, name: 'IKE', type: 'ike', currency: 'PLN', taxRate: 0, createdAt: '' }
+    ];
+    const div = (extra: Partial<Dividend>): Dividend => ({
+        portfolioId: 1,
+        ticker: 'AAPL',
+        recordDate: '2025-05-10',
+        paymentDate: '2025-05-15',
+        amountPerShare: 1,
+        totalAmount: 100,
+        currency: 'USD',
+        exchangeRate: 4,
+        withholdingTaxRate: 15,
+        status: 'received',
+        ...extra
+    });
+
+    it('computes 19% tax minus foreign withholding, capped at 19%', () => {
+        const report = generateForeignDividendReport(
+            [div({}), div({ ticker: 'NESN', currency: 'CHF', exchangeRate: 4.5, withholdingTaxRate: 35 })],
+            portfolios,
+            2025
+        );
+        // USD: gross 400, tax 76, credit 60 -> 16; CHF: gross 450, tax 85.5, credit capped 85.5 -> 0
+        expect(report.grossPLN).toBeCloseTo(850);
+        expect(report.taxPLN).toBe(162); // 161.5 -> 162
+        expect(report.creditPLN).toBe(146); // 60 + 85.5 = 145.5 -> 146
+        expect(report.toPayPLN).toBe(16);
+        expect(report.rows[0]!.taxToPayPLN).toBeCloseTo(16);
+    });
+
+    it('excludes Polish dividends, IKE accounts, other years and reports missing rates', () => {
+        const report = generateForeignDividendReport(
+            [
+                div({ currency: 'PLN', exchangeRate: 1 }),
+                div({ portfolioId: 2 }),
+                div({ paymentDate: '2024-12-20' }),
+                div({ exchangeRate: undefined })
+            ],
+            portfolios,
+            2025
+        );
+        expect(report.rows).toHaveLength(1);
+        expect(report.missingRateCount).toBe(1);
+        expect(report.toPayPLN).toBe(0);
     });
 });

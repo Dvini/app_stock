@@ -2,7 +2,7 @@
  * UI Components - Reusable display components
  */
 
-import { XCircle, X } from 'lucide-react';
+import { XCircle, X, AlertTriangle } from 'lucide-react';
 
 interface ErrorBannerProps {
     error: string | null;
@@ -88,5 +88,25 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', cla
             role="status"
             aria-label="Ładowanie"
         />
+    );
+};
+
+interface MissingRatesNoticeProps {
+    currencies: string[];
+}
+
+/**
+ * Shown when live exchange rates are unavailable: those positions are left out of PLN totals
+ */
+export const MissingRatesNotice: React.FC<MissingRatesNoticeProps> = ({ currencies }) => {
+    if (currencies.length === 0) return null;
+    return (
+        <div
+            data-testid="missing-rates-notice"
+            className="shrink-0 bg-amber-950/30 border border-amber-800/50 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-amber-300"
+        >
+            <AlertTriangle size={14} className="shrink-0" />
+            Brak aktualnego kursu {currencies.join(', ')}/PLN — pozycje w tej walucie nie są wliczone do sum w PLN.
+        </div>
     );
 };

@@ -214,19 +214,16 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
 
                 const targetPortfolioId = effectivePortfolioId === 'ALL' ? 1 : effectivePortfolioId;
 
-                // Add to database
-                await db.dividends.add({
+                // Through the service: NBP rate, withholding default and cash snapshot refresh
+                await dividendService.addDividend({
                     portfolioId: targetPortfolioId,
                     ticker: dividendData.ticker.toUpperCase(),
                     recordDate: dividendData.recordDate,
                     paymentDate: dividendData.paymentDate,
                     amountPerShare: dividendData.amountPerShare,
                     currency: dividendData.currency || 'PLN',
-                    status: dividendData.status || 'upcoming',
-                    sharesOwned: dividendData.sharesOwned,
-                    totalAmount: dividendData.totalAmount,
-                    exchangeRate: dividendData.exchangeRate,
-                    valuePLN: dividendData.valuePLN
+                    status: dividendData.status,
+                    withholdingTaxRate: dividendData.withholdingTaxRate
                 });
             } catch (err) {
                 console.error('[useDividends] Error adding dividend:', err);

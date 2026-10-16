@@ -27,6 +27,7 @@ interface ProcessedAsset {
     value: string;
     valueBase: number;
     rate: number;
+    hasRate: boolean;
     pl: string;
     plValue: number;
     isRealData: boolean;
@@ -67,6 +68,8 @@ interface PortfolioSummary {
     isLoadingPrices: boolean;
     breakdown: CurrencyBreakdown[];
     taxRate?: number;
+    /** Currencies without a live exchange rate; their positions are left out of PLN totals */
+    missingRateCurrencies: string[];
 }
 
 export interface UsePortfolioReturn {
@@ -150,14 +153,14 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
     }, [currencies, watchlist, allCash, baseCurrency]);
 
     // Fetch exchange rates
-    const { rates: exchangeRates } = useExchangeRates(neededCurrencies, {
+    const { rates: exchangeRates, isLoading: isLoadingRates } = useExchangeRates(neededCurrencies, {
         targetCurrency: baseCurrency
     });
 
     const currentCash = useMemo(() => {
         const ratesMap = exchangeRates as Record<string, number>;
         return allCash.reduce((sum, c) => {
-            const rate = c.currency === baseCurrency ? 1 : ratesMap[c.currency] || 1;
+            const rate = c.currency === baseCurrency ? 1 : (ratesMap[c.currency] ?? 0);
             return sum + (c.amount || 0) * rate;
         }, 0);
     }, [allCash, baseCurrency, exchangeRates]);
@@ -175,8 +178,11 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
             // Native value (in asset's currency)
             const valueNative = asset.amount * valuationPrice;
 
-            // Exchange rate for conversion
-            const rate = currency === baseCurrency ? 1 : exchangeRates[currency] || 1;
+            // Exchange rate for conversion; 0 when unknown so the position is left out of totals
+            // instead of being counted 1:1 (100 USD as 100 PLN)
+            const knownRate = currency === baseCurrency ? 1 : exchangeRates[currency];
+            const hasRate = !!knownRate && knownRate > 0;
+            const rate = hasRate ? knownRate! : 0;
 
             // Value in base currency
             const valueBase = valueNative * rate;
@@ -205,6 +211,7 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
                 value: formatNumber(valueNative),
                 valueBase,
                 rate,
+                hasRate,
                 pl: `${plValueNative > 0 ? '+' : ''}${formatNumber(plValueNative)} ${currency} (${formatNumber(plPercent)}%)`,
                 plValue: plValueNative,
                 isRealData: !!priceData,
@@ -282,6 +289,9 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
         const isTaxExempt = !isAllPortfolios && contextPortfolio?.taxRate === 0;
 
         const hasForeignAssets = processedAssets.some(a => a.currency !== baseCurrency);
+        const missingRateCurrencies = isLoadingRates
+            ? []
+            : [...new Set(processedAssets.filter(a => !a.hasRate).map(a => a.currency))];
         const approxPrefix = hasForeignAssets ? '~ ' : '';
 
         return {
@@ -299,7 +309,8 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
             baseCurrency,
             isLoadingPrices,
             breakdown: breakdownEntries,
-            taxRate: isAllPortfolios ? undefined : (contextPortfolio?.taxRate ?? 19)
+            taxRate: isAllPortfolios ? undefined : (contextPortfolio?.taxRate ?? 19),
+            missingRateCurrencies
         };
     }, [
         processedAssets,
@@ -309,7 +320,8 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
         isLoadingPrices,
         allCash,
         isAllPortfolios,
-        contextPortfolio
+        contextPortfolio,
+        isLoadingRates
     ]);
 
     return {

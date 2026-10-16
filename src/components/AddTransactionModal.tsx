@@ -41,6 +41,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [price, setPrice] = useState(editTx ? String(editTx.price ?? editTx.total) : '');
     const [currency, setCurrency] = useState<CurrencyCode>(editTx?.currency ?? 'PLN');
     const [exchangeRate, setExchangeRate] = useState(editTx?.exchangeRate ? String(editTx.exchangeRate) : '1.0');
+    const [rateUnavailable, setRateUnavailable] = useState(false);
+    // A rate typed by the user must not be overwritten by a fetch that resolves later
+    const rateEditedByUser = useRef(false);
     const [type, setType] = useState<DbTransactionType>(editTx?.type ?? 'Kupno');
     const [date, setDate] = useState(editTx ? editTx.date.slice(0, 10) : todayLocal());
     // In edit mode keep the stored rate until currency or date is changed
@@ -68,14 +71,23 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }, [selectedPortfolioId]);
 
     useEffect(() => {
+        // Ignore results of a fetch superseded by a newer currency/date
+        let cancelled = false;
+        rateEditedByUser.current = false;
+        const setRate = (value: string) => {
+            if (!cancelled && !rateEditedByUser.current) setExchangeRate(value);
+        };
         const fetchRate = async () => {
             if (storedRateKey.current === `${currency}|${date}`) return;
             storedRateKey.current = null;
+            setRateUnavailable(false);
 
             if (currency === 'PLN') {
-                setExchangeRate('1.0');
+                setRate('1.0');
                 return;
             }
+            // Clear the previous currency's rate while fetching, so it can never be saved by mistake
+            setRate('');
 
             try {
                 const today = todayLocal();
@@ -85,7 +97,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     const pair = `${currency}PLN=X`;
                     const rateData = await fetchCurrentPrice(pair);
                     if (rateData && rateData.price) {
-                        setExchangeRate(rateData.price.toFixed(4));
+                        setRate(rateData.price.toFixed(4));
                         return;
                     }
                 } else {
@@ -94,7 +106,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
                     if (nbpData && nbpData.rate) {
                         console.log('[AddTransactionModal] Using NBP rate:', nbpData.rate);
-                        setExchangeRate(nbpData.rate.toFixed(4));
+                        setRate(nbpData.rate.toFixed(4));
                         return;
                     }
 
@@ -102,19 +114,21 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     const historicalData = await fetchHistoricalRate(currency, date || '');
                     if (historicalData && historicalData.rate) {
                         console.log('[AddTransactionModal] Using Yahoo Finance rate:', historicalData.rate);
-                        setExchangeRate(historicalData.rate.toFixed(4));
+                        setRate(historicalData.rate.toFixed(4));
                         return;
                     }
                 }
 
-                if (currency === 'USD') setExchangeRate('4.00');
-                else if (currency === 'EUR') setExchangeRate('4.30');
-                else setExchangeRate('1.0');
+                if (!cancelled) setRateUnavailable(true);
             } catch (e) {
                 console.warn('Rate fetch failed', e);
+                if (!cancelled) setRateUnavailable(true);
             }
         };
         fetchRate();
+        return () => {
+            cancelled = true;
+        };
     }, [currency, date]);
 
     useEffect(() => {
@@ -140,7 +154,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
     const numAmount = parseFloat(amount) || 0;
     const numPrice = parseFloat(price) || 0;
-    const numRate = parseFloat(exchangeRate) || 1.0;
+    const numRate = currency === 'PLN' ? 1 : parseFloat(exchangeRate) || 0;
     const numCommission = parseFloat(commission) || 0;
     // Commission is charged either in PLN or in the transaction currency
     const effectiveCommissionCurrency: CurrencyCode = commissionCurrency === currency ? currency : 'PLN';
@@ -180,6 +194,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
         if (isDeposit && !price) return;
 
+        if (currency !== 'PLN' && !(numRate > 0)) {
+            toast.error('Podaj kurs waluty', {
+                description: `Nie udało się pobrać kursu ${currency}/PLN — wpisz kurs zastosowany przez brokera.`
+            });
+            return;
+        }
+
         if (!isDeposit && !isWithdraw) {
             const valAmount = parseFloat(amount);
             const valPrice = parseFloat(price);
@@ -208,6 +229,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         const txPrice = parseFloat(price);
         const txCommission = parseFloat(commission) || 0;
 
+        // Tax rate (NBP, business day before the transaction) for foreign trades; kept on edit if unchanged
+        let taxExchangeRate: number | undefined;
+        if (currency !== 'PLN' && !isDeposit && !isWithdraw) {
+            const unchanged = editTx && editTx.currency === currency && editTx.date.slice(0, 10) === date;
+            taxExchangeRate = unchanged ? editTx.taxExchangeRate : undefined;
+            taxExchangeRate ??= (await nbpService.getTaxRate(currency, date))?.rate;
+        }
+
         const record: Transaction = {
             portfolioId: selectedPortfolioId,
             date,
@@ -217,7 +246,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             price: txPrice,
             currency,
             total: txAmount * txPrice,
-            exchangeRate: parseFloat(exchangeRate) || 1.0,
+            exchangeRate: numRate,
+            taxExchangeRate,
             commission: txCommission > 0 ? txCommission : undefined,
             commissionCurrency: txCommission > 0 ? effectiveCommissionCurrency : undefined
         };
@@ -250,6 +280,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         }
 
         if (isEdit) toast.success('Transakcja zaktualizowana');
+        if (currency !== 'PLN' && !isDeposit && !isWithdraw && !taxExchangeRate) {
+            toast.warning('Brak kursu NBP do rozliczenia podatku', {
+                description: 'Transakcja zapisana. Kurs uzupełnisz na stronie Podatki (PIT-38).'
+            });
+        }
 
         if (onTransactionAdded) onTransactionAdded();
         onClose();
@@ -555,11 +590,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                                 <input
                                     type="number"
                                     step="0.01"
+                                    data-testid="exchange-rate-input"
                                     value={exchangeRate}
-                                    onChange={e => setExchangeRate(e.target.value)}
-                                    placeholder="4.00"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-mono"
+                                    onChange={e => {
+                                        rateEditedByUser.current = true;
+                                        setExchangeRate(e.target.value);
+                                    }}
+                                    placeholder="kurs"
+                                    className={`w-full bg-slate-950 border rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-mono ${rateUnavailable && !exchangeRate ? 'border-amber-500' : 'border-slate-800'}`}
                                 />
+                                {rateUnavailable && !exchangeRate && (
+                                    <p className="text-[11px] text-amber-400 mt-1 ml-1">Brak kursu — wpisz ręcznie</p>
+                                )}
                             </div>
                         )}
                     </div>

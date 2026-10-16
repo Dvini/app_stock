@@ -1,7 +1,14 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../db/db';
-import { addTransaction, updateTransaction, deleteTransaction, reconcileDatabase, LedgerError } from './ledgerStore';
+import {
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    reconcileDatabase,
+    refreshSnapshots,
+    LedgerError
+} from './ledgerStore';
 import { CORRECTION_NOTE, loadLedgerReport } from './ledgerReconcile';
 import type { Transaction } from '../types/database';
 
@@ -122,7 +129,7 @@ describe('reconcileDatabase', () => {
             currency: 'PLN'
         });
 
-        const report = await reconcileDatabase('import');
+        const report = await reconcileDatabase('import', { storedCashIncludesDividends: true });
 
         const correction = await db.transactions.filter(t => t.note === CORRECTION_NOTE).first();
         expect(correction).toMatchObject({ type: 'Wpłata', total: 500, date: '2025-01-05' });
@@ -136,7 +143,7 @@ describe('reconcileDatabase', () => {
         await db.transactions.add(deposit('2025-01-05', 1000));
         await db.portfolioCash.add({ portfolioId: 1, currency: 'PLN', amount: 900 });
 
-        await reconcileDatabase('import');
+        await reconcileDatabase('import', { storedCashIncludesDividends: true });
 
         const correction = await db.transactions.filter(t => t.note === CORRECTION_NOTE).first();
         expect(correction).toMatchObject({ type: 'Wypłata', total: 100 });
@@ -145,9 +152,60 @@ describe('reconcileDatabase', () => {
 
     it('does nothing and stores no report when data is consistent', async () => {
         await addTransaction(deposit('2025-01-01', 1000));
-        const report = await reconcileDatabase('import');
+        const report = await reconcileDatabase('import', { storedCashIncludesDividends: true });
         expect(report).toEqual([]);
         expect(loadLedgerReport()).toBeNull();
         expect(await db.transactions.count()).toBe(1);
+    });
+});
+
+describe('dividends and cash', () => {
+    const plnDividend = (paymentDate: string, totalAmount: number, portfolioId = 1) => ({
+        portfolioId,
+        ticker: 'CDR',
+        recordDate: paymentDate,
+        paymentDate,
+        amountPerShare: 1,
+        totalAmount,
+        currency: 'PLN' as const,
+        exchangeRate: 1,
+        withholdingTaxRate: 19,
+        status: 'received' as const
+    });
+
+    it('legacy reconcile adds dividends to cash without a correction and reports it', async () => {
+        await db.transactions.add(deposit('2025-01-01', 1000));
+        await db.dividends.add(plnDividend('2025-02-01', 100));
+        await db.portfolioCash.add({ portfolioId: 1, currency: 'PLN', amount: 1000 }); // cash before dividends
+
+        const report = await reconcileDatabase('migration', { storedCashIncludesDividends: false });
+
+        expect(await db.transactions.count()).toBe(1);
+        expect(await cashOf()).toBeCloseTo(1081);
+        expect(report.some(l => l.includes('doliczono 81,00 zł'))).toBe(true);
+    });
+
+    it('reconcile of a new-format backup expects cash to include dividends', async () => {
+        await db.transactions.add(deposit('2025-01-01', 1000));
+        await db.dividends.add(plnDividend('2025-02-01', 100));
+        await db.portfolioCash.add({ portfolioId: 1, currency: 'PLN', amount: 1081 });
+
+        const report = await reconcileDatabase('import', { storedCashIncludesDividends: true });
+
+        expect(report).toEqual([]);
+        expect(await cashOf()).toBeCloseTo(1081);
+    });
+
+    it('refreshSnapshots credits a newly added dividend', async () => {
+        await addTransaction(deposit('2025-01-01', 1000));
+        await db.dividends.add(plnDividend('2025-02-01', 100));
+        await refreshSnapshots([1]);
+        expect(await cashOf()).toBeCloseTo(1081);
+    });
+
+    it('validation counts dividends as available cash', async () => {
+        await db.dividends.add(plnDividend('2025-02-01', 100));
+        await refreshSnapshots();
+        await expect(addTransaction(buy('2025-02-02', 'CDR', 1, 80))).resolves.toBeTypeOf('number');
     });
 });

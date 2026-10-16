@@ -4,7 +4,7 @@
  */
 
 import type { Table } from 'dexie';
-import type { Asset, Cash, Transaction } from '../types/database';
+import type { Asset, Cash, Dividend, Transaction } from '../types/database';
 import { replayLedger, type LedgerResult } from './ledger';
 import { datePart, todayLocal } from '../utils/dates';
 
@@ -12,12 +12,28 @@ export interface LedgerTables {
     transactions: Table<Transaction, number>;
     assets: Table<Asset, number>;
     cash: Table<Cash, number>;
+    dividends: Table<Dividend, number>;
 }
 
 export const CORRECTION_NOTE = 'Korekta salda (uzgodnienie z historią)';
 
 export const loadPortfolioTransactions = (tables: LedgerTables, portfolioId: number): Promise<Transaction[]> =>
     tables.transactions.filter(t => (t.portfolioId ?? 1) === portfolioId).toArray();
+
+export const loadPortfolioDividends = (tables: LedgerTables, portfolioId: number): Promise<Dividend[]> =>
+    tables.dividends.filter(d => (d.portfolioId ?? 1) === portfolioId).toArray();
+
+/**
+ * Replay one portfolio from the tables and refresh its snapshot (after dividend changes, day change)
+ */
+export const refreshPortfolio = async (tables: LedgerTables, portfolioId: number): Promise<LedgerResult> => {
+    const result = replayLedger(
+        await loadPortfolioTransactions(tables, portfolioId),
+        await loadPortfolioDividends(tables, portfolioId)
+    );
+    await materializePortfolio(tables, portfolioId, result);
+    return result;
+};
 
 /**
  * Overwrite the `assets` and `cash` rows of a portfolio with a ledger result.
@@ -70,12 +86,15 @@ const fmt = (n: number): string => n.toLocaleString('pl-PL', { minimumFractionDi
  *   withdrawal (dated today), so the displayed cash does not change
  * - share differences and non-PLN cash are only reported; the history wins
  * - existing history problems (uncovered buys, oversold shares) are reported
+ * - when stored cash predates dividend crediting (`storedCashIncludesDividends: false`), the
+ *   comparison ignores dividends and the newly credited amount is reported
  *
- * Must run inside a rw transaction covering the three tables. Returns report lines.
+ * Must run inside a rw transaction covering the tables. Returns report lines.
  */
 export const reconcileAll = async (
     tables: LedgerTables,
-    portfolios: Array<{ id?: number; name: string }>
+    portfolios: Array<{ id?: number; name: string }>,
+    { storedCashIncludesDividends }: { storedCashIncludesDividends: boolean }
 ): Promise<string[]> => {
     const report: string[] = [];
 
@@ -83,7 +102,8 @@ export const reconcileAll = async (
         const portfolioId = p.id ?? 1;
         const label = `[${p.name}]`;
         const txs = await loadPortfolioTransactions(tables, portfolioId);
-        let result = replayLedger(txs);
+        const dividends = await loadPortfolioDividends(tables, portfolioId);
+        let result = replayLedger(txs, dividends);
 
         const storedCash = await tables.cash.filter(c => (c.portfolioId ?? 1) === portfolioId).toArray();
         const storedPLN = storedCash.filter(c => c.currency === 'PLN').reduce((s, c) => s + (c.amount || 0), 0);
@@ -95,7 +115,8 @@ export const reconcileAll = async (
                 )
             );
 
-        const diff = storedPLN - result.cashPLN;
+        const expectedStored = storedCashIncludesDividends ? result.cashPLN : result.cashPLN - result.dividendsPLN;
+        const diff = storedPLN - expectedStored;
         if (Math.abs(diff) > 0.005) {
             const amount = Math.round(Math.abs(diff) * 100) / 100;
             const firstDate = txs.map(t => datePart(t.date)).sort()[0];
@@ -115,7 +136,18 @@ export const reconcileAll = async (
             report.push(
                 `${label} Saldo gotówki różniło się od historii o ${fmt(diff)} zł — dodano transakcję korygującą „${correction.type}” z dnia ${correction.date}.`
             );
-            result = replayLedger([...txs, correction]);
+            result = replayLedger([...txs, correction], dividends);
+        }
+
+        if (!storedCashIncludesDividends && result.dividendsPLN > 0.005) {
+            report.push(
+                `${label} Do gotówki doliczono ${fmt(result.dividendsPLN)} zł otrzymanych dywidend (netto). Jeśli wpisywałeś je wcześniej ręcznie jako wpłaty, usuń te wpłaty, żeby nie liczyć ich podwójnie.`
+            );
+        }
+        if (result.unpricedDividends.length > 0) {
+            report.push(
+                `${label} ${result.unpricedDividends.length} dywidend bez kursu NBP nie zostało doliczonych do gotówki — uzupełnij kursy na stronie Podatki.`
+            );
         }
 
         const storedAssets = await tables.assets.filter(a => (a.portfolioId ?? 1) === portfolioId).toArray();

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Info, RefreshCw } from 'lucide-react';
+import { Info, RefreshCw, Pencil } from 'lucide-react';
+import { DividendEditModal } from '../components/DividendEditModal';
+import { dividendNetPLN, dividendRate, dividendWithholdingRate } from '../utils/dividendTax';
 import { cn } from '../lib/utils';
 import { useDividends } from '../hooks/useDividends';
 import { usePortfolioAccount } from '../context/PortfolioContext';
@@ -54,8 +56,9 @@ export const Dividends = () => {
         }
     };
 
+    // Net of tax withheld at source - what actually reached the account
     const totalReceivedPLN = useMemo(() => {
-        return received.reduce((sum, div) => sum + (div.valuePLN || 0), 0);
+        return received.reduce((sum, div) => sum + (dividendNetPLN(div) ?? 0), 0);
     }, [received]);
 
     const previousYearTotal = useMemo(() => {
@@ -228,6 +231,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
     isAllPortfolios
 }) => {
     const parentRef = useRef<HTMLDivElement>(null);
+    const [editing, setEditing] = useState<(Dividend & { id: number }) | null>(null);
 
     const portfolioMap = useMemo(() => {
         const map = new Map<number, PortfolioAccount>();
@@ -242,14 +246,14 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
     const rowVirtualizer = useVirtualizer({
         count: received.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 50, // Estimated row height in pixels
+        estimateSize: () => 58, // Estimated row height in pixels
         overscan: 5 // Number of items to render outside visible area
     });
 
     // Grid column template for full-width responsive columns
     const gridTemplate = showPortfolio
-        ? 'minmax(90px, 1fr) minmax(100px, 1fr) minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(110px, 1.1fr) minmax(50px, 0.5fr)'
-        : 'minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr)';
+        ? 'minmax(90px, 1fr) minmax(100px, 1fr) minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(110px, 1.1fr) minmax(50px, 0.5fr) 36px'
+        : 'minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(120px, 1.3fr) minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(130px, 1.4fr) minmax(70px, 0.7fr) 36px';
 
     return (
         <div
@@ -262,7 +266,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                     <p className="text-xs text-slate-500 mt-0.5">Historia wypłaconych dywidend</p>
                 </div>
                 <div className="text-right">
-                    <p className="text-xs text-slate-500">Suma wszystkich wypłat</p>
+                    <p className="text-xs text-slate-500">Suma wypłat netto</p>
                     <p className="text-2xl font-bold text-emerald-400 font-mono">
                         {formatNumber(totalReceivedPLN)} PLN
                     </p>
@@ -295,8 +299,9 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                             <div className="text-right">DPS</div>
                             <div className="text-right">Kwota</div>
                             <div className="text-right">Kurs NBP</div>
-                            <div className="text-right">Wartość PLN</div>
-                            <div className="text-center">Akcje</div>
+                            <div className="text-right">Netto PLN</div>
+                            <div className="text-center">Szt.</div>
+                            <div />
                         </div>
 
                         {/* Virtualized rows */}
@@ -310,6 +315,8 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                                 const div = received[virtualRow.index];
                                 if (!div) return null;
                                 const p = portfolioMap.get(div.portfolioId ?? 1);
+                                const rate = dividendRate(div);
+                                const net = dividendNetPLN(div);
                                 return (
                                     <div
                                         key={div.id}
@@ -357,12 +364,33 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                                             <span className="text-xs text-slate-500">{div.currency}</span>
                                         </div>
                                         <div className="text-right text-slate-400 font-mono text-sm">
-                                            {div.currency !== 'PLN' ? formatNumber(div.exchangeRate, 4, 4) : '-'}
+                                            {div.currency === 'PLN' ? (
+                                                '-'
+                                            ) : rate !== null ? (
+                                                formatNumber(rate, 4, 4)
+                                            ) : (
+                                                <span className="text-amber-400" title="Brak kursu NBP">
+                                                    brak
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="text-right font-mono font-bold text-emerald-400">
-                                            {formatNumber(div.valuePLN)} PLN
+                                        <div className="text-right font-mono">
+                                            <div className="font-bold text-emerald-400">
+                                                {net !== null ? `${formatNumber(net)} PLN` : '—'}
+                                            </div>
+                                            <div className="text-[10px] text-slate-500">
+                                                podatek u źródła {dividendWithholdingRate(div)}%
+                                            </div>
                                         </div>
                                         <div className="text-center text-sm text-slate-500">{div.sharesOwned}</div>
+                                        <button
+                                            data-testid={`edit-dividend-${div.id}`}
+                                            onClick={() => setEditing(div as Dividend & { id: number })}
+                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition"
+                                            title="Edytuj datę wypłaty i podatek u źródła"
+                                        >
+                                            <Pencil size={14} />
+                                        </button>
                                     </div>
                                 );
                             })}
@@ -370,6 +398,7 @@ const VirtualizedDividendsTable: React.FC<VirtualizedDividendsTableProps> = ({
                     </div>
                 )}
             </div>
+            {editing && <DividendEditModal key={editing.id} dividend={editing} onClose={() => setEditing(null)} />}
         </div>
     );
 };

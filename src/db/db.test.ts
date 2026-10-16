@@ -23,7 +23,7 @@ describe('normalizePortfolioType', () => {
     });
 });
 
-describe('DB migration v9 (ledger)', () => {
+describe('DB migration v10 (ledger)', () => {
     it('rebuilds holdings/cash from transactions and corrects cash drift', async () => {
         const legacy = new Dexie('StockTrackerDB');
         legacy.version(8).stores({
@@ -94,6 +94,44 @@ describe('DB migration v9 (ledger)', () => {
         const report = loadLedgerReport();
         expect(report?.source).toBe('migration');
         expect(report?.items.some(i => i.includes('waluta EUR'))).toBe(true);
+    });
+
+    it('backfills dividend withholding, drops placeholder FX rates and credits dividends to cash', async () => {
+        const legacy = new Dexie('StockTrackerDB');
+        legacy.version(9).stores({
+            portfolios: '++id, name, type, currency',
+            transactions: '++id, portfolioId, date, type, ticker',
+            portfolioCash: '++id, portfolioId, currency, [portfolioId+currency], amount',
+            dividends: '++id, portfolioId, ticker, recordDate, paymentDate, status'
+        });
+        await legacy.open();
+        await legacy.table('portfolios').bulkAdd([
+            { id: 1, name: 'Główny', type: 'standard', currency: 'PLN', taxRate: 19, createdAt: '' },
+            { id: 2, name: 'IKE', type: 'ike', currency: 'PLN', taxRate: 0, createdAt: '' }
+        ]);
+        const base = { recordDate: '2025-02-01', paymentDate: '2025-02-01', amountPerShare: 1, status: 'received' };
+        await legacy.table('dividends').bulkAdd([
+            { ...base, portfolioId: 1, ticker: 'AAPL', totalAmount: 10, currency: 'USD', exchangeRate: 1 },
+            { ...base, portfolioId: 1, ticker: 'CDR', totalAmount: 100, currency: 'PLN', exchangeRate: 1 },
+            { ...base, portfolioId: 2, ticker: 'PKO', totalAmount: 100, currency: 'PLN', exchangeRate: 1 }
+        ]);
+        legacy.close();
+
+        const db = new StockTrackerDatabase();
+        await db.open();
+        const dividends = await db.dividends.orderBy('id').toArray();
+        const cash = await db.portfolioCash.toArray();
+        db.close();
+
+        expect(dividends.map(d => [d.withholdingTaxRate, d.exchangeRate])).toEqual([
+            [15, undefined],
+            [19, 1],
+            [0, 1]
+        ]);
+        const cashBy = (id: number) => cash.find(c => c.portfolioId === id)?.amount;
+        expect(cashBy(1)).toBeCloseTo(81); // USD dividend has no rate yet -> not credited
+        expect(cashBy(2)).toBeCloseTo(100); // IKE: no Polish withholding
+        expect(loadLedgerReport()?.items.some(i => i.includes('bez kursu NBP'))).toBe(true);
     });
 });
 
