@@ -78,6 +78,7 @@ export interface Transaction {
     exchangeRate?: number; // Exchange rate at time of transaction
     commission?: number; // Broker commission/fee amount
     commissionCurrency?: CurrencyCode; // Currency of the commission
+    note?: string; // Free-text note (e.g. automatic balance correction)
 }
 
 /**

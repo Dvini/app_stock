@@ -1,4 +1,5 @@
 import { cacheService } from './CacheService';
+import { addDaysISO, todayLocal } from '../utils/dates';
 
 interface NBPRateResponse {
     rate: number;
@@ -92,11 +93,8 @@ class NBPService {
         table: 'A' | 'B',
         maxAttempts = 5
     ): Promise<NBPRateResponse | null> {
-        const date = new Date(dateStr);
-
         for (let i = 1; i <= maxAttempts; i++) {
-            date.setDate(date.getDate() - 1);
-            const prevDateStr = date.toISOString().split('T')[0]!; // Non-null assertion - toISOString always has 'T'
+            const prevDateStr = addDaysISO(dateStr, -i);
 
             console.log(`[NBPService] Trying previous day: ${prevDateStr}`);
 
@@ -140,7 +138,7 @@ class NBPService {
      */
     async getCurrentRate(currency: string, table: 'A' | 'B' = 'A'): Promise<NBPRateResponse | null> {
         if (!currency || currency === 'PLN') {
-            const today = new Date().toISOString().split('T')[0]!; // Non-null assertion
+            const today = todayLocal(); // Non-null assertion
             return { rate: 1.0, date: today };
         }
 
@@ -165,7 +163,7 @@ class NBPService {
 
             const data = await response.json();
             const rate = data.rates[0]?.mid;
-            const date = data.rates[0]?.effectiveDate || new Date().toISOString().split('T')[0] || '';
+            const date = data.rates[0]?.effectiveDate || todayLocal();
 
             if (!rate) {
                 console.warn(`[NBPService] No current rate data for ${currency}`);

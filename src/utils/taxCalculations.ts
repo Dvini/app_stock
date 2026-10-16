@@ -1,4 +1,6 @@
 import type { Transaction, PortfolioAccount } from '../types/database';
+import { isBuyTransaction, isSellTransaction } from '../types/database';
+import { sortTransactions } from '../lib/ledger';
 
 export interface ClosedTradeLot {
     buyDate: string;
@@ -30,6 +32,8 @@ export interface ClosedTrade {
     gainLossPLN: number; // Dochód / Strata
     taxLiabilityPLN: number; // Należny podatek 19%
     lots: ClosedTradeLot[];
+    /** Shares sold without a matching earlier buy (cost basis unknown, counted as 0) */
+    unmatchedShares: number;
 }
 
 export interface PIT38Summary {
@@ -79,9 +83,9 @@ export const matchFIFOClosedTrades = (
     });
 
     // Filter only buy and sell transactions, and sort chronologically
-    const relevantTxs = transactions
-        .filter(t => t.type === 'Kupno' || t.type === 'Sprzedaż')
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const relevantTxs = sortTransactions(
+        transactions.filter(t => isBuyTransaction(t.type) || isSellTransaction(t.type))
+    );
 
     // Buy inventory: Map key is `${portfolioId}-${ticker}`
     const buyInventory = new Map<string, BuyLot[]>();
@@ -99,7 +103,7 @@ export const matchFIFOClosedTrades = (
         const exchangeRate = tx.exchangeRate || 1;
         const price = tx.price || 0;
 
-        if (tx.type === 'Kupno') {
+        if (isBuyTransaction(tx.type)) {
             const queue = buyInventory.get(key) || [];
             const commPLN =
                 (tx.commission || 0) * (tx.commissionCurrency && tx.commissionCurrency !== 'PLN' ? exchangeRate : 1);
@@ -115,7 +119,7 @@ export const matchFIFOClosedTrades = (
                 commissionPerSharePLN: commPerShare
             });
             buyInventory.set(key, queue);
-        } else if (tx.type === 'Sprzedaż') {
+        } else {
             const queue = buyInventory.get(key) || [];
             let sharesToSell = tx.amount;
             const lots: ClosedTradeLot[] = [];
@@ -183,7 +187,8 @@ export const matchFIFOClosedTrades = (
                 totalCostPLN,
                 gainLossPLN,
                 taxLiabilityPLN,
-                lots
+                lots,
+                unmatchedShares: sharesToSell > 0.000001 ? sharesToSell : 0
             });
         }
     }

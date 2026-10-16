@@ -42,6 +42,64 @@ describe('taxCalculations', () => {
             createdAt: '2026-01-01T00:00:00.000Z'
         };
 
+        it('flags shares sold without a matching earlier buy', () => {
+            const txs: Transaction[] = [
+                {
+                    id: 1,
+                    portfolioId: 1,
+                    date: '2026-01-10',
+                    type: 'Kupno',
+                    ticker: 'PKN',
+                    amount: 10,
+                    price: 50,
+                    total: 500
+                },
+                {
+                    id: 2,
+                    portfolioId: 1,
+                    date: '2026-01-11',
+                    type: 'Sprzedaż',
+                    ticker: 'PKN',
+                    amount: 15,
+                    price: 60,
+                    total: 900
+                }
+            ];
+
+            const trades = matchFIFOClosedTrades(txs, [standardPortfolio]);
+            expect(trades[0]!.unmatchedShares).toBe(5);
+            expect(trades[0]!.costBasisPLN).toBe(500);
+        });
+
+        it('processes a same-day sell after a buy entered later (by type, not entry order)', () => {
+            const txs: Transaction[] = [
+                {
+                    id: 1,
+                    portfolioId: 1,
+                    date: '2026-01-10',
+                    type: 'Sprzedaż',
+                    ticker: 'PKN',
+                    amount: 10,
+                    price: 60,
+                    total: 600
+                },
+                {
+                    id: 2,
+                    portfolioId: 1,
+                    date: '2026-01-09',
+                    type: 'Kupno',
+                    ticker: 'PKN',
+                    amount: 10,
+                    price: 50,
+                    total: 500
+                }
+            ];
+
+            const trades = matchFIFOClosedTrades(txs, [standardPortfolio]);
+            expect(trades[0]!.unmatchedShares).toBe(0);
+            expect(trades[0]!.gainLossPLN).toBe(100);
+        });
+
         it('matches simple buy and sell with FIFO', () => {
             const txs: Transaction[] = [
                 {
@@ -204,7 +262,8 @@ describe('taxCalculations', () => {
                     totalCostPLN: 710,
                     gainLossPLN: 290,
                     taxLiabilityPLN: 55.1,
-                    lots: []
+                    lots: [],
+                    unmatchedShares: 0
                 }
             ];
 
@@ -238,7 +297,8 @@ describe('taxCalculations', () => {
                     totalCostPLN: 1000,
                     gainLossPLN: 1000,
                     taxLiabilityPLN: 0,
-                    lots: []
+                    lots: [],
+                    unmatchedShares: 0
                 }
             ];
 

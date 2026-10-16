@@ -13,7 +13,8 @@ import {
     ShieldCheck,
     HelpCircle,
     ChevronDown,
-    Calendar
+    Calendar,
+    AlertTriangle
 } from 'lucide-react';
 
 export const Taxes: React.FC = () => {
@@ -59,6 +60,8 @@ export const Taxes: React.FC = () => {
         const p = portfolios.find(port => port.id === selectedPortfolioId);
         return p?.taxRate === 0;
     }, [portfolios, selectedPortfolioId]);
+
+    const unmatchedTrades = useMemo(() => displayedTrades.filter(t => t.unmatchedShares > 0), [displayedTrades]);
 
     const handleExport = () => {
         exportPIT38ToCSV(displayedTrades, summary, selectedYear);
@@ -130,6 +133,31 @@ export const Taxes: React.FC = () => {
                     </button>
                 </div>
             </header>
+
+            {/* Sells without a matching earlier buy: cost basis missing, gain overstated */}
+            {unmatchedTrades.length > 0 && (
+                <div
+                    data-testid="unmatched-sells-warning"
+                    className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 flex items-start gap-3"
+                >
+                    <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="text-sm font-bold text-amber-400">Sprzedaż bez pasującego zakupu</h4>
+                        <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                            Dla części sprzedanych akcji nie ma wcześniejszej transakcji kupna, więc ich koszt przyjęto
+                            jako 0 zł i dochód jest zawyżony. Dodaj brakujące zakupy:
+                        </p>
+                        <ul className="text-xs text-slate-300 mt-2 list-disc pl-5 space-y-0.5">
+                            {unmatchedTrades.map(t => (
+                                <li key={t.id}>
+                                    {t.ticker} — sprzedaż {t.sellDate}: brak zakupu dla {t.unmatchedShares} szt.
+                                    {t.portfolioName ? ` (${t.portfolioName})` : ''}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
 
             {/* IKE / IKZE Exemption Alert */}
             {isSelectedExempt && (

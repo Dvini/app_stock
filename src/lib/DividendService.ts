@@ -6,6 +6,8 @@ import { apiService } from './ApiService';
 import { TIME_CONSTANTS } from '../utils/constants';
 import type { Asset, Dividend, Transaction, CurrencyCode } from '../types/database';
 import { isBuyTransaction, isSellTransaction } from '../types/database';
+import { addDaysISO, datePart, toLocalISODate, todayLocal } from '../utils/dates';
+import { sortTransactions } from './ledger';
 
 interface ProcessedDividend extends Dividend {
     sharesOwned: number;
@@ -99,14 +101,12 @@ class DividendService {
      */
     private _calculateSharesOnDate(transactions: Transaction[], ticker: string, date: string): number {
         let shares = 0;
-        const recordDate = new Date(date);
+        const recordDate = datePart(date);
+        const symbol = ticker.toUpperCase();
 
-        for (const tx of transactions) {
-            if (tx.ticker !== ticker) continue;
-
-            // Compare dates properly (not as strings)
-            const txDate = new Date(tx.date);
-            if (txDate > recordDate) break; // Stop if transaction is after record date
+        for (const tx of sortTransactions(transactions)) {
+            if ((tx.ticker || '').toUpperCase() !== symbol) continue;
+            if (datePart(tx.date) > recordDate) break; // Stop at first transaction after record date
 
             if (isBuyTransaction(tx.type)) {
                 shares += tx.amount;
@@ -122,9 +122,7 @@ class DividendService {
      * Get previous day (for finding NBP rate)
      */
     private _getPreviousDay(dateStr: string): string {
-        const date = new Date(dateStr);
-        date.setDate(date.getDate() - 1);
-        return date.toISOString().split('T')[0]!;
+        return addDaysISO(dateStr, -1);
     }
 
     /**
@@ -139,7 +137,7 @@ class DividendService {
             // Get all expected dividends from database within 60 days
             const upcomingDividends = await db.dividends
                 .where('paymentDate')
-                .between(today.toISOString().split('T')[0]!, sixtyDaysLater.toISOString().split('T')[0]!, true, true)
+                .between(toLocalISODate(today), toLocalISODate(sixtyDaysLater), true, true)
                 .and(d => d.status === 'expected' && (isAll || (d.portfolioId ?? 1) === portfolioId))
                 .toArray();
 
@@ -216,7 +214,8 @@ class DividendService {
             }
 
             // Calculate shares owned on record date
-            const transactions = await db.transactions.orderBy('date').toArray();
+            const portfolioId = dividendData.portfolioId ?? 1;
+            const transactions = await db.transactions.filter(t => (t.portfolioId ?? 1) === portfolioId).toArray();
             const sharesOwned = this._calculateSharesOnDate(transactions, ticker, recordDate);
 
             // Calculate values
@@ -275,7 +274,7 @@ class DividendService {
             // Get annual dividends (last 12 months)
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0]!;
+            const oneYearAgoStr = toLocalISODate(oneYearAgo);
 
             const recentDividends = await db.dividends
                 .where('paymentDate')
@@ -302,7 +301,7 @@ class DividendService {
         try {
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0]!;
+            const oneYearAgoStr = toLocalISODate(oneYearAgo);
             const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
             const recentDividends = await db.dividends
@@ -461,7 +460,7 @@ class DividendService {
                         const valuePLN = totalAmount * exchangeRate;
 
                         // Determine status based on payment date
-                        const today = new Date().toISOString().split('T')[0]!;
+                        const today = todayLocal();
                         const status = div.exDate > today ? 'expected' : 'received';
 
                         // Add to database with portfolioId
@@ -532,7 +531,8 @@ class DividendService {
             // Update each dividend
             for (const dividend of dividends) {
                 // Recalculate shares owned on record date
-                const sharesOwned = this._calculateSharesOnDate(transactions, ticker, dividend.recordDate);
+                const portTxs = transactions.filter(t => (t.portfolioId ?? 1) === (dividend.portfolioId ?? 1));
+                const sharesOwned = this._calculateSharesOnDate(portTxs, ticker, dividend.recordDate);
 
                 // If shares owned is now 0, delete the dividend
                 if (sharesOwned === 0) {
@@ -577,7 +577,7 @@ class DividendService {
         try {
             console.log('[DividendService] Starting dividend status migration...');
 
-            const today = new Date().toISOString().split('T')[0]!;
+            const today = todayLocal();
             const allDividends = await db.dividends.toArray();
 
             let updated = 0;

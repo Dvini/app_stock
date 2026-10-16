@@ -1,5 +1,7 @@
 import { db, normalizePortfolioType } from '../db/db';
+import { reconcileDatabase } from './ledgerStore';
 import type { Asset, Transaction, WatchlistItem, Cash, Dividend, PortfolioAccount } from '../types/database';
+import { todayLocal } from '../utils/dates';
 
 interface CacheItem {
     key: string;
@@ -166,7 +168,7 @@ export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean>
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
 
-        const dateStr = new Date().toISOString().split('T')[0]!;
+        const dateStr = todayLocal();
         const safeName =
             isSingle && targetPortfolio
                 ? targetPortfolio.name.toLowerCase().replace(/[^a-z0-9]/gi, '_')
@@ -243,7 +245,7 @@ export const exportTransactionsCSV = async (portfolioId?: number | 'ALL'): Promi
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
 
-        const dateStr = new Date().toISOString().split('T')[0]!;
+        const dateStr = todayLocal();
         const safeName =
             isSingle && targetPortfolio
                 ? targetPortfolio.name.toLowerCase().replace(/[^a-z0-9]/gi, '_')
@@ -291,6 +293,9 @@ export const importData = async (file: File): Promise<boolean> => {
                 } else {
                     throw new Error(`Unsupported backup version: ${version}`);
                 }
+
+                // Holdings and cash are derived from transactions; align imported balances with history
+                await reconcileDatabase('import');
 
                 resolve(true);
             } catch (error) {

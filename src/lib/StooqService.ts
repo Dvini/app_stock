@@ -1,5 +1,6 @@
 import { load } from 'cheerio';
 import { cacheService } from './CacheService';
+import { toLocalISODate } from '../utils/dates';
 
 interface StooqDividendRecord {
     exDate: string;
@@ -149,7 +150,7 @@ class StooqService {
                     const amount = parseFloat(amountStr.replace(',', '.'));
 
                     if (date && !isNaN(amount) && amount > 0) {
-                        const isoDate = date.toISOString().split('T')[0];
+                        const isoDate = toLocalISODate(date);
                         if (isoDate) {
                             dividends.push({
                                 exDate: isoDate, // Format as YYYY-MM-DD

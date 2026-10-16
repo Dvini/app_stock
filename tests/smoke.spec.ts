@@ -270,6 +270,30 @@ test.describe('Smoke Tests 🔥', () => {
             await expect(page.getByTestId('transactions-table')).toContainText('Sprzedaż');
             await expect(page.getByTestId('transactions-table')).toContainText('MSFT');
         });
+
+        test('blocks a buy dated before the deposit that would fund it', async ({ page }) => {
+            await page.goto('/');
+
+            // Deposit today
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-wpłata').click();
+            await page.getByTestId('price-input').fill('10000');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible();
+
+            // Buy dated a year earlier - no cash on that date
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-kupno').click();
+            await page.getByTestId('transaction-date-input').fill('2020-01-02');
+            await page.getByTestId('ticker-input').fill('CDR');
+            await page.getByTestId('amount-input').fill('1');
+            await page.getByTestId('price-input').fill('100');
+            await page.getByTestId('submit-transaction-button').click();
+
+            await expect(page.getByText('Nie można zapisać transakcji')).toBeVisible();
+            await expect(page.getByText(/Kupno CDR 2020-01-02: brak pokrycia/)).toBeVisible();
+            await expect(page.getByTestId('add-transaction-modal')).toBeVisible();
+        });
     });
 
     // ========================================

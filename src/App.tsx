@@ -1,10 +1,11 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initDB } from './db/db';
 import { cacheService } from './lib/CacheService';
+import { loadLedgerReport } from './lib/ledgerReconcile';
 import { PortfolioProvider, usePortfolioAccount } from './context/PortfolioContext';
 
 // Lazy load all page components for code splitting
@@ -45,7 +46,17 @@ const HomeRoute = () => {
 
 function App() {
     useEffect(() => {
-        initDB();
+        // Opening the DB runs pending migrations; a reconciliation report may appear afterwards
+        initDB().then(() => {
+            const report = loadLedgerReport();
+            if (report) {
+                toast.warning('Dane portfela zostały uzgodnione z historią transakcji', {
+                    id: 'ledger-report', // StrictMode runs effects twice
+                    description: `${report.items.length} uwag do przejrzenia w Ustawieniach.`,
+                    duration: 10000
+                });
+            }
+        });
 
         // Clean up expired cache entries on startup
         cacheService.cleanup();

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Save, Upload, Trash2, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { Save, Upload, Trash2, AlertTriangle, FileSpreadsheet, ClipboardList, X } from 'lucide-react';
 import { exportData, exportTransactionsCSV, importData, clearData } from '../lib/dataManagement';
 import { usePortfolioAccount } from '../context/PortfolioContext';
+import { loadLedgerReport, clearLedgerReport, type LedgerReport } from '../lib/ledgerReconcile';
 
 interface SectionProps {
     title: string;
@@ -43,6 +44,12 @@ export const Settings = () => {
     const { portfolios } = usePortfolioAccount();
     const [exportScope, setExportScope] = useState<number | 'ALL'>('ALL');
     const [importStatus, setImportStatus] = useState('');
+    const [ledgerReport, setLedgerReport] = useState<LedgerReport | null>(() => loadLedgerReport());
+
+    const dismissLedgerReport = () => {
+        clearLedgerReport();
+        setLedgerReport(null);
+    };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -76,6 +83,42 @@ export const Settings = () => {
             className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20"
         >
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
+
+            {ledgerReport && (
+                <div
+                    data-testid="ledger-report"
+                    className="bg-amber-950/30 border border-amber-800/50 rounded-2xl p-5 space-y-3"
+                >
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex gap-3">
+                            <ClipboardList size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold text-sm text-amber-200">
+                                    Uzgodnienie danych z historią transakcji (
+                                    {ledgerReport.source === 'import' ? 'po imporcie' : 'aktualizacja aplikacji'},{' '}
+                                    {new Date(ledgerReport.createdAt).toLocaleString('pl-PL')})
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Pozycje i gotówka są teraz wyliczane z transakcji. Poniżej różnice i problemy
+                                    znalezione w historii.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={dismissLedgerReport}
+                            className="text-slate-400 hover:text-white p-1"
+                            title="Zamknij raport"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-9">
+                        {ledgerReport.items.map((item, i) => (
+                            <li key={i}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             <Section title="Zarządzanie Danymi">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

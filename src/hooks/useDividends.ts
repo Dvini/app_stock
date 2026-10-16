@@ -10,6 +10,7 @@ import { dividendService } from '../lib/DividendService';
 import { DIVIDEND_CONSTANTS } from '../utils/constants';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Dividend, Asset } from '../types/database';
+import { toLocalISODate, todayLocal } from '../utils/dates';
 
 interface DividendStats {
     ytdTotal: number;
@@ -181,8 +182,8 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
     // Processed calendar (upcoming dividends) - filtered by portfolio
     const rawCalendar =
         useLiveQuery(() => {
-            const today = new Date().toISOString().split('T')[0] || '';
-            const sixtyDaysLater = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
+            const today = todayLocal();
+            const sixtyDaysLater = toLocalISODate(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
 
             return db.dividends
                 .where('status')

@@ -1,6 +1,7 @@
 import { cacheService } from './CacheService';
 import type { CurrencyCode } from '../types/database';
 import type { Ticker } from './tickers';
+import { toLocalISODate } from '../utils/dates';
 
 interface ApiServiceOptions {
     baseUrl?: string;
@@ -311,7 +312,7 @@ class ApiService {
             // For intraday intervals (5m, 15m), timestamps are exact
             const cleanData: HistoryDataPoint[] = timestamps
                 .map((t: number, i: number) => {
-                    const date = new Date(t * 1000).toISOString().split('T')[0]!;
+                    const date = toLocalISODate(new Date(t * 1000));
                     return {
                         timestamp: t,
                         price: quotes.close[i],
@@ -446,7 +447,7 @@ class ApiService {
             // Convert dividends object to array
             for (const [timestamp, divData] of Object.entries(dividendsObj)) {
                 const date = new Date(parseInt(timestamp) * 1000);
-                const isoDate = date.toISOString().split('T')[0];
+                const isoDate = toLocalISODate(date);
 
                 if (isoDate && typeof divData === 'object' && divData !== null && 'amount' in divData) {
                     dividends.push({

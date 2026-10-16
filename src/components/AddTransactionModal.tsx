@@ -6,9 +6,13 @@ import { apiService, fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { nbpService } from '../lib/NBPService';
 import { dividendService } from '../lib/DividendService';
 import { formatNumber } from '../utils/formatters';
+import { addTransaction, LedgerError } from '../lib/ledgerStore';
+import { commissionToPLN } from '../lib/ledger';
+import { toast } from 'sonner';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
 import { isDepositTransaction, isWithdrawTransaction } from '../types/database';
+import { todayLocal } from '../utils/dates';
 
 interface AddTransactionModalProps {
     onClose: () => void;
@@ -28,7 +32,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const [currency, setCurrency] = useState<CurrencyCode>('PLN');
     const [exchangeRate, setExchangeRate] = useState('1.0');
     const [type, setType] = useState<DbTransactionType>('Kupno');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocal());
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [ownedAssets, setOwnedAssets] = useState<Asset[]>([]);
     const [availableCash, setAvailableCash] = useState(0);
@@ -59,7 +63,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             }
 
             try {
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayLocal();
                 const isToday = date === today;
 
                 if (isToday) {
@@ -123,13 +127,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const numPrice = parseFloat(price) || 0;
     const numRate = parseFloat(exchangeRate) || 1.0;
     const numCommission = parseFloat(commission) || 0;
-    // Convert commission to PLN
-    const commissionPLN =
-        commissionCurrency === 'PLN'
-            ? numCommission
-            : commissionCurrency === currency
-              ? numCommission * numRate
-              : numCommission; // fallback: treat as PLN if unresolvable
+    // Commission is charged either in PLN or in the transaction currency
+    const effectiveCommissionCurrency: CurrencyCode = commissionCurrency === currency ? currency : 'PLN';
+    const commissionCurrencyOptions: CurrencyCode[] = currency === 'PLN' ? ['PLN'] : ['PLN', currency];
+    const commissionPLN = commissionToPLN({
+        commission: numCommission,
+        commissionCurrency: effectiveCommissionCurrency,
+        exchangeRate: numRate
+    });
     const totalCostPLN = numAmount * numPrice * numRate + (type === 'Kupno' ? commissionPLN : 0);
     const totalRevenuePLN = numAmount * numPrice * numRate - (type === 'Sprzedaż' ? commissionPLN : 0);
     const isDeposit = isDepositTransaction(type);
@@ -181,128 +186,46 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             }
         }
 
+        const txTicker = isDeposit || isWithdraw ? 'CASH' : ticker.toUpperCase();
+        const txAmount = isDeposit || isWithdraw ? 1 : parseFloat(amount);
+        const txPrice = parseFloat(price);
+        const txCommission = parseFloat(commission) || 0;
+
         try {
-            const txTicker = isDeposit || isWithdraw ? 'CASH' : ticker.toUpperCase();
-            const txAmount = isDeposit || isWithdraw ? 1 : parseFloat(amount);
-            const txPrice = parseFloat(price);
-            const txTotal = txAmount * txPrice;
-            const rate = parseFloat(exchangeRate) || 1.0;
-            const txCommission = parseFloat(commission) || 0;
-
-            // Compute commissionPLN for cash impact
-            const txCommissionPLN =
-                commissionCurrency === 'PLN'
-                    ? txCommission
-                    : commissionCurrency === currency
-                      ? txCommission * rate
-                      : txCommission;
-
-            await db.transactions.add({
+            await addTransaction({
                 portfolioId: selectedPortfolioId,
-                date: date as string,
-                type: type,
+                date,
+                type,
                 ticker: txTicker,
                 amount: txAmount,
                 price: txPrice,
-                currency: currency,
-                total: txTotal,
-                exchangeRate: rate,
+                currency,
+                total: txAmount * txPrice,
+                exchangeRate: parseFloat(exchangeRate) || 1.0,
                 commission: txCommission > 0 ? txCommission : undefined,
-                commissionCurrency: txCommission > 0 ? commissionCurrency : undefined
+                commissionCurrency: txCommission > 0 ? effectiveCommissionCurrency : undefined
             });
-
-            if (!isDeposit && !isWithdraw) {
-                const asset = await db.assets
-                    .where('[portfolioId+ticker]')
-                    .equals([selectedPortfolioId, txTicker])
-                    .first();
-                if (asset) {
-                    let newAmount = asset.amount;
-                    let newAvgPrice = asset.avgPrice;
-
-                    if (type === 'Kupno') {
-                        const totalCostOld = asset.amount * asset.avgPrice;
-                        // Include commission in the cost basis (in asset's native currency)
-                        const commissionInAssetCurrency =
-                            commissionCurrency === currency
-                                ? parseFloat(commission) || 0
-                                : commissionCurrency === 'PLN'
-                                  ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
-                                  : parseFloat(commission) || 0;
-                        const totalCostNew = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
-                        const totalAmount = asset.amount + parseFloat(amount);
-                        newAvgPrice = (totalCostOld + totalCostNew) / totalAmount;
-                        newAmount = totalAmount;
-                    }
-
-                    if (type === 'Sprzedaż') {
-                        newAmount -= parseFloat(amount);
-                    }
-
-                    await db.assets.update(asset.id!, {
-                        amount: newAmount,
-                        avgPrice: newAvgPrice,
-                        currency: currency
-                    });
-                } else if (type === 'Kupno') {
-                    // For new position, include commission in cost basis
-                    const commissionInAssetCurrency =
-                        commissionCurrency === currency
-                            ? parseFloat(commission) || 0
-                            : commissionCurrency === 'PLN'
-                              ? (parseFloat(commission) || 0) / (rate > 0 ? rate : 1)
-                              : parseFloat(commission) || 0;
-                    const totalCostWithCommission = parseFloat(amount) * parseFloat(price) + commissionInAssetCurrency;
-                    await db.assets.add({
-                        portfolioId: selectedPortfolioId,
-                        ticker: txTicker,
-                        amount: parseFloat(amount),
-                        avgPrice: totalCostWithCommission / parseFloat(amount),
-                        currency: currency,
-                        type: 'stock'
-                    });
-                }
-
-                // Recalculate dividends after buy/sell transaction
-                try {
-                    console.log(`[AddTransactionModal] Recalculating dividends for ${txTicker}...`);
-                    await dividendService.recalculateDividendsForTicker(txTicker);
-                    console.log(`[AddTransactionModal] Dividend recalculation complete for ${txTicker}`);
-                } catch (error) {
-                    console.error('[AddTransactionModal] Failed to recalculate dividends:', error);
-                    // Don't fail the transaction if dividend recalculation fails
-                }
-            }
-
-            const cashEntry = await db.cash
-                .where('[portfolioId+currency]')
-                .equals([selectedPortfolioId, 'PLN'])
-                .first();
-            let currentCash = cashEntry ? cashEntry.amount : 0;
-
-            let cashImpactPLN = txTotal * rate;
-
-            if (type === 'Kupno') currentCash -= cashImpactPLN + txCommissionPLN;
-            if (type === 'Sprzedaż') currentCash += cashImpactPLN - txCommissionPLN;
-            if (isDeposit) {
-                currentCash += cashImpactPLN;
-            }
-            if (type === 'Wypłata') {
-                currentCash -= cashImpactPLN;
-            }
-
-            if (cashEntry && cashEntry.id) {
-                await db.cash.update(cashEntry.id, { amount: currentCash });
-            } else {
-                await db.cash.add({ portfolioId: selectedPortfolioId, currency: 'PLN', amount: currentCash });
-            }
-
-            if (onTransactionAdded) onTransactionAdded();
-            onClose();
         } catch (error) {
-            console.error('Failed to add transaction', error);
-            alert('Błąd podczas dodawania transakcji');
+            if (error instanceof LedgerError) {
+                toast.error('Nie można zapisać transakcji', { description: error.message, duration: 10000 });
+            } else {
+                console.error('Failed to add transaction', error);
+                toast.error('Błąd podczas dodawania transakcji');
+            }
+            return;
         }
+
+        if (!isDeposit && !isWithdraw) {
+            // Dividend share counts depend on holdings history; failure here must not undo the transaction
+            try {
+                await dividendService.recalculateDividendsForTicker(txTicker);
+            } catch (error) {
+                console.error('[AddTransactionModal] Failed to recalculate dividends:', error);
+            }
+        }
+
+        if (onTransactionAdded) onTransactionAdded();
+        onClose();
     };
 
     const commonCurrencies: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
@@ -418,7 +341,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                 data-testid="transaction-date-input"
                                 type="date"
                                 value={date}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={todayLocal()}
                                 onChange={e => setDate(e.target.value)}
                                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-mono text-sm [color-scheme:dark]"
                             />
@@ -632,11 +555,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                 </label>
                                 <select
                                     data-testid="commission-currency-selector"
-                                    value={commissionCurrency}
+                                    value={effectiveCommissionCurrency}
                                     onChange={e => setCommissionCurrency(e.target.value as CurrencyCode)}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-amber-500 transition-colors font-bold text-center appearance-none"
                                 >
-                                    {commonCurrencies.map(c => (
+                                    {commissionCurrencyOptions.map(c => (
                                         <option key={c} value={c}>
                                             {c}
                                         </option>

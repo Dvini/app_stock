@@ -1,6 +1,7 @@
 import { getExchangeRateWithFallback } from '../utils/currencyHelpers';
 import { getPriceAt, fetchHistoricalData } from './portfolioHistoryHelpers';
 import type { Transaction } from '../types/database';
+import { isBuyTransaction, isSellTransaction, isDepositTransaction, isWithdrawTransaction } from '../types/database';
 
 interface HistoryDataPoint {
     time: number;
@@ -202,13 +203,13 @@ export const calculatePortfolioHistory = async (
             }
 
             // --- TRACKING INVESTED CAPITAL & COST BASIS ---
-            if (tx.type === 'Depozyt' || tx.type === 'deposit') {
+            if (isDepositTransaction(tx.type)) {
                 cash += txTotalPLN;
                 investedPLN += txTotalPLN;
-            } else if (tx.type === 'Wypłata') {
+            } else if (isWithdrawTransaction(tx.type)) {
                 cash -= txTotalPLN;
                 investedPLN -= txTotalPLN;
-            } else if (tx.type === 'Kupno') {
+            } else if (isBuyTransaction(tx.type)) {
                 const ticker = tx.ticker;
                 if (ticker) {
                     portfolio[ticker] = (portfolio[ticker] || 0) + tx.amount;
@@ -222,7 +223,7 @@ export const calculatePortfolioHistory = async (
                     entry.qty += tx.amount;
                     entry.avgPrice = (oldVal + newVal) / entry.qty;
                 }
-            } else if (tx.type === 'Sprzedaż') {
+            } else if (isSellTransaction(tx.type)) {
                 const ticker = tx.ticker;
                 if (ticker) {
                     portfolio[ticker] = (portfolio[ticker] || 0) - tx.amount;

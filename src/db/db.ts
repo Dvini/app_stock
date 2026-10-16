@@ -8,6 +8,7 @@ import type {
     PortfolioAccount,
     PortfolioType
 } from '../types/database';
+import { reconcileAll, saveLedgerReport, type LedgerTables } from '../lib/ledgerReconcile';
 
 const PORTFOLIO_TYPES: readonly PortfolioType[] = ['standard', 'ike', 'ikze', 'custom'];
 
@@ -157,6 +158,21 @@ export class StockTrackerDatabase extends Dexie {
                         p.type = normalizePortfolioType(p.type);
                         p.currency = 'PLN';
                     });
+            });
+
+        // Version 9: holdings and cash become a snapshot derived from transactions (ledger).
+        // Align stored balances with history once; differences are reported in Settings.
+        this.version(9)
+            .stores({})
+            .upgrade(async tx => {
+                const tables: LedgerTables = {
+                    transactions: tx.table('transactions'),
+                    assets: tx.table('assets'),
+                    cash: tx.table('portfolioCash')
+                };
+                const portfolios = await tx.table('portfolios').toArray();
+                const report = await reconcileAll(tables, portfolios);
+                saveLedgerReport('migration', report);
             });
     }
 }
