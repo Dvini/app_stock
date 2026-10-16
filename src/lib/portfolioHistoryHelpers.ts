@@ -6,6 +6,7 @@
 import { fetchHistory, fetchCurrentPrice } from './api';
 import type { HistoricalDataPoint } from '../types/api';
 import type { CurrencyCode } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface AssetHistory {
     data: HistoricalDataPoint[];
@@ -59,14 +60,14 @@ export const fetchHistoricalData = async (
 
                 // Fallback for MAX range if it fails or returns empty
                 if ((!result || !result.data || result.data.length === 0) && apiRange === 'max') {
-                    console.warn(`MAX history failed for ${ticker}, trying 10y...`);
+                    logger.warn(`MAX history failed for ${ticker}, trying 10y...`);
                     result = await fetchHistory(ticker, '10y', '1d');
                 }
                 if (
                     (!result || !result.data || result.data.length === 0) &&
                     (apiRange === 'max' || apiRange === '10y')
                 ) {
-                    console.warn(`10y history failed for ${ticker}, trying 5y...`);
+                    logger.warn(`10y history failed for ${ticker}, trying 5y...`);
                     result = await fetchHistory(ticker, '5y', '1d');
                 }
 
@@ -81,7 +82,7 @@ export const fetchHistoricalData = async (
                     }
                 }
             } catch (e) {
-                console.warn('History fetch failed', ticker, e);
+                logger.warn('History fetch failed', ticker, e);
             }
 
             if (!hasData) {
@@ -98,7 +99,7 @@ export const fetchHistoricalData = async (
                         }
                     }
                 } catch (e) {
-                    console.warn('Asset Fallback failed', ticker, e);
+                    logger.warn('Asset Fallback failed', ticker, e);
                 }
             }
         })
@@ -121,7 +122,7 @@ export const fetchHistoricalData = async (
                             fxHistories[currency] = [{ timestamp: 0, price: current.price, date: '' }];
                         }
                     } catch (e) {
-                        console.warn('FX Fallback failed for', pair, e);
+                        logger.warn('FX Fallback failed for', pair, e);
                     }
                 }
             })

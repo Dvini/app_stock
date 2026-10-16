@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { cacheService } from './CacheService';
 import { toLocalISODate } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface StooqDividendRecord {
     exDate: string;
@@ -46,7 +47,7 @@ class StooqService {
         // Clean the date string and split
         const parts = stooqDate.trim().split(/\s+/);
         if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
-            console.warn(`[StooqService] Invalid date format: "${stooqDate}"`);
+            logger.warn(`[StooqService] Invalid date format: "${stooqDate}"`);
             return null;
         }
 
@@ -56,12 +57,12 @@ class StooqService {
 
         const month = months[monthName];
         if (month === undefined) {
-            console.warn(`[StooqService] Unknown month: "${monthName}"`);
+            logger.warn(`[StooqService] Unknown month: "${monthName}"`);
             return null;
         }
 
         if (isNaN(day) || isNaN(year)) {
-            console.warn(`[StooqService] Invalid day or year in: "${stooqDate}"`);
+            logger.warn(`[StooqService] Invalid day or year in: "${stooqDate}"`);
             return null;
         }
 
@@ -92,14 +93,14 @@ class StooqService {
         // Check cache
         const cached = cacheService.get<StooqDividendRecord[]>(cacheKey, this.cacheDuration);
         if (cached) {
-            console.log(`[StooqService] Using cached dividends for ${normalizedTicker}`);
+            logger.debug(`[StooqService] Using cached dividends for ${normalizedTicker}`);
             return cached;
         }
 
         try {
             // Always go through the local Vite proxy (stooq.pl has no CORS headers)
             const targetUrl = `${this.baseUrl}?s=${normalizedTicker}`.replace('https://stooq.pl', '/api/stooq');
-            console.log(`[StooqService] Fetching dividends for ${normalizedTicker} from ${targetUrl}`);
+            logger.debug(`[StooqService] Fetching dividends for ${normalizedTicker} from ${targetUrl}`);
 
             const response = await fetch(targetUrl, {
                 headers: {
@@ -110,7 +111,7 @@ class StooqService {
             });
 
             if (!response.ok) {
-                console.error(`[StooqService] HTTP error: ${response.status} for ${normalizedTicker}`);
+                logger.error(`[StooqService] HTTP error: ${response.status} for ${normalizedTicker}`);
                 return [];
             }
 
@@ -125,12 +126,12 @@ class StooqService {
 
             if (tableRows.length === 0) {
                 // Fallback: look for tables with dividend-related content
-                console.log(`[StooqService] Table #fth1 not found, trying alternative selectors...`);
+                logger.debug(`[StooqService] Table #fth1 not found, trying alternative selectors...`);
                 tableRows = $('table').find('tr:contains("Dywidenda")').parent().find('tr');
             }
 
             if (tableRows.length === 0) {
-                console.log(`[StooqService] No dividend data found for ${normalizedTicker}`);
+                logger.debug(`[StooqService] No dividend data found for ${normalizedTicker}`);
                 return [];
             }
 
@@ -168,10 +169,10 @@ class StooqService {
             // Cache the result
             cacheService.set(cacheKey, dividends, { ttl: this.cacheDuration });
 
-            console.log(`[StooqService] Fetched ${dividends.length} dividends for ${normalizedTicker}`);
+            logger.debug(`[StooqService] Fetched ${dividends.length} dividends for ${normalizedTicker}`);
             return dividends;
         } catch (error) {
-            console.error(`[StooqService] Failed to fetch dividends for ${ticker}:`, error);
+            logger.error(`[StooqService] Failed to fetch dividends for ${ticker}:`, error);
             return [];
         }
     }
@@ -181,7 +182,7 @@ class StooqService {
      */
     clearCache(): void {
         cacheService.invalidate(/^stooq_/);
-        console.log('[StooqService] Cleared all Stooq cache');
+        logger.debug('[StooqService] Cleared all Stooq cache');
     }
 }
 

@@ -13,6 +13,7 @@ import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Asset, CurrencyCode, Transaction, TransactionType as DbTransactionType } from '../types/database';
 import { isDepositTransaction, isWithdrawTransaction } from '../types/database';
 import { todayLocal } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface AddTransactionModalProps {
     onClose: () => void;
@@ -101,19 +102,19 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         return;
                     }
                 } else {
-                    console.log('[AddTransactionModal] Fetching historical rate from NBP...');
+                    logger.debug('[AddTransactionModal] Fetching historical rate from NBP...');
                     const nbpData = await nbpService.getHistoricalRate(currency, date || '');
 
                     if (nbpData && nbpData.rate) {
-                        console.log('[AddTransactionModal] Using NBP rate:', nbpData.rate);
+                        logger.debug('[AddTransactionModal] Using NBP rate:', nbpData.rate);
                         setRate(nbpData.rate.toFixed(4));
                         return;
                     }
 
-                    console.log('[AddTransactionModal] NBP failed, falling back to Yahoo Finance...');
+                    logger.debug('[AddTransactionModal] NBP failed, falling back to Yahoo Finance...');
                     const historicalData = await fetchHistoricalRate(currency, date || '');
                     if (historicalData && historicalData.rate) {
-                        console.log('[AddTransactionModal] Using Yahoo Finance rate:', historicalData.rate);
+                        logger.debug('[AddTransactionModal] Using Yahoo Finance rate:', historicalData.rate);
                         setRate(historicalData.rate.toFixed(4));
                         return;
                     }
@@ -121,7 +122,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
                 if (!cancelled) setRateUnavailable(true);
             } catch (e) {
-                console.warn('Rate fetch failed', e);
+                logger.warn('Rate fetch failed', e);
                 if (!cancelled) setRateUnavailable(true);
             }
         };
@@ -143,7 +144,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 const results = await apiService.search(ticker);
                 setLiveSuggestions(results);
             } catch (error) {
-                console.error('Search failed', error);
+                logger.error('Search failed', error);
             } finally {
                 setIsSearching(false);
             }
@@ -183,11 +184,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         if (type === 'Sprzedaż' && !isEdit) {
             const asset = ownedAssets.find(a => a.ticker === ticker.toUpperCase());
             if (!asset) {
-                alert(`Nie posiadasz akcji ${ticker}, aby je sprzedać.`);
+                toast.error(`Nie posiadasz akcji ${ticker}, aby je sprzedać.`);
                 return;
             }
             if (asset.amount < parseFloat(amount)) {
-                alert(`Nie masz wystarczającej liczby akcji ${ticker} (Posiadasz: ${asset.amount})`);
+                toast.error(`Nie masz wystarczającej liczby akcji ${ticker} (Posiadasz: ${asset.amount})`);
                 return;
             }
         }
@@ -206,20 +207,20 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             const valPrice = parseFloat(price);
 
             if (valAmount <= 0) {
-                alert('Ilość musi być większa od zera');
+                toast.error('Ilość musi być większa od zera');
                 return;
             }
             if (!Number.isInteger(valAmount)) {
-                alert('Ilość musi być liczbą całkowitą');
+                toast.error('Ilość musi być liczbą całkowitą');
                 return;
             }
             if (valPrice < 0) {
-                alert('Cena nie może być ujemna');
+                toast.error('Cena nie może być ujemna');
                 return;
             }
         } else {
             if (parseFloat(price) <= 0) {
-                alert('Kwota musi być większa od zera');
+                toast.error('Kwota musi być większa od zera');
                 return;
             }
         }
@@ -262,7 +263,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             if (error instanceof LedgerError) {
                 toast.error('Nie można zapisać transakcji', { description: error.message, duration: 10000 });
             } else {
-                console.error('Failed to save transaction', error);
+                logger.error('Failed to save transaction', error);
                 toast.error('Błąd podczas zapisywania transakcji');
             }
             return;
@@ -275,7 +276,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             try {
                 await dividendService.recalculateDividendsForTicker(t);
             } catch (error) {
-                console.error('[AddTransactionModal] Failed to recalculate dividends:', error);
+                logger.error('[AddTransactionModal] Failed to recalculate dividends:', error);
             }
         }
 
@@ -308,7 +309,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 }
             }
         } catch (e) {
-            console.error('Failed to fetch price for ticker', t.symbol, e);
+            logger.error('Failed to fetch price for ticker', t.symbol, e);
         }
     };
 
@@ -328,7 +329,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     setPrice(priceData.price.toString());
                 }
             } catch (e) {
-                console.error('Failed to fetch price for asset', selectedTicker, e);
+                logger.error('Failed to fetch price for asset', selectedTicker, e);
             }
         }
     };

@@ -2,6 +2,7 @@ import { db, normalizePortfolioType } from '../db/db';
 import { reconcileDatabase } from './ledgerStore';
 import type { Asset, Transaction, WatchlistItem, Cash, Dividend, PortfolioAccount } from '../types/database';
 import { todayLocal } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface CacheItem {
     key: string;
@@ -110,7 +111,7 @@ export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean>
                         });
                     }
                 } catch {
-                    console.warn(`Failed to parse cache key: ${key}`);
+                    logger.warn(`Failed to parse cache key: ${key}`);
                 }
             }
 
@@ -131,7 +132,7 @@ export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean>
                         });
                     }
                 } catch {
-                    console.warn(`Failed to parse cache key: ${key}`);
+                    logger.warn(`Failed to parse cache key: ${key}`);
                 }
             }
         }
@@ -185,12 +186,12 @@ export const exportData = async (portfolioId?: number | 'ALL'): Promise<boolean>
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        console.log(
+        logger.debug(
             `[Export] v3.0 (${data.exportScope}): ${transactions.length} txs, ${assets.length} assets, ${dividends.length} divs`
         );
         return true;
     } catch (error) {
-        console.error('Export failed:', error);
+        logger.error('Export failed:', error);
         return false;
     }
 };
@@ -264,7 +265,7 @@ export const exportTransactionsCSV = async (portfolioId?: number | 'ALL'): Promi
 
         return true;
     } catch (error) {
-        console.error('CSV Export failed:', error);
+        logger.error('CSV Export failed:', error);
         return false;
     }
 };
@@ -285,7 +286,7 @@ export const importData = async (file: File): Promise<boolean> => {
                 const imported = JSON.parse(result) as ImportDataV1 | ImportDataV2 | ExportDataV3;
                 const version = 'version' in imported ? imported.version : 1;
 
-                console.log(`[Import] Detected version: ${version}`);
+                logger.debug(`[Import] Detected version: ${version}`);
 
                 if (version === 1) {
                     await importV1(imported as ImportDataV1);
@@ -304,7 +305,7 @@ export const importData = async (file: File): Promise<boolean> => {
 
                 resolve(true);
             } catch (error) {
-                console.error('Import failed:', error);
+                logger.error('Import failed:', error);
                 reject(error);
             }
         };
@@ -338,7 +339,7 @@ const importV1 = async (data: ImportDataV1): Promise<void> => {
         if (cash.length) await db.cash.bulkAdd(cash);
     });
 
-    console.log('[Import] v1.0 data imported successfully');
+    logger.debug('[Import] v1.0 data imported successfully');
 };
 
 // Import v2.0 (with dividends and cache)
@@ -422,7 +423,7 @@ const importV3 = async (imported: ExportDataV3): Promise<void> => {
             if (divs.length) await db.dividends.bulkAdd(divs as Dividend[]);
         });
 
-        console.log(`[Import] Single portfolio "${portfolioInfo.name}" imported as new portfolio #${newPortId}`);
+        logger.debug(`[Import] Single portfolio "${portfolioInfo.name}" imported as new portfolio #${newPortId}`);
     } else {
         // Full restore (ALL portfolios)
         await db.transaction(
@@ -453,7 +454,7 @@ const importV3 = async (imported: ExportDataV3): Promise<void> => {
             }
         );
 
-        console.log('[Import] All portfolios and data restored successfully');
+        logger.debug('[Import] All portfolios and data restored successfully');
     }
 
     // Restore cache
@@ -516,9 +517,9 @@ export const clearData = async (): Promise<void> => {
         }
         keysToRemove.forEach(k => localStorage.removeItem(k));
 
-        console.log('All data and cache cleared');
+        logger.debug('All data and cache cleared');
     } catch (error) {
-        console.error('Clear failed:', error);
+        logger.error('Clear failed:', error);
         throw error;
     }
 };

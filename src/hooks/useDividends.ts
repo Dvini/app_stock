@@ -11,6 +11,7 @@ import { DIVIDEND_CONSTANTS } from '../utils/constants';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import type { Dividend, Asset } from '../types/database';
 import { toLocalISODate, todayLocal } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface DividendStats {
     ytdTotal: number;
@@ -72,14 +73,14 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
 
             if (!hasRun) {
                 try {
-                    console.log('[useDividends] Running one-time dividend status migration...');
+                    logger.debug('[useDividends] Running one-time dividend status migration...');
                     const result = await dividendService.migrateDividendStatus();
-                    console.log(
+                    logger.debug(
                         `[useDividends] Migration complete: ${result.updated} updated, ${result.skipped} skipped`
                     );
                     localStorage.setItem(migrationKey, 'true');
                 } catch (error) {
-                    console.error('[useDividends] Migration failed:', error);
+                    logger.error('[useDividends] Migration failed:', error);
                 }
             }
 
@@ -87,7 +88,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
             try {
                 await dividendService.migrateDividendPortfolios();
             } catch (error) {
-                console.error('[useDividends] Portfolio migration failed:', error);
+                logger.error('[useDividends] Portfolio migration failed:', error);
             }
         };
 
@@ -110,25 +111,25 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
 
                 // Initial sync if dividends table is empty
                 if (dividends.length === 0 && assets.length > 0) {
-                    console.log('[useDividends] Empty dividends table, triggering initial sync...');
+                    logger.debug('[useDividends] Empty dividends table, triggering initial sync...');
                     try {
                         const result = await dividendService.syncDividendsFromAPI(effectivePortfolioId);
-                        console.log(`[useDividends] Initial sync complete: ${result.added} dividends added`);
+                        logger.debug(`[useDividends] Initial sync complete: ${result.added} dividends added`);
                         localStorage.setItem('dividends_lastSync', now.toString());
                     } catch (syncError) {
-                        console.error('[useDividends] Initial sync failed:', syncError);
+                        logger.error('[useDividends] Initial sync failed:', syncError);
                     }
                 } else if (shouldSync) {
                     // Periodic sync if >24h since last sync
-                    console.log('[useDividends] 24h sync interval passed, triggering auto-sync...');
+                    logger.debug('[useDividends] 24h sync interval passed, triggering auto-sync...');
                     try {
                         const result = await dividendService.syncDividendsFromAPI();
-                        console.log(
+                        logger.debug(
                             `[useDividends] Auto-sync complete: ${result.added} added, ${result.skipped} skipped`
                         );
                         localStorage.setItem('dividends_lastSync', now.toString());
                     } catch (syncError) {
-                        console.error('[useDividends] Auto-sync failed:', syncError);
+                        logger.error('[useDividends] Auto-sync failed:', syncError);
                     }
                 }
 
@@ -152,7 +153,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                     monthlyAverage
                 });
             } catch (err) {
-                console.error('[useDividends] Error calculating stats:', err);
+                logger.error('[useDividends] Error calculating stats:', err);
                 setError(err instanceof Error ? err.message : 'Unknown error');
             } finally {
                 setIsLoading(false);
@@ -226,7 +227,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
                     withholdingTaxRate: dividendData.withholdingTaxRate
                 });
             } catch (err) {
-                console.error('[useDividends] Error adding dividend:', err);
+                logger.error('[useDividends] Error adding dividend:', err);
                 throw err;
             }
         },
@@ -240,7 +241,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
         try {
             await dividendService.deleteDividend(id);
         } catch (err) {
-            console.error('[useDividends] Error deleting dividend:', err);
+            logger.error('[useDividends] Error deleting dividend:', err);
             throw err;
         }
     }, []);
@@ -254,7 +255,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
             const result = await dividendService.syncDividendsFromAPI(effectivePortfolioId);
             const now = Date.now();
             localStorage.setItem('dividends_lastSync', now.toString());
-            console.log(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
+            logger.debug(`[useDividends] Manual sync complete: ${result.added} added, ${result.skipped} skipped`);
 
             // Recalculate stats immediately after sync (prevents double loading state)
             const [ytdTotal, yoc, monthlyAverage] = await Promise.all([
@@ -275,7 +276,7 @@ export const useDividends = (overridePortfolioId?: number | 'ALL'): UseDividends
 
             return result;
         } catch (err) {
-            console.error('[useDividends] Manual sync failed:', err);
+            logger.error('[useDividends] Manual sync failed:', err);
             throw err;
         } finally {
             setIsLoading(false);

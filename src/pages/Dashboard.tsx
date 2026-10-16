@@ -11,6 +11,7 @@ import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 import type { WatchlistItem } from '../types/database';
+import { logger } from '../utils/logger';
 
 type ChartRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
 
@@ -114,7 +115,7 @@ export const Dashboard = () => {
                 setSelectedTicker(null);
             }
         } catch (error) {
-            console.error('Failed to remove from watchlist', error);
+            logger.error('Failed to remove from watchlist', error);
         }
     };
 

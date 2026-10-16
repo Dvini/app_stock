@@ -1,8 +1,9 @@
 /**
- * Centralized Logger Service
- * Provides environment-aware logging with different levels
- * In production: only errors are logged
- * In development: all logs are visible
+ * Centralized logger.
+ *
+ * - debug/info: silent unless debug logging is switched on, so the console stays readable.
+ *   Turn on in the browser console:  localStorage.setItem('debug', '1')  (and reload)
+ * - warn/error: always visible, also in production builds.
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -11,56 +12,55 @@ interface LoggerOptions {
     prefix?: string;
 }
 
+const isDebugEnabled = (): boolean => {
+    try {
+        return typeof localStorage !== 'undefined' && localStorage.getItem('debug') === '1';
+    } catch {
+        return false;
+    }
+};
+
 class Logger {
-    private isDev: boolean;
     private prefix: string;
 
     constructor(options: LoggerOptions = {}) {
-        this.isDev = import.meta.env.DEV;
         this.prefix = options.prefix || '';
     }
 
     /**
-     * Debug logs - only in development
-     * Use for detailed debugging information
+     * Detailed tracing - only with debug logging on
      */
     debug(...args: unknown[]): void {
-        if (this.isDev) {
+        if (isDebugEnabled()) {
             console.log(this.formatMessage('debug'), ...args);
         }
     }
 
     /**
-     * Info logs - only in development
-     * Use for general information
+     * General information - only with debug logging on
      */
     info(...args: unknown[]): void {
-        if (this.isDev) {
-            console.log(this.formatMessage('info'), ...args);
+        if (isDebugEnabled()) {
+            console.info(this.formatMessage('info'), ...args);
         }
     }
 
     /**
-     * Warning logs - always visible
-     * Use for potential issues
+     * Recoverable problems - always visible
      */
     warn(...args: unknown[]): void {
         console.warn(this.formatMessage('warn'), ...args);
     }
 
     /**
-     * Error logs - always visible
-     * Use for errors and exceptions
+     * Errors and exceptions - always visible
      */
     error(...args: unknown[]): void {
         console.error(this.formatMessage('error'), ...args);
     }
 
-    /**
-     * Format log message with timestamp and level
-     */
     private formatMessage(level: LogLevel): string {
-        const timestamp = new Date().toISOString().split('T')[1]?.split('.')[0] || '';
+        const timestamp = new Date().toLocaleTimeString('pl-PL');
         const prefix = this.prefix ? `[${this.prefix}]` : '';
         return `[${timestamp}] [${level.toUpperCase()}]${prefix}`;
     }

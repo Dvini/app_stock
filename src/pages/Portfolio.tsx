@@ -12,6 +12,7 @@ import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 import type { Dividend } from '../types/database';
+import { logger } from '../utils/logger';
 
 type ViewMode = 'pie' | 'history';
 type HistoryRange = '1d' | '5d' | '1mo' | '1y' | '5y' | 'max';
@@ -86,7 +87,7 @@ export const Portfolio = () => {
 
                 setHistoryData(plData);
             } catch (e) {
-                console.error('History calc failed', e);
+                logger.error('History calc failed', e);
             }
             setHistoryLoading(false);
         };

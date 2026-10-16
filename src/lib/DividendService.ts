@@ -10,6 +10,7 @@ import { datePart, toLocalISODate, todayLocal } from '../utils/dates';
 import { sortTransactions } from './ledger';
 import { refreshSnapshots } from './ledgerStore';
 import { defaultWithholdingRate, dividendRate } from '../utils/dividendTax';
+import { logger } from '../utils/logger';
 
 interface UpcomingDividend extends Dividend {
     sharesOwned: number;
@@ -124,7 +125,7 @@ class DividendService {
 
             return processed.filter(d => d.sharesOwned > 0);
         } catch (error) {
-            console.error('[DividendService] Failed to calculate upcoming dividends:', error);
+            logger.error('[DividendService] Failed to calculate upcoming dividends:', error);
             return [];
         }
     }
@@ -177,11 +178,11 @@ class DividendService {
                 status
             });
 
-            console.log(`[DividendService] Added dividend for ${ticker}: ${amountPerShare} ${currency} (ID: ${id})`);
+            logger.debug(`[DividendService] Added dividend for ${ticker}: ${amountPerShare} ${currency} (ID: ${id})`);
             await refreshSnapshots([portfolioId]);
             return id;
         } catch (error) {
-            console.error('[DividendService] Failed to add dividend:', error);
+            logger.error('[DividendService] Failed to add dividend:', error);
             throw error;
         }
     }
@@ -230,7 +231,7 @@ class DividendService {
 
             return yoc;
         } catch (error) {
-            console.error('[DividendService] Failed to calculate YoC:', error);
+            logger.error('[DividendService] Failed to calculate YoC:', error);
             return 0;
         }
     }
@@ -256,7 +257,7 @@ class DividendService {
 
             return monthlyAverage;
         } catch (error) {
-            console.error('[DividendService] Failed to calculate monthly average:', error);
+            logger.error('[DividendService] Failed to calculate monthly average:', error);
             return 0;
         }
     }
@@ -280,7 +281,7 @@ class DividendService {
 
             return totalPLN;
         } catch (error) {
-            console.error('[DividendService] Failed to calculate YTD total:', error);
+            logger.error('[DividendService] Failed to calculate YTD total:', error);
             return 0;
         }
     }
@@ -290,7 +291,7 @@ class DividendService {
      */
     async syncDividendsFromAPI(portfolioId?: number | 'ALL'): Promise<SyncStatistics> {
         try {
-            console.log('[DividendService] Starting dividend sync from APIs...');
+            logger.debug('[DividendService] Starting dividend sync from APIs...');
             const isAll = portfolioId === undefined || portfolioId === 'ALL';
 
             // Get transactions
@@ -302,11 +303,11 @@ class DividendService {
             const tickers = [...new Set(transactions.map(tx => tx.ticker).filter((t): t is string => t !== undefined))];
 
             if (tickers.length === 0) {
-                console.log('[DividendService] No tickers found in transactions');
+                logger.debug('[DividendService] No tickers found in transactions');
                 return { added: 0, skipped: 0 };
             }
 
-            console.log(`[DividendService] Found ${tickers.length} unique tickers:`, tickers);
+            logger.debug(`[DividendService] Found ${tickers.length} unique tickers:`, tickers);
 
             let added = 0;
             let skipped = 0;
@@ -317,50 +318,50 @@ class DividendService {
 
             // Process each ticker with fallback logic
             for (const ticker of tickers) {
-                console.log(`\n[DividendService] Processing ticker: ${ticker}`);
+                logger.debug(`\n[DividendService] Processing ticker: ${ticker}`);
 
                 let dividends: Array<{ exDate: string; amount: number; currency: string }> = [];
                 let source = '';
 
                 // 1. Try Alpha Vantage first
-                console.log(`[DividendService] Trying Alpha Vantage for ${ticker}...`);
+                logger.debug(`[DividendService] Trying Alpha Vantage for ${ticker}...`);
                 dividends = await alphaVantageService.fetchDividends(ticker);
                 if (dividends.length > 0) {
                     source = 'Alpha Vantage';
-                    console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Alpha Vantage`);
+                    logger.debug(`[DividendService] ✓ Found ${dividends.length} dividends from Alpha Vantage`);
                 }
 
                 // 2. Fallback to Yahoo Finance if Alpha Vantage returns empty
                 if (dividends.length === 0) {
-                    console.log(
+                    logger.debug(
                         `[DividendService] Alpha Vantage returned no data, trying Yahoo Finance for ${ticker}...`
                     );
                     dividends = await apiService.fetchDividends(ticker);
                     if (dividends.length > 0) {
                         source = 'Yahoo Finance';
-                        console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Yahoo Finance`);
+                        logger.debug(`[DividendService] ✓ Found ${dividends.length} dividends from Yahoo Finance`);
                     }
                 }
 
                 // 3. Fallback to Stooq for Polish stocks (.WA suffix)
                 if (dividends.length === 0 && ticker.toUpperCase().endsWith('.WA')) {
-                    console.log(
+                    logger.debug(
                         `[DividendService] Yahoo Finance returned no data, trying Stooq for Polish stock ${ticker}...`
                     );
                     dividends = await stooqService.fetchDividends(ticker);
                     if (dividends.length > 0) {
                         source = 'Stooq';
-                        console.log(`[DividendService] ✓ Found ${dividends.length} dividends from Stooq`);
+                        logger.debug(`[DividendService] ✓ Found ${dividends.length} dividends from Stooq`);
                     }
                 }
 
                 // No dividends found from any source
                 if (dividends.length === 0) {
-                    console.log(`[DividendService] ✗ No dividends found for ${ticker} from any source`);
+                    logger.debug(`[DividendService] ✗ No dividends found for ${ticker} from any source`);
                     continue;
                 }
 
-                console.log(`[DividendService] Using ${source} data for ${ticker}`);
+                logger.debug(`[DividendService] Using ${source} data for ${ticker}`);
 
                 // Group transactions for this ticker by portfolioId
                 const tickerTransactions = transactions.filter(tx => tx.ticker === ticker);
@@ -421,18 +422,18 @@ class DividendService {
 
                         added++;
                         touchedPortfolios.add(targetPortId);
-                        console.log(
+                        logger.debug(
                             `[DividendService] Added dividend from ${source} for portfolio #${targetPortId}: ${ticker} - ${div.exDate} - ${div.amount} ${div.currency}`
                         );
                     }
                 }
             }
 
-            console.log(`[DividendService] Sync complete: ${added} added, ${skipped} skipped`);
+            logger.debug(`[DividendService] Sync complete: ${added} added, ${skipped} skipped`);
             if (touchedPortfolios.size) await refreshSnapshots([...touchedPortfolios]);
             return { added, skipped };
         } catch (error) {
-            console.error('[DividendService] Failed to sync dividends:', error);
+            logger.error('[DividendService] Failed to sync dividends:', error);
             throw error;
         }
     }
@@ -444,10 +445,10 @@ class DividendService {
         try {
             const dividend = await db.dividends.get(id);
             await db.dividends.delete(id);
-            console.log(`[DividendService] Deleted dividend ID: ${id}`);
+            logger.debug(`[DividendService] Deleted dividend ID: ${id}`);
             if (dividend) await refreshSnapshots([dividend.portfolioId ?? 1]);
         } catch (error) {
-            console.error('[DividendService] Failed to delete dividend:', error);
+            logger.error('[DividendService] Failed to delete dividend:', error);
             throw error;
         }
     }
@@ -494,7 +495,7 @@ class DividendService {
      */
     async recalculateDividendsForTicker(ticker: string): Promise<number> {
         try {
-            console.log(`[DividendService] Recalculating dividends for ${ticker}...`);
+            logger.debug(`[DividendService] Recalculating dividends for ${ticker}...`);
 
             // Get all transactions sorted chronologically
             const transactions = await db.transactions.orderBy('date').toArray();
@@ -503,7 +504,7 @@ class DividendService {
             const dividends = await db.dividends.where('ticker').equals(ticker).toArray();
 
             if (dividends.length === 0) {
-                console.log(`[DividendService] No dividends found for ${ticker}`);
+                logger.debug(`[DividendService] No dividends found for ${ticker}`);
                 return 0;
             }
 
@@ -518,7 +519,7 @@ class DividendService {
                 // If shares owned is now 0, delete the dividend
                 if (sharesOwned === 0) {
                     await db.dividends.delete(dividend.id!);
-                    console.log(
+                    logger.debug(
                         `[DividendService] Deleted dividend ${dividend.id} (no shares owned on ${dividend.recordDate})`
                     );
                     updated++;
@@ -537,17 +538,17 @@ class DividendService {
                     valuePLN
                 });
 
-                console.log(
+                logger.debug(
                     `[DividendService] Updated dividend ${dividend.id}: ${sharesOwned} shares, ${totalAmount} ${dividend.currency}`
                 );
                 updated++;
             }
 
-            console.log(`[DividendService] Recalculated ${updated} dividends for ${ticker}`);
+            logger.debug(`[DividendService] Recalculated ${updated} dividends for ${ticker}`);
             await refreshSnapshots([...new Set(dividends.map(d => d.portfolioId ?? 1))]);
             return updated;
         } catch (error) {
-            console.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
+            logger.error(`[DividendService] Failed to recalculate dividends for ${ticker}:`, error);
             throw error;
         }
     }
@@ -558,7 +559,7 @@ class DividendService {
      */
     async migrateDividendStatus(): Promise<{ updated: number; skipped: number }> {
         try {
-            console.log('[DividendService] Starting dividend status migration...');
+            logger.debug('[DividendService] Starting dividend status migration...');
 
             const today = todayLocal();
             const allDividends = await db.dividends.toArray();
@@ -573,7 +574,7 @@ class DividendService {
                 // Update if status is incorrect
                 if (dividend.status !== correctStatus) {
                     await db.dividends.update(dividend.id!, { status: correctStatus });
-                    console.log(
+                    logger.debug(
                         `[DividendService] Updated ${dividend.ticker} (${dividend.paymentDate}): ${dividend.status} → ${correctStatus}`
                     );
                     updated++;
@@ -582,11 +583,11 @@ class DividendService {
                 }
             }
 
-            console.log(`[DividendService] Migration complete: ${updated} updated, ${skipped} already correct`);
+            logger.debug(`[DividendService] Migration complete: ${updated} updated, ${skipped} already correct`);
             if (updated > 0) await refreshSnapshots();
             return { updated, skipped };
         } catch (error) {
-            console.error('[DividendService] Failed to migrate dividend status:', error);
+            logger.error('[DividendService] Failed to migrate dividend status:', error);
             throw error;
         }
     }
@@ -628,11 +629,11 @@ class DividendService {
             }
 
             if (updated > 0) {
-                console.log(`[DividendService] Assigned portfolioId to ${updated} legacy dividends`);
+                logger.debug(`[DividendService] Assigned portfolioId to ${updated} legacy dividends`);
             }
             return { updated };
         } catch (error) {
-            console.error('[DividendService] Failed to migrate dividend portfolios:', error);
+            logger.error('[DividendService] Failed to migrate dividend portfolios:', error);
             return { updated: 0 };
         }
     }

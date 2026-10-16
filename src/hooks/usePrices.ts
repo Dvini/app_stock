@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchCurrentPrice, getCachedPrice } from '../lib/api';
 import type { PriceData } from '../types/api';
+import { logger } from '../utils/logger';
 
 interface UsePricesOptions {
     refreshInterval?: number;
@@ -71,7 +72,7 @@ export const usePrices = (tickers: string[] = [], options: UsePricesOptions = {}
                 newErrors[ticker] = 'No data available';
                 return null;
             } catch (error) {
-                console.error(`Error fetching price for ${ticker}:`, error);
+                logger.error(`Error fetching price for ${ticker}:`, error);
                 newErrors[ticker] = error instanceof Error ? error.message : 'Unknown error';
                 return null;
             }

@@ -6,6 +6,7 @@ import { dividendService } from '../lib/DividendService';
 import { dividendWithholdingRate } from '../utils/dividendTax';
 import { formatNumber } from '../utils/formatters';
 import type { Dividend } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface DividendEditModalProps {
     dividend: Dividend & { id: number };
@@ -32,7 +33,7 @@ export const DividendEditModal: React.FC<DividendEditModalProps> = ({ dividend, 
             toast.success('Dywidenda zaktualizowana');
             onClose();
         } catch (error) {
-            console.error('Failed to update dividend', error);
+            logger.error('Failed to update dividend', error);
             toast.error('Nie udało się zapisać dywidendy');
         } finally {
             setIsSaving(false);

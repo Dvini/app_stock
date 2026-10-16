@@ -8,6 +8,7 @@ import { cacheService } from './lib/CacheService';
 import { loadLedgerReport } from './lib/ledgerReconcile';
 import { refreshSnapshots } from './lib/ledgerStore';
 import { PortfolioProvider, usePortfolioAccount } from './context/PortfolioContext';
+import { logger } from './utils/logger';
 
 // Lazy load all page components for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -50,7 +51,7 @@ function App() {
         // Opening the DB runs pending migrations; a reconciliation report may appear afterwards
         initDB().then(async () => {
             // Dividends whose payment date has passed since the last run must reach cash
-            await refreshSnapshots().catch(error => console.error('Snapshot refresh failed', error));
+            await refreshSnapshots().catch(error => logger.error('Snapshot refresh failed', error));
             const report = loadLedgerReport();
             if (report) {
                 toast.warning('Dane portfela zostały uzgodnione z historią transakcji', {

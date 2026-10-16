@@ -25,6 +25,7 @@ import {
     Coins,
     RefreshCw
 } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 export const Taxes: React.FC = () => {
     const { portfolios } = usePortfolioAccount();
@@ -55,7 +56,7 @@ export const Taxes: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error('Tax rate backfill failed', error);
+            logger.error('Tax rate backfill failed', error);
             if (!silent) toast.error('Nie udało się pobrać kursów NBP');
         } finally {
             setIsFetchingRates(false);

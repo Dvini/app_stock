@@ -1,5 +1,6 @@
 import { cacheService } from './CacheService';
 import { addDaysISO, todayLocal } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface NBPRateResponse {
     rate: number;
@@ -34,7 +35,7 @@ class NBPService {
 
         // Validate date format
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            console.error('[NBPService] Invalid date format. Expected YYYY-MM-DD, got:', dateStr);
+            logger.error('[NBPService] Invalid date format. Expected YYYY-MM-DD, got:', dateStr);
             return null;
         }
 
@@ -43,20 +44,20 @@ class NBPService {
         // Check cache (historical rates never expire)
         const cached = cacheService.get<NBPRateResponse>(cacheKey);
         if (cached) {
-            console.log(`[NBPService] Using cached historical rate for ${currency} on ${dateStr}`);
+            logger.debug(`[NBPService] Using cached historical rate for ${currency} on ${dateStr}`);
             return cached;
         }
 
         // Fetch from NBP API
         try {
             const url = `${this.baseUrl}/${table.toLowerCase()}/${currency.toLowerCase()}/${dateStr}/?format=json`;
-            console.log(`[NBPService] Fetching rate from: ${url}`);
+            logger.debug(`[NBPService] Fetching rate from: ${url}`);
 
             const response = await fetch(url);
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    console.warn(`[NBPService] No rate found for ${currency} on ${dateStr} (probably weekend/holiday)`);
+                    logger.warn(`[NBPService] No rate found for ${currency} on ${dateStr} (probably weekend/holiday)`);
                     // Try to get rate from previous day (NBP might be closed)
                     return await this._getRateFromPreviousDay(currency, dateStr, table);
                 }
@@ -67,7 +68,7 @@ class NBPService {
             const rate = data.rates[0]?.mid;
 
             if (!rate) {
-                console.warn(`[NBPService] No rate data in response for ${currency} on ${dateStr}`);
+                logger.warn(`[NBPService] No rate data in response for ${currency} on ${dateStr}`);
                 return null;
             }
 
@@ -76,10 +77,10 @@ class NBPService {
             // Cache forever (historical data doesn't change)
             cacheService.set(cacheKey, rateData);
 
-            console.log(`[NBPService] Fetched historical rate for ${currency} on ${dateStr}: ${rate}`);
+            logger.debug(`[NBPService] Fetched historical rate for ${currency} on ${dateStr}: ${rate}`);
             return rateData;
         } catch (error) {
-            console.error(`[NBPService] Failed to fetch historical rate for ${currency} on ${dateStr}:`, error);
+            logger.error(`[NBPService] Failed to fetch historical rate for ${currency} on ${dateStr}:`, error);
             return null;
         }
     }
@@ -111,7 +112,7 @@ class NBPService {
             cacheService.set(cacheKey, rateData);
             return rateData;
         } catch (error) {
-            console.error(`[NBPService] Failed to fetch tax rate for ${currency} before ${dateStr}:`, error);
+            logger.error(`[NBPService] Failed to fetch tax rate for ${currency} before ${dateStr}:`, error);
             return null;
         }
     }
@@ -128,13 +129,13 @@ class NBPService {
         for (let i = 1; i <= maxAttempts; i++) {
             const prevDateStr = addDaysISO(dateStr, -i);
 
-            console.log(`[NBPService] Trying previous day: ${prevDateStr}`);
+            logger.debug(`[NBPService] Trying previous day: ${prevDateStr}`);
 
             const cacheKey = `nbp_rate_${currency}_${prevDateStr}_${table}`;
             const cached = cacheService.get<NBPRateResponse>(cacheKey);
 
             if (cached) {
-                console.log(`[NBPService] Found cached rate from ${prevDateStr}`);
+                logger.debug(`[NBPService] Found cached rate from ${prevDateStr}`);
                 return { ...cached, date: prevDateStr };
             }
 
@@ -149,14 +150,14 @@ class NBPService {
                     if (rate) {
                         const rateData: NBPRateResponse = { rate, date: prevDateStr };
                         cacheService.set(cacheKey, rateData);
-                        console.log(`[NBPService] Found rate from ${prevDateStr}: ${rate}`);
+                        logger.debug(`[NBPService] Found rate from ${prevDateStr}: ${rate}`);
                         return rateData;
                     }
                 }
                 // Only 404 means "no table that day"; anything else must not skip to an older day
                 if (response.status !== 404) return null;
             } catch (error) {
-                console.warn(
+                logger.warn(
                     `[NBPService] Failed to fetch from ${prevDateStr}:`,
                     error instanceof Error ? error.message : 'Unknown error'
                 );
@@ -164,7 +165,7 @@ class NBPService {
             }
         }
 
-        console.error(`[NBPService] Could not find rate for ${currency} within ${maxAttempts} days before ${dateStr}`);
+        logger.error(`[NBPService] Could not find rate for ${currency} within ${maxAttempts} days before ${dateStr}`);
         return null;
     }
 
@@ -182,13 +183,13 @@ class NBPService {
         // Check cache (1 hour)
         const cached = cacheService.get<NBPRateResponse>(cacheKey, this.cacheDuration);
         if (cached) {
-            console.log(`[NBPService] Using cached current rate for ${currency}`);
+            logger.debug(`[NBPService] Using cached current rate for ${currency}`);
             return cached;
         }
 
         try {
             const url = `${this.baseUrl}/${table.toLowerCase()}/${currency.toLowerCase()}/?format=json`;
-            console.log(`[NBPService] Fetching current rate from: ${url}`);
+            logger.debug(`[NBPService] Fetching current rate from: ${url}`);
 
             const response = await fetch(url);
 
@@ -201,7 +202,7 @@ class NBPService {
             const date = data.rates[0]?.effectiveDate || todayLocal();
 
             if (!rate) {
-                console.warn(`[NBPService] No current rate data for ${currency}`);
+                logger.warn(`[NBPService] No current rate data for ${currency}`);
                 return null;
             }
 
@@ -210,10 +211,10 @@ class NBPService {
             // Cache for 1 hour
             cacheService.set(cacheKey, rateData, { ttl: this.cacheDuration });
 
-            console.log(`[NBPService] Fetched current rate for ${currency}: ${rate} (effective: ${date})`);
+            logger.debug(`[NBPService] Fetched current rate for ${currency}: ${rate} (effective: ${date})`);
             return rateData;
         } catch (error) {
-            console.error(`[NBPService] Failed to fetch current rate for ${currency}:`, error);
+            logger.error(`[NBPService] Failed to fetch current rate for ${currency}:`, error);
             return null;
         }
     }
@@ -239,7 +240,7 @@ class NBPService {
     clearCache(): void {
         // Clear all cache entries starting with 'nbp_'
         cacheService.invalidate(/^nbp_/);
-        console.log('[NBPService] Cleared all NBP cache');
+        logger.debug('[NBPService] Cleared all NBP cache');
     }
 }
 

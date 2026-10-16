@@ -7,6 +7,7 @@ import { Calculator, ArrowRight, TrendingUp, TrendingDown, ShieldCheck, Layers }
 import { FreeRideCalculator } from '../components/FreeRideCalculator';
 import { formatNumber } from '../utils/formatters';
 import type { CurrencyCode } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface SimulatorResult {
     mode: string;
@@ -50,7 +51,7 @@ export const Simulator = () => {
                 const results = await apiService.search(selectedTicker);
                 setLiveSuggestions(results);
             } catch (error) {
-                console.error('Search failed', error);
+                logger.error('Search failed', error);
             } finally {
                 setIsSearching(false);
             }
@@ -92,7 +93,7 @@ export const Simulator = () => {
                     setPlnRate(rates[currentCurrency]);
                 }
             } catch (e) {
-                console.warn('Failed to fetch simulator rate', e);
+                logger.warn('Failed to fetch simulator rate', e);
             }
         };
         fetchRate();
@@ -113,7 +114,7 @@ export const Simulator = () => {
                 setLiveCurrency(priceData.currency);
             }
         } catch (e) {
-            console.error('Failed to fetch price for simulation', e);
+            logger.error('Failed to fetch price for simulation', e);
         }
     };
 
@@ -128,7 +129,7 @@ export const Simulator = () => {
                     setPrice(priceData.price.toString());
                 }
             } catch (e) {
-                console.error(e);
+                logger.error(e);
             }
         }
     };

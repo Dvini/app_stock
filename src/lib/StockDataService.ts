@@ -1,6 +1,7 @@
 import { apiService } from './ApiService';
 import { nbpService } from './NBPService';
 import type { CurrencyCode } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface StockPrice {
     price: number;
@@ -29,7 +30,7 @@ class StockDataService {
                     prices.set(ticker, priceData);
                 }
             } catch (error) {
-                console.error(`[StockDataService] Failed to fetch price for ${ticker}:`, error);
+                logger.error(`[StockDataService] Failed to fetch price for ${ticker}:`, error);
             }
         });
 
@@ -61,19 +62,19 @@ class StockDataService {
                         if (yahooRates[currency]) {
                             rates[currency] = yahooRates[currency];
                         } else {
-                            console.warn(`[StockDataService] No rate found for ${currency}, using 1.0`);
+                            logger.warn(`[StockDataService] No rate found for ${currency}, using 1.0`);
                             rates[currency] = 1.0;
                         }
                     }
                 } catch (error) {
-                    console.error(`[StockDataService] Failed to fetch rate for ${currency}:`, error);
+                    logger.error(`[StockDataService] Failed to fetch rate for ${currency}:`, error);
                     rates[currency] = 1.0;
                 }
             }
 
             return rates;
         } catch (error) {
-            console.error('[StockDataService] Failed to fetch exchange rates:', error);
+            logger.error('[StockDataService] Failed to fetch exchange rates:', error);
             return {};
         }
     }
@@ -107,7 +108,7 @@ class StockDataService {
         try {
             return await apiService.getHistory(ticker, range, interval);
         } catch (error) {
-            console.error(`[StockDataService] Failed to fetch history for ${ticker}:`, error);
+            logger.error(`[StockDataService] Failed to fetch history for ${ticker}:`, error);
             return null;
         }
     }
@@ -129,10 +130,10 @@ class StockDataService {
                 return yahooRate.rate;
             }
 
-            console.warn(`[StockDataService] No historical rate found for ${currency} on ${dateStr}, using 1.0`);
+            logger.warn(`[StockDataService] No historical rate found for ${currency} on ${dateStr}, using 1.0`);
             return 1.0;
         } catch (error) {
-            console.error(`[StockDataService] Failed to fetch historical rate for ${currency}:`, error);
+            logger.error(`[StockDataService] Failed to fetch historical rate for ${currency}:`, error);
             return 1.0;
         }
     }

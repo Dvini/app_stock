@@ -5,6 +5,7 @@ import { searchTickers, Ticker } from '../lib/tickers';
 import { apiService } from '../lib/api';
 
 import { usePortfolioAccount } from '../context/PortfolioContext';
+import { logger } from '../utils/logger';
 
 interface AddToWatchlistModalProps {
     onClose: () => void;
@@ -32,7 +33,7 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                 const results = await apiService.search(ticker);
                 setLiveSuggestions(results);
             } catch (error) {
-                console.error('Search failed', error);
+                logger.error('Search failed', error);
             } finally {
                 setIsSearching(false);
             }
@@ -62,13 +63,13 @@ export const AddToWatchlistModal: React.FC<AddToWatchlistModalProps> = ({ onClos
                     dateAdded: new Date().toISOString()
                 });
             } else {
-                console.log('Ticker already in watchlist or portfolio');
+                logger.debug('Ticker already in watchlist or portfolio');
             }
 
             if (onAdded) onAdded();
             onClose();
         } catch (error) {
-            console.error('Failed to add to watchlist', error);
+            logger.error('Failed to add to watchlist', error);
         }
     };
 

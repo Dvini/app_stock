@@ -1,4 +1,5 @@
 import { cacheService } from './CacheService';
+import { logger } from '../utils/logger';
 
 interface DividendRecord {
     exDate: string;
@@ -35,7 +36,7 @@ class AlphaVantageService {
 
         if (timeSinceLastRequest < this.requestDelay) {
             const waitTime = this.requestDelay - timeSinceLastRequest;
-            console.log(`[AlphaVantageService] Rate limiting: waiting ${waitTime}ms...`);
+            logger.debug(`[AlphaVantageService] Rate limiting: waiting ${waitTime}ms...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
 
@@ -51,7 +52,7 @@ class AlphaVantageService {
         // Check cache
         const cached = cacheService.get<DividendRecord[]>(cacheKey, this.cacheDuration);
         if (cached) {
-            console.log(`[AlphaVantageService] Using cached dividends for ${symbol}`);
+            logger.debug(`[AlphaVantageService] Using cached dividends for ${symbol}`);
             return cached;
         }
 
@@ -60,12 +61,12 @@ class AlphaVantageService {
             await this._waitForRateLimit();
 
             const url = `${this.baseUrl}?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=${symbol}&apikey=${this.apiKey}`;
-            console.log(`[AlphaVantageService] Fetching dividends for ${symbol}...`);
+            logger.debug(`[AlphaVantageService] Fetching dividends for ${symbol}...`);
 
             const response = await fetch(url);
 
             if (!response.ok) {
-                console.error(`[AlphaVantageService] HTTP error: ${response.status} for ${symbol}`);
+                logger.error(`[AlphaVantageService] HTTP error: ${response.status} for ${symbol}`);
                 return [];
             }
 
@@ -73,7 +74,7 @@ class AlphaVantageService {
 
             // Check for API error messages
             if (data['Information'] || data['Error Message'] || data['Note']) {
-                console.error(
+                logger.error(
                     `[AlphaVantageService] API error for ${symbol}:`,
                     data['Information'] || data['Error Message'] || data['Note']
                 );
@@ -83,7 +84,7 @@ class AlphaVantageService {
             // Extract monthly time series
             const timeSeries = data['Monthly Adjusted Time Series'];
             if (!timeSeries) {
-                console.error(`[AlphaVantageService] No time series data for ${symbol}`);
+                logger.error(`[AlphaVantageService] No time series data for ${symbol}`);
                 return [];
             }
 
@@ -108,10 +109,10 @@ class AlphaVantageService {
             // Cache the result
             cacheService.set(cacheKey, dividends, { ttl: this.cacheDuration });
 
-            console.log(`[AlphaVantageService] Fetched ${dividends.length} dividends for ${symbol}`);
+            logger.debug(`[AlphaVantageService] Fetched ${dividends.length} dividends for ${symbol}`);
             return dividends;
         } catch (error) {
-            console.error(`[AlphaVantageService] Failed to fetch dividends for ${symbol}:`, error);
+            logger.error(`[AlphaVantageService] Failed to fetch dividends for ${symbol}:`, error);
             return [];
         }
     }
@@ -145,7 +146,7 @@ class AlphaVantageService {
      */
     clearCache(): void {
         cacheService.invalidate(/^av_/);
-        console.log('[AlphaVantageService] Cleared all Alpha Vantage cache');
+        logger.debug('[AlphaVantageService] Cleared all Alpha Vantage cache');
     }
 }
 

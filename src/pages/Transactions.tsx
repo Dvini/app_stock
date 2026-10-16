@@ -10,6 +10,7 @@ import { AddTransactionModal } from '../components/AddTransactionModal';
 import { deleteTransaction, LedgerError } from '../lib/ledgerStore';
 import { dividendService } from '../lib/DividendService';
 import type { Transaction } from '../types/database';
+import { logger } from '../utils/logger';
 
 type StoredTransaction = Transaction & { id: number };
 
@@ -58,7 +59,7 @@ export const Transactions = () => {
             if (error instanceof LedgerError) {
                 toast.error('Nie można usunąć transakcji', { description: error.message, duration: 10000 });
             } else {
-                console.error('Failed to delete transaction', error);
+                logger.error('Failed to delete transaction', error);
                 toast.error('Błąd podczas usuwania transakcji');
             }
             return;
@@ -67,7 +68,7 @@ export const Transactions = () => {
             try {
                 await dividendService.recalculateDividendsForTicker(tx.ticker);
             } catch (error) {
-                console.error('Failed to recalculate dividends', error);
+                logger.error('Failed to recalculate dividends', error);
             }
         }
         toast.success('Transakcja usunięta');

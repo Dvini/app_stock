@@ -9,6 +9,7 @@ import {
     isForeignDividend,
     roundToZloty
 } from './dividendTax';
+import { logger } from './logger';
 
 const BELKA_RATE = 0.19;
 
@@ -501,7 +502,7 @@ export const exportPIT38ToCSV = (
         csvDownload([headers.join(';'), ...rows, ...summaryRows, ...dividendRows], `zestawienie_pit38_${year}.csv`);
         return true;
     } catch (error) {
-        console.error('Failed to export PIT-38 CSV:', error);
+        logger.error('Failed to export PIT-38 CSV:', error);
         return false;
     }
 };

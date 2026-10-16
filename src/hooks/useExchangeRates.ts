@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchExchangeRates } from '../lib/api';
 import type { CurrencyCode } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface UseExchangeRatesOptions {
     targetCurrency?: CurrencyCode;
@@ -81,7 +82,7 @@ export const useExchangeRates = (
             });
             setLastUpdate(new Date());
         } catch (err) {
-            console.error('Error fetching exchange rates:', err);
+            logger.error('Error fetching exchange rates:', err);
             setError(err instanceof Error ? err : new Error('Unknown error'));
         } finally {
             setIsLoading(false);
@@ -114,7 +115,7 @@ export const useExchangeRates = (
 
             const rate = rates[fromCurrency];
             if (!rate) {
-                console.warn(`No exchange rate available for ${fromCurrency} -> ${toCurrency}`);
+                logger.warn(`No exchange rate available for ${fromCurrency} -> ${toCurrency}`);
                 return amount; // Return original if no rate
             }
 

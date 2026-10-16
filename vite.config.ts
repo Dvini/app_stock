@@ -53,6 +53,7 @@ export default defineConfig({
     }
   },
   esbuild: {
-    drop: ['console', 'debugger'], // Remove console.* and debugger in production
+    // console.* is kept: noise is controlled by src/utils/logger.ts, and errors must stay visible
+    drop: ['debugger'],
   }
 })

@@ -2,6 +2,7 @@ import { cacheService } from './CacheService';
 import type { CurrencyCode } from '../types/database';
 import type { Ticker } from './tickers';
 import { toLocalISODate } from '../utils/dates';
+import { logger } from '../utils/logger';
 
 interface ApiServiceOptions {
     baseUrl?: string;
@@ -71,7 +72,7 @@ class ApiService {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
             if (retryCount < this.maxRetries) {
-                console.warn(`[ApiService] Fetch failed (${errorMessage}), retry ${retryCount + 1}/${this.maxRetries}`);
+                logger.warn(`[ApiService] Fetch failed (${errorMessage}), retry ${retryCount + 1}/${this.maxRetries}`);
                 await this._wait(1000 * Math.pow(2, retryCount));
                 return this.fetchWithBackup(url, retryCount + 1);
             }
@@ -96,7 +97,7 @@ class ApiService {
         // 1. Check cache - use 2 minutes for live prices to match 1D chart responsiveness
         const cached = cacheService.get<PriceData>(cacheKey, 2 * 60 * 1000);
         if (cached) {
-            console.log(`[ApiService] Using cached price for ${ticker}`);
+            logger.debug(`[ApiService] Using cached price for ${ticker}`);
             return cached;
         }
 
@@ -109,7 +110,7 @@ class ApiService {
             const data = await response.json();
 
             if (!data?.chart?.result?.[0]) {
-                console.warn(`[ApiService] No chart data for ${ticker}`);
+                logger.warn(`[ApiService] No chart data for ${ticker}`);
                 return null;
             }
 
@@ -134,14 +135,14 @@ class ApiService {
                 // 3. Cache the result for 2 minutes
                 cacheService.set(cacheKey, priceData, { ttl: 2 * 60 * 1000 });
 
-                console.log(`[ApiService] Fetched price for ${ticker}: ${price} ${currency}`);
+                logger.debug(`[ApiService] Fetched price for ${ticker}: ${price} ${currency}`);
                 return priceData;
             }
 
-            console.warn(`[ApiService] No price data found for ${ticker}`);
+            logger.warn(`[ApiService] No price data found for ${ticker}`);
             return null;
         } catch (error) {
-            console.error(`[ApiService] Failed to fetch price for ${ticker}:`, error);
+            logger.error(`[ApiService] Failed to fetch price for ${ticker}:`, error);
             return null;
         }
     }
@@ -155,7 +156,7 @@ class ApiService {
         const cacheKey = `search_${query.toUpperCase()}`;
         const cached = cacheService.get<Ticker[]>(cacheKey, 24 * 60 * 60 * 1000); // 24 hours cache
         if (cached) {
-            console.log(`[ApiService] Using cached search results for ${query}`);
+            logger.debug(`[ApiService] Using cached search results for ${query}`);
             return cached;
         }
 
@@ -183,10 +184,10 @@ class ApiService {
             // Cache results
             cacheService.set(cacheKey, results, { ttl: 24 * 60 * 60 * 1000 });
 
-            console.log(`[ApiService] Found ${results.length} results for ${query}`);
+            logger.debug(`[ApiService] Found ${results.length} results for ${query}`);
             return results;
         } catch (error) {
-            console.error(`[ApiService] Search failed for ${query}:`, error);
+            logger.error(`[ApiService] Search failed for ${query}:`, error);
             return [];
         }
     }
@@ -214,7 +215,7 @@ class ApiService {
         }
 
         if (missingPairs.length === 0) {
-            console.log(`[ApiService] Using cached rates for all currencies`);
+            logger.debug(`[ApiService] Using cached rates for all currencies`);
             return rates;
         }
 
@@ -245,10 +246,10 @@ class ApiService {
                         return { currency, rate };
                     }
 
-                    console.warn(`[ApiService] No rate data found for ${pair}`);
+                    logger.warn(`[ApiService] No rate data found for ${pair}`);
                     return null;
                 } catch (error) {
-                    console.error(`[ApiService] Failed to fetch rate for ${pair}:`, error);
+                    logger.error(`[ApiService] Failed to fetch rate for ${pair}:`, error);
                     return null;
                 }
             });
@@ -264,10 +265,10 @@ class ApiService {
                 }
             });
 
-            console.log(`[ApiService] Fetched ${results.filter(r => r).length} exchange rates`);
+            logger.debug(`[ApiService] Fetched ${results.filter(r => r).length} exchange rates`);
             return rates;
         } catch (error) {
-            console.error('[ApiService] Failed to fetch exchange rates:', error);
+            logger.error('[ApiService] Failed to fetch exchange rates:', error);
             return rates; // Return whatever we have cached
         }
     }
@@ -287,7 +288,7 @@ class ApiService {
         if (shouldCache) {
             const cached = cacheService.get<HistoryData>(cacheKey, cacheDuration);
             if (cached) {
-                console.log(`[ApiService] Using cached history for ${ticker} (${range}, ${interval})`);
+                logger.debug(`[ApiService] Using cached history for ${ticker} (${range}, ${interval})`);
                 return cached;
             }
         }
@@ -303,7 +304,7 @@ class ApiService {
             const quotes = result.indicators?.quote?.[0];
 
             if (!timestamps || !quotes || !quotes.close) {
-                console.warn(`[ApiService] No history data found for ${ticker}`);
+                logger.warn(`[ApiService] No history data found for ${ticker}`);
                 return null;
             }
 
@@ -328,13 +329,13 @@ class ApiService {
             if (shouldCache) {
                 cacheService.set(cacheKey, historyData, { ttl: cacheDuration });
             } else {
-                console.log(`[ApiService] Skipping cache for ${ticker} (${range}) - range too large`);
+                logger.debug(`[ApiService] Skipping cache for ${ticker} (${range}) - range too large`);
             }
 
-            console.log(`[ApiService] Fetched ${cleanData.length} history points for ${ticker}`);
+            logger.debug(`[ApiService] Fetched ${cleanData.length} history points for ${ticker}`);
             return historyData;
         } catch (error) {
-            console.error(`[ApiService] Failed to fetch history for ${ticker}:`, error);
+            logger.error(`[ApiService] Failed to fetch history for ${ticker}:`, error);
             return null;
         }
     }
@@ -348,7 +349,7 @@ class ApiService {
         // 1. Check cache (historical rates don't expire)
         const cached = cacheService.get<RateData>(cacheKey);
         if (cached) {
-            console.log(`[ApiService] Using cached historical rate for ${currency} on ${dateStr}`);
+            logger.debug(`[ApiService] Using cached historical rate for ${currency} on ${dateStr}`);
             return cached;
         }
 
@@ -370,7 +371,7 @@ class ApiService {
             const quotes = result.indicators?.quote?.[0];
 
             if (!timestamps || !quotes || !quotes.close) {
-                console.warn(`[ApiService] No historical rate found for ${pair} on ${dateStr}`);
+                logger.warn(`[ApiService] No historical rate found for ${pair} on ${dateStr}`);
                 return null;
             }
 
@@ -394,14 +395,14 @@ class ApiService {
                 // 4. Cache forever (historical data doesn't change)
                 cacheService.set(cacheKey, rateData);
 
-                console.log(`[ApiService] Fetched historical rate for ${pair} on ${dateStr}: ${validPrice}`);
+                logger.debug(`[ApiService] Fetched historical rate for ${pair} on ${dateStr}: ${validPrice}`);
                 return rateData;
             }
 
-            console.warn(`[ApiService] No valid price found for ${pair} on ${dateStr}`);
+            logger.warn(`[ApiService] No valid price found for ${pair} on ${dateStr}`);
             return null;
         } catch (error) {
-            console.error(`[ApiService] Failed to fetch historical rate for ${pair} on ${dateStr}:`, error);
+            logger.error(`[ApiService] Failed to fetch historical rate for ${pair} on ${dateStr}:`, error);
             return null;
         }
     }
@@ -416,7 +417,7 @@ class ApiService {
         // Check cache
         const cached = cacheService.get<DividendRecord[]>(cacheKey, this.cacheDuration * 16); // 4 hours for dividends
         if (cached) {
-            console.log(`[ApiService] Using cached dividends for ${ticker}`);
+            logger.debug(`[ApiService] Using cached dividends for ${ticker}`);
             return cached;
         }
 
@@ -427,14 +428,14 @@ class ApiService {
             const startDate = endDate - 5 * 365 * 24 * 60 * 60; // 5 years ago
 
             const targetUrl = `${this.baseUrl}${ticker}?period1=${startDate}&period2=${endDate}&interval=1d&events=div`;
-            console.log(`[ApiService] Fetching dividends for ${ticker}...`);
+            logger.debug(`[ApiService] Fetching dividends for ${ticker}...`);
 
             const response = await this.fetchWithBackup(targetUrl);
             const data = await response.json();
 
             const result = data.chart?.result?.[0];
             if (!result || !result.events?.dividends) {
-                console.log(`[ApiService] No dividend data found for ${ticker}`);
+                logger.debug(`[ApiService] No dividend data found for ${ticker}`);
                 return [];
             }
 
@@ -464,10 +465,10 @@ class ApiService {
             // Cache the result
             cacheService.set(cacheKey, dividends, { ttl: this.cacheDuration * 16 });
 
-            console.log(`[ApiService] Fetched ${dividends.length} dividends for ${ticker}`);
+            logger.debug(`[ApiService] Fetched ${dividends.length} dividends for ${ticker}`);
             return dividends;
         } catch (error) {
-            console.error(`[ApiService] Failed to fetch dividends for ${ticker}:`, error);
+            logger.error(`[ApiService] Failed to fetch dividends for ${ticker}:`, error);
             return [];
         }
     }
@@ -477,7 +478,7 @@ class ApiService {
      */
     invalidateTickerCache(ticker: string): void {
         cacheService.invalidate(new RegExp(`_(price|history)_${ticker}`));
-        console.log(`[ApiService] Invalidated cache for ${ticker}`);
+        logger.debug(`[ApiService] Invalidated cache for ${ticker}`);
     }
 
     /**
@@ -485,7 +486,7 @@ class ApiService {
      */
     clearCache(): void {
         cacheService.clear();
-        console.log('[ApiService] Cleared all API cache');
+        logger.debug('[ApiService] Cleared all API cache');
     }
 }
 

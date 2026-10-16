@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { toast } from 'sonner';
 import { Info, RefreshCw, Pencil } from 'lucide-react';
 import { DividendEditModal } from '../components/DividendEditModal';
 import { dividendNetPLN, dividendRate, dividendWithholdingRate } from '../utils/dividendTax';
@@ -39,18 +40,15 @@ export const Dividends = () => {
     } = useDividends();
     const { portfolios, isAllPortfolios } = usePortfolioAccount();
 
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const handleManualRefresh = async () => {
         setRefreshing(true);
         try {
             const result = await syncDividendsManually();
-            setToastMessage(`✓ Zsynchronizowano: +${result.added} dywidend`);
-            setTimeout(() => setToastMessage(null), 3000);
+            toast.success(`Zsynchronizowano: +${result.added} dywidend`);
         } catch {
-            setToastMessage('✗ Błąd synchronizacji');
-            setTimeout(() => setToastMessage(null), 3000);
+            toast.error('Błąd synchronizacji dywidend');
         } finally {
             setRefreshing(false);
         }
@@ -82,12 +80,6 @@ export const Dividends = () => {
             data-testid="dividends-page"
             className="space-y-8 animate-in fade-in zoom-in duration-500 h-full flex flex-col"
         >
-            {toastMessage && (
-                <div className="fixed top-4 right-4 bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top-2 fade-in">
-                    <p className="text-sm font-bold text-slate-200">{toastMessage}</p>
-                </div>
-            )}
-
             {error && !isLoading && <ErrorBanner error={error} onDismiss={() => {}} />}
 
             <header className="shrink-0 flex items-center justify-between">

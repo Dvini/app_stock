@@ -4,6 +4,7 @@ import { sortTransactions } from './ledger';
 import { datePart, toLocalISODate } from '../utils/dates';
 import { dividendNetPLN } from '../utils/dividendTax';
 import { isBuyTransaction, isSellTransaction, isDepositTransaction, isWithdrawTransaction } from '../types/database';
+import { logger } from '../utils/logger';
 
 interface HistoryDataPoint {
     time: number;
@@ -145,10 +146,10 @@ export const calculatePortfolioHistory = async (
         }
     }
 
-    console.log('[portfolioHistory] Range:', range);
-    console.log('[portfolioHistory] Start Date:', startDate.toISOString());
-    console.log('[portfolioHistory] End Date from Yahoo:', endDate.toISOString());
-    console.log('[portfolioHistory] Current Time (now):', now.toISOString());
+    logger.debug('[portfolioHistory] Range:', range);
+    logger.debug('[portfolioHistory] Start Date:', startDate.toISOString());
+    logger.debug('[portfolioHistory] End Date from Yahoo:', endDate.toISOString());
+    logger.debug('[portfolioHistory] Current Time (now):', now.toISOString());
 
     // 3. Replay Loop
     const timeline: Date[] = [];
@@ -181,10 +182,10 @@ export const calculatePortfolioHistory = async (
         }
     }
 
-    console.log('[portfolioHistory] Timeline length:', timeline.length);
+    logger.debug('[portfolioHistory] Timeline length:', timeline.length);
     if (timeline.length > 0) {
-        console.log('[portfolioHistory] Timeline first date:', timeline[0]?.toISOString());
-        console.log('[portfolioHistory] Timeline last date:', timeline[timeline.length - 1]?.toISOString());
+        logger.debug('[portfolioHistory] Timeline first date:', timeline[0]?.toISOString());
+        logger.debug('[portfolioHistory] Timeline last date:', timeline[timeline.length - 1]?.toISOString());
     }
 
     const resultSeries: HistoryDataPoint[] = timeline.map(day => {
