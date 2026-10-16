@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { db } from '../db/db';
 import { searchTickers, Ticker } from '../lib/tickers';
@@ -6,38 +6,50 @@ import { apiService, fetchCurrentPrice, fetchHistoricalRate } from '../lib/api';
 import { nbpService } from '../lib/NBPService';
 import { dividendService } from '../lib/DividendService';
 import { formatNumber } from '../utils/formatters';
-import { addTransaction, LedgerError } from '../lib/ledgerStore';
+import { addTransaction, updateTransaction, LedgerError } from '../lib/ledgerStore';
 import { commissionToPLN } from '../lib/ledger';
 import { toast } from 'sonner';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import type { Asset, CurrencyCode, TransactionType as DbTransactionType } from '../types/database';
+import type { Asset, CurrencyCode, Transaction, TransactionType as DbTransactionType } from '../types/database';
 import { isDepositTransaction, isWithdrawTransaction } from '../types/database';
 import { todayLocal } from '../utils/dates';
 
 interface AddTransactionModalProps {
     onClose: () => void;
     onTransactionAdded?: () => void;
+    /** When set, the modal edits this transaction instead of adding a new one */
+    transactionToEdit?: Transaction & { id: number };
 }
 
-export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onTransactionAdded }) => {
+const isCashType = (t: DbTransactionType) => isDepositTransaction(t) || isWithdrawTransaction(t);
+
+export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
+    onClose,
+    onTransactionAdded,
+    transactionToEdit: editTx
+}) => {
     const { activePortfolioId, portfolios } = usePortfolioAccount();
+    const isEdit = !!editTx;
     const [selectedPortfolioId, setSelectedPortfolioId] = useState<number>(() => {
+        if (editTx) return editTx.portfolioId ?? 1;
         if (activePortfolioId !== 'ALL') return activePortfolioId;
         return portfolios[0]?.id ?? 1;
     });
 
-    const [ticker, setTicker] = useState('');
-    const [amount, setAmount] = useState('');
-    const [price, setPrice] = useState('');
-    const [currency, setCurrency] = useState<CurrencyCode>('PLN');
-    const [exchangeRate, setExchangeRate] = useState('1.0');
-    const [type, setType] = useState<DbTransactionType>('Kupno');
-    const [date, setDate] = useState(todayLocal());
+    const [ticker, setTicker] = useState(editTx && !isCashType(editTx.type) ? (editTx.ticker ?? '') : '');
+    const [amount, setAmount] = useState(editTx && !isCashType(editTx.type) ? String(editTx.amount) : '');
+    const [price, setPrice] = useState(editTx ? String(editTx.price ?? editTx.total) : '');
+    const [currency, setCurrency] = useState<CurrencyCode>(editTx?.currency ?? 'PLN');
+    const [exchangeRate, setExchangeRate] = useState(editTx?.exchangeRate ? String(editTx.exchangeRate) : '1.0');
+    const [type, setType] = useState<DbTransactionType>(editTx?.type ?? 'Kupno');
+    const [date, setDate] = useState(editTx ? editTx.date.slice(0, 10) : todayLocal());
+    // In edit mode keep the stored rate until currency or date is changed
+    const storedRateKey = useRef(editTx ? `${editTx.currency ?? 'PLN'}|${editTx.date.slice(0, 10)}` : null);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [ownedAssets, setOwnedAssets] = useState<Asset[]>([]);
     const [availableCash, setAvailableCash] = useState(0);
-    const [commission, setCommission] = useState('');
-    const [commissionCurrency, setCommissionCurrency] = useState<CurrencyCode>('PLN');
+    const [commission, setCommission] = useState(editTx?.commission ? String(editTx.commission) : '');
+    const [commissionCurrency, setCommissionCurrency] = useState<CurrencyCode>(editTx?.commissionCurrency ?? 'PLN');
     const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -57,6 +69,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
 
     useEffect(() => {
         const fetchRate = async () => {
+            if (storedRateKey.current === `${currency}|${date}`) return;
+            storedRateKey.current = null;
+
             if (currency === 'PLN') {
                 setExchangeRate('1.0');
                 return;
@@ -139,8 +154,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
     const totalRevenuePLN = numAmount * numPrice * numRate - (type === 'Sprzedaż' ? commissionPLN : 0);
     const isDeposit = isDepositTransaction(type);
     const isWithdraw = isWithdrawTransaction(type);
+    // Quick hint against current balance; the ledger does the authoritative per-date check.
+    // Skipped when editing, because the current balance already includes the edited transaction.
     const isInsufficientFunds =
-        (type === 'Kupno' && totalCostPLN > availableCash) || (isWithdraw && numPrice > availableCash);
+        !isEdit && ((type === 'Kupno' && totalCostPLN > availableCash) || (isWithdraw && numPrice > availableCash));
 
     const handleSubmit = async () => {
         if (!isDeposit && !isWithdraw && (!ticker || !amount || !price)) return;
@@ -149,7 +166,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
             return;
         }
 
-        if (type === 'Sprzedaż') {
+        if (type === 'Sprzedaż' && !isEdit) {
             const asset = ownedAssets.find(a => a.ticker === ticker.toUpperCase());
             if (!asset) {
                 alert(`Nie posiadasz akcji ${ticker}, aby je sprzedać.`);
@@ -191,38 +208,48 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
         const txPrice = parseFloat(price);
         const txCommission = parseFloat(commission) || 0;
 
+        const record: Transaction = {
+            portfolioId: selectedPortfolioId,
+            date,
+            type,
+            ticker: txTicker,
+            amount: txAmount,
+            price: txPrice,
+            currency,
+            total: txAmount * txPrice,
+            exchangeRate: parseFloat(exchangeRate) || 1.0,
+            commission: txCommission > 0 ? txCommission : undefined,
+            commissionCurrency: txCommission > 0 ? effectiveCommissionCurrency : undefined
+        };
+
         try {
-            await addTransaction({
-                portfolioId: selectedPortfolioId,
-                date,
-                type,
-                ticker: txTicker,
-                amount: txAmount,
-                price: txPrice,
-                currency,
-                total: txAmount * txPrice,
-                exchangeRate: parseFloat(exchangeRate) || 1.0,
-                commission: txCommission > 0 ? txCommission : undefined,
-                commissionCurrency: txCommission > 0 ? effectiveCommissionCurrency : undefined
-            });
+            if (editTx) {
+                await updateTransaction({ ...record, id: editTx.id, note: editTx.note });
+            } else {
+                await addTransaction(record);
+            }
         } catch (error) {
             if (error instanceof LedgerError) {
                 toast.error('Nie można zapisać transakcji', { description: error.message, duration: 10000 });
             } else {
-                console.error('Failed to add transaction', error);
-                toast.error('Błąd podczas dodawania transakcji');
+                console.error('Failed to save transaction', error);
+                toast.error('Błąd podczas zapisywania transakcji');
             }
             return;
         }
 
-        if (!isDeposit && !isWithdraw) {
-            // Dividend share counts depend on holdings history; failure here must not undo the transaction
+        // Dividend share counts depend on holdings history; failure here must not undo the transaction
+        const affectedTickers = new Set([txTicker, editTx?.ticker ?? 'CASH'].map(t => t.toUpperCase()));
+        affectedTickers.delete('CASH');
+        for (const t of affectedTickers) {
             try {
-                await dividendService.recalculateDividendsForTicker(txTicker);
+                await dividendService.recalculateDividendsForTicker(t);
             } catch (error) {
                 console.error('[AddTransactionModal] Failed to recalculate dividends:', error);
             }
         }
+
+        if (isEdit) toast.success('Transakcja zaktualizowana');
 
         if (onTransactionAdded) onTransactionAdded();
         onClose();
@@ -278,7 +305,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
         >
             <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Nowa Operacja</h2>
+                    <h2 className="text-2xl font-bold">{isEdit ? 'Edycja Operacji' : 'Nowa Operacja'}</h2>
                     <button
                         data-testid="close-modal-button"
                         onClick={onClose}
@@ -297,6 +324,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                             <select
                                 data-testid="transaction-portfolio-select"
                                 value={selectedPortfolioId}
+                                disabled={isEdit}
+                                title={isEdit ? 'Nie można przenieść transakcji do innego portfela' : undefined}
                                 onChange={e => setSelectedPortfolioId(Number(e.target.value))}
                                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 outline-none focus:border-blue-600 transition-colors text-white font-semibold text-sm"
                             >
@@ -317,7 +346,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                     data-testid={`transaction-type-${t.toLowerCase()}`}
                                     onClick={() => {
                                         setType(t);
-                                        if (isDeposit || isWithdraw) {
+                                        if (isCashType(t)) {
                                             setCurrency('PLN');
                                             setExchangeRate('1.0');
                                         }
@@ -370,8 +399,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClos
                                                 {asset.ticker} ({asset.amount} szt.)
                                             </option>
                                         ))}
+                                        {isEdit && ticker && !ownedAssets.some(a => a.ticker === ticker) && (
+                                            <option value={ticker}>{ticker}</option>
+                                        )}
                                     </select>
-                                    {ownedAssets.length === 0 && (
+                                    {ownedAssets.length === 0 && !isEdit && (
                                         <p className="text-xs text-red-400 mt-1 ml-1">
                                             Brak posiadanych aktywów do sprzedaży.
                                         </p>

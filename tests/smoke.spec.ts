@@ -294,6 +294,49 @@ test.describe('Smoke Tests 🔥', () => {
             await expect(page.getByText(/Kupno CDR 2020-01-02: brak pokrycia/)).toBeVisible();
             await expect(page.getByTestId('add-transaction-modal')).toBeVisible();
         });
+
+        test('can edit and delete transactions, deposit funding a buy is protected', async ({ page }) => {
+            page.on('dialog', dialog => dialog.accept());
+            await page.goto('/');
+
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-wpłata').click();
+            await page.getByTestId('price-input').fill('1000');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible();
+
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-kupno').click();
+            await page.getByTestId('ticker-input').fill('CDR');
+            await page.getByTestId('amount-input').fill('5');
+            await page.getByTestId('price-input').fill('100');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
+
+            await page.getByTestId('nav-transakcje').click();
+            const rows = page.getByTestId(/^transaction-row-/);
+            const depositRow = rows.filter({ hasText: 'Wpłata' });
+            const buyRow = rows.filter({ hasText: 'CDR' });
+
+            // Deposit funds the buy -> blocked
+            await depositRow.getByTestId(/^delete-transaction-/).click();
+            await expect(page.getByText('Nie można usunąć transakcji')).toBeVisible();
+            await expect(rows).toHaveCount(2);
+
+            // Edit buy: 5 -> 2 shares
+            await buyRow.getByTestId(/^edit-transaction-/).click();
+            await expect(page.getByText('Edycja Operacji')).toBeVisible();
+            await page.getByTestId('amount-input').fill('2');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByText('Transakcja zaktualizowana')).toBeVisible();
+            await expect(buyRow).toContainText('200');
+
+            // Delete buy, then deposit
+            await buyRow.getByTestId(/^delete-transaction-/).click();
+            await expect(rows).toHaveCount(1);
+            await depositRow.getByTestId(/^delete-transaction-/).click();
+            await expect(page.getByText('Brak transakcji w historii')).toBeVisible();
+        });
     });
 
     // ========================================

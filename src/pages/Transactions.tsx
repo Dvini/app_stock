@@ -4,8 +4,14 @@ import { db } from '../db/db';
 import { cn } from '../lib/utils';
 import { formatNumber, formatQuantity } from '../utils/formatters';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import { Filter } from 'lucide-react';
+import { Filter, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { AddTransactionModal } from '../components/AddTransactionModal';
+import { deleteTransaction, LedgerError } from '../lib/ledgerStore';
+import { dividendService } from '../lib/DividendService';
 import type { Transaction } from '../types/database';
+
+type StoredTransaction = Transaction & { id: number };
 
 export const Transactions = () => {
     const { activePortfolioId, currentPortfolio, portfolios } = usePortfolioAccount();
@@ -37,6 +43,35 @@ export const Transactions = () => {
     }, [rawTransactions, filterPortfolioId]);
 
     const showPortfolioColumn = portfolios.length > 1;
+    const [editingTx, setEditingTx] = useState<StoredTransaction | null>(null);
+
+    const describe = (tx: Transaction) =>
+        tx.ticker && tx.ticker !== 'CASH'
+            ? `${tx.type} ${tx.ticker} ${tx.date} (${formatQuantity(tx.amount)} szt. × ${formatNumber(tx.price ?? 0)} ${tx.currency || 'PLN'})`
+            : `${tx.type} ${tx.date} (${formatNumber(tx.total)} ${tx.currency || 'PLN'})`;
+
+    const handleDelete = async (tx: StoredTransaction) => {
+        if (!window.confirm(`Usunąć transakcję?\n\n${describe(tx)}`)) return;
+        try {
+            await deleteTransaction(tx);
+        } catch (error) {
+            if (error instanceof LedgerError) {
+                toast.error('Nie można usunąć transakcji', { description: error.message, duration: 10000 });
+            } else {
+                console.error('Failed to delete transaction', error);
+                toast.error('Błąd podczas usuwania transakcji');
+            }
+            return;
+        }
+        if (tx.ticker && tx.ticker !== 'CASH') {
+            try {
+                await dividendService.recalculateDividendsForTicker(tx.ticker);
+            } catch (error) {
+                console.error('Failed to recalculate dividends', error);
+            }
+        }
+        toast.success('Transakcja usunięta');
+    };
 
     return (
         <div
@@ -92,13 +127,16 @@ export const Transactions = () => {
                             <th className="px-6 py-4 text-right">Kurs Waluty</th>
                             <th className="px-6 py-4 text-right">Prowizja</th>
                             <th className="px-6 py-4 text-right">Wartość (PLN)</th>
+                            <th className="px-4 py-4">
+                                <span className="sr-only">Akcje</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                         {transactions.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={showPortfolioColumn ? 10 : 9}
+                                    colSpan={showPortfolioColumn ? 11 : 10}
                                     className="px-6 py-8 text-center text-slate-500 italic"
                                 >
                                     Brak transakcji w historii dla wybranego widoku.
@@ -149,6 +187,11 @@ export const Transactions = () => {
                                             >
                                                 {tx.type}
                                             </span>
+                                            {tx.note && (
+                                                <div className="text-[11px] text-amber-400/80 mt-1 font-normal">
+                                                    {tx.note}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 font-bold text-blue-400">{tx.ticker || '—'}</td>
                                         <td className="px-6 py-4 text-right">
@@ -187,6 +230,28 @@ export const Transactions = () => {
                                             {formatNumber(tx.total * (tx.exchangeRate || 1))}{' '}
                                             <span className="text-xs font-normal text-slate-500">PLN</span>
                                         </td>
+                                        <td className="px-4 py-4">
+                                            {tx.id !== undefined && (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        data-testid={`edit-transaction-${tx.id}`}
+                                                        onClick={() => setEditingTx(tx as StoredTransaction)}
+                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition"
+                                                        title="Edytuj"
+                                                    >
+                                                        <Pencil size={15} />
+                                                    </button>
+                                                    <button
+                                                        data-testid={`delete-transaction-${tx.id}`}
+                                                        onClick={() => handleDelete(tx as StoredTransaction)}
+                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition"
+                                                        title="Usuń"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
                                 );
                             })
@@ -194,6 +259,14 @@ export const Transactions = () => {
                     </tbody>
                 </table>
             </div>
+
+            {editingTx && (
+                <AddTransactionModal
+                    key={editingTx.id}
+                    transactionToEdit={editingTx}
+                    onClose={() => setEditingTx(null)}
+                />
+            )}
         </div>
     );
 };
