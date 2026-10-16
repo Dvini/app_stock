@@ -31,8 +31,7 @@ export const DIVIDEND_CONSTANTS = {
 
 // Yahoo Finance API
 export const YAHOO_API = {
-    BASE_URL: 'https://query1.finance.yahoo.com/v8/finance/chart/',
-    PROXY_URLS: ['https://corsproxy.io/?', 'https://api.allorigins.win/raw?url=']
+    BASE_URL: 'https://query1.finance.yahoo.com/v8/finance/chart/'
 };
 
 // Supported currencies
@@ -108,7 +107,6 @@ export const TRANSACTION_TYPES = {
 export const ASSET_TYPES = {
     STOCK: 'stock',
     ETF: 'etf',
-    CRYPTO: 'crypto',
     COMMODITY: 'commodity'
 };
 

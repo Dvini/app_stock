@@ -6,7 +6,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db } from '../db/db';
-import { useCurrency } from '../context/CurrencyContext';
 import { formatNumber } from '../utils/formatters';
 import useAssets from './useAssets';
 import usePrices from './usePrices';
@@ -90,14 +89,12 @@ const EMPTY_CURRENCIES: CurrencyCode[] = [];
  */
 export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolioReturn => {
     const { activePortfolioId, currentPortfolio: contextPortfolio, portfolios } = usePortfolioAccount();
-    const { baseCurrency: globalBaseCurrency } = useCurrency();
 
     const effectivePortfolioId = portfolioIdOverride !== undefined ? portfolioIdOverride : activePortfolioId;
     const isAllPortfolios = effectivePortfolioId === 'ALL';
 
-    const baseCurrency = (
-        isAllPortfolios ? globalBaseCurrency : contextPortfolio?.currency || globalBaseCurrency
-    ) as CurrencyCode;
+    // All accounts are PLN-denominated
+    const baseCurrency: CurrencyCode = 'PLN';
 
     // Use specialized hooks for assets
     const { assets, tickers, currencies } = useAssets(effectivePortfolioId);
@@ -132,7 +129,7 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
 
     // Determine currencies needed for exchange rates
     const neededCurrencies = useMemo(() => {
-        if (currencies.length === 0 && watchlist.length === 0 && baseCurrency === 'PLN') return EMPTY_CURRENCIES;
+        if (currencies.length === 0 && watchlist.length === 0) return EMPTY_CURRENCIES;
         const currencySet = new Set(currencies);
 
         // Add watchlist currencies
@@ -148,11 +145,6 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
                 currencySet.add(c.currency);
             }
         });
-
-        // Add PLN for conversion if base is different
-        if (baseCurrency !== 'PLN') {
-            currencySet.add('PLN');
-        }
 
         return Array.from(currencySet);
     }, [currencies, watchlist, allCash, baseCurrency]);
@@ -270,22 +262,14 @@ export const usePortfolio = (portfolioIdOverride?: number | 'ALL'): UsePortfolio
                 pl: data.pl
             }));
 
-        // Cash in base currency
-        const cashRate = baseCurrency !== 'PLN' ? exchangeRates['PLN'] || 1 : 1;
-        const cashInBase = currentCash * cashRate;
+        // currentCash is already converted to base currency
+        const cashInBase = currentCash;
 
         // Total values
         const totalAssetsValueBase = processedAssets.reduce((acc, curr) => acc + curr.valueBase, 0);
         const totalValueBase = totalAssetsValueBase + cashInBase;
 
-        // Total in PLN for reference
-        let totalValuePLN = 0;
-        if (baseCurrency === 'PLN') {
-            totalValuePLN = totalValueBase;
-        } else {
-            const plnToBaseRate = exchangeRates['PLN'];
-            totalValuePLN = plnToBaseRate && plnToBaseRate !== 0 ? totalValueBase / plnToBaseRate : 0;
-        }
+        const totalValuePLN = totalValueBase;
 
         // P/L calculations
         const totalPL_Base = processedAssets.reduce((acc, curr) => acc + curr.plValue * curr.rate, 0);

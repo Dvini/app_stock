@@ -11,8 +11,7 @@ tests/
 ├── dashboard.spec.ts      # Testy Dashboard
 ├── portfolio.spec.ts      # Testy Portfolio 
 ├── transactions.spec.ts   # Testy transakcji
-├── dividends.spec.ts      # Testy dywidend
-└── ai.spec.ts             # E2E Testing with Playwright
+└── dividends.spec.ts      # Testy dywidend
 ```
 
 This directory contains end-to-end tests for the StockTracker application.

@@ -12,7 +12,7 @@ interface PortfolioContextValue {
     portfolios: PortfolioAccount[];
     isLoadingPortfolios: boolean;
     setActivePortfolioId: (id: ActivePortfolioId) => void;
-    createPortfolio: (data: Omit<PortfolioAccount, 'id' | 'createdAt'>) => Promise<number>;
+    createPortfolio: (data: Omit<PortfolioAccount, 'id' | 'createdAt' | 'currency'>) => Promise<number>;
     updatePortfolio: (id: number, data: Partial<PortfolioAccount>) => Promise<void>;
     deletePortfolio: (id: number) => Promise<void>;
 }
@@ -77,16 +77,17 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
 
     const isAllPortfolios = activePortfolioId === 'ALL';
 
-    const createPortfolio = async (data: Omit<PortfolioAccount, 'id' | 'createdAt'>): Promise<number> => {
+    const createPortfolio = async (data: Omit<PortfolioAccount, 'id' | 'createdAt' | 'currency'>): Promise<number> => {
         const newId = await db.portfolios.add({
             ...data,
+            currency: 'PLN',
             createdAt: new Date().toISOString()
         });
 
         // Initialize cash entry for new portfolio
         await db.cash.add({
             portfolioId: Number(newId),
-            currency: data.currency || 'PLN',
+            currency: 'PLN',
             amount: 0
         });
 

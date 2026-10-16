@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchExchangeRates } from '../lib/api';
-import { useCurrency } from '../context/CurrencyContext';
 import type { CurrencyCode } from '../types/database';
 
 interface UseExchangeRatesOptions {
@@ -34,9 +33,8 @@ export const useExchangeRates = (
     currencies: CurrencyCode[] = [],
     options: UseExchangeRatesOptions = {}
 ): UseExchangeRatesReturn => {
-    const { baseCurrency: defaultBaseCurrency } = useCurrency();
     const {
-        targetCurrency = defaultBaseCurrency,
+        targetCurrency = 'PLN',
         refreshInterval = 15 * 60 * 1000, // 15 minutes
         autoRefresh = true
     } = options;

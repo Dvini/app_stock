@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-    readonly VITE_DISABLE_AI?: string;
+    readonly VITE_ALPHA_VANTAGE_API_KEY?: string;
 }
 
 interface ImportMeta {

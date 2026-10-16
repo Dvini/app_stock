@@ -96,11 +96,8 @@ class StooqService {
         }
 
         try {
-            const isLocal =
-                typeof window !== 'undefined' &&
-                (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-            const url = `${this.baseUrl}?s=${normalizedTicker}`;
-            const targetUrl = isLocal ? url.replace('https://stooq.pl', '/api/stooq') : url;
+            // Always go through the local Vite proxy (stooq.pl has no CORS headers)
+            const targetUrl = `${this.baseUrl}?s=${normalizedTicker}`.replace('https://stooq.pl', '/api/stooq');
             console.log(`[StooqService] Fetching dividends for ${normalizedTicker} from ${targetUrl}`);
 
             const response = await fetch(targetUrl, {

@@ -3,7 +3,6 @@ import type { CurrencyCode } from '../types/database';
 import type { Ticker } from './tickers';
 
 interface ApiServiceOptions {
-    proxyUrls?: string[];
     baseUrl?: string;
     cacheDuration?: number;
     maxRetries?: number;
@@ -43,85 +42,39 @@ interface DividendRecord {
  * Implements caching, retry logic, and error handling
  */
 class ApiService {
-    private proxyUrls: string[];
     private baseUrl: string;
     private cacheDuration: number;
     private maxRetries: number;
-    private currentProxyIndex: number;
 
     /**
      * Create a new ApiService instance
      */
     constructor(options: ApiServiceOptions = {}) {
-        this.proxyUrls = options.proxyUrls || ['https://corsproxy.io/?', 'https://api.allorigins.win/raw?url='];
         this.baseUrl = options.baseUrl || 'https://query1.finance.yahoo.com/v8/finance/chart/';
         this.cacheDuration = options.cacheDuration || 15 * 60 * 1000; // 15 minutes
         this.maxRetries = options.maxRetries || 2;
-        this.currentProxyIndex = 0;
     }
 
     /**
-     * Fetch with automatic proxy fallback and retry
+     * Fetch a Yahoo Finance URL through the local Vite proxy (/api/yahoo), retrying with backoff.
+     * The app is meant to run via `npm run dev` / `npm run preview`, so no third-party CORS proxies are used.
      */
     async fetchWithBackup(url: string, retryCount: number = 0): Promise<Response> {
-        // In local/dev environment with Vite proxy, use /api/yahoo directly
-        const isLocal =
-            typeof window !== 'undefined' &&
-            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-        if (url.startsWith('/')) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) return response;
-                throw new Error(`Local proxy returned ${response.status} ${response.statusText}`);
-            } catch (localErr) {
-                console.warn('[ApiService] Local proxy fetch failed:', localErr);
-            }
-        } else if (isLocal && url.startsWith('https://query1.finance.yahoo.com')) {
-            const localProxyUrl = url.replace('https://query1.finance.yahoo.com', '/api/yahoo');
-            try {
-                const response = await fetch(localProxyUrl);
-                if (response.ok) return response;
-                console.warn(`[ApiService] Local proxy returned ${response.status}, trying fallback`);
-            } catch (localErr) {
-                console.warn('[ApiService] Local proxy fetch failed, trying fallback:', localErr);
-            }
-        }
-
-        const proxyUrl = this.proxyUrls[this.currentProxyIndex];
-        const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+        const localUrl = url.replace(/^https:\/\/query[12]\.finance\.yahoo\.com/, '/api/yahoo');
 
         try {
-            const response = await fetch(fullUrl);
-
-            if (response.ok) {
-                return response;
-            }
-
-            // If response is not OK, throw to trigger retry
+            const response = await fetch(localUrl);
+            if (response.ok) return response;
             throw new Error(`API Error: ${response.status} ${response.statusText}`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.warn(`[ApiService] Fetch failed with proxy ${this.currentProxyIndex}:`, errorMessage);
 
-            // Try next proxy
-            if (this.currentProxyIndex < this.proxyUrls.length - 1) {
-                this.currentProxyIndex++;
-                console.log(`[ApiService] Switching to backup proxy ${this.currentProxyIndex}`);
-                return this.fetchWithBackup(url, retryCount);
-            }
-
-            // Reset proxy index and retry if we haven't exceeded max retries
             if (retryCount < this.maxRetries) {
-                this.currentProxyIndex = 0;
-                console.log(`[ApiService] Retrying request (attempt ${retryCount + 1}/${this.maxRetries})`);
-
-                // Wait before retry (exponential backoff)
+                console.warn(`[ApiService] Fetch failed (${errorMessage}), retry ${retryCount + 1}/${this.maxRetries}`);
                 await this._wait(1000 * Math.pow(2, retryCount));
                 return this.fetchWithBackup(url, retryCount + 1);
             }
 
-            // All retries failed
             throw new Error(`Failed to fetch after ${this.maxRetries} retries: ${errorMessage}`);
         }
     }

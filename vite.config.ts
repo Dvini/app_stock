@@ -46,7 +46,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'web-llm': ['@mlc-ai/web-llm'],
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'dexie': ['dexie', 'dexie-react-hooks'],
         }

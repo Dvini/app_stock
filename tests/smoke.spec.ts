@@ -577,24 +577,4 @@ test.describe('Smoke Tests 🔥', () => {
             await expect(page.getByTestId('settings-page')).toBeVisible();
         });
     });
-
-    // ========================================
-    // OPTIONAL FEATURES
-    // ========================================
-
-    test.describe('Optional Features', () => {
-        
-        test('AI page loads if enabled', async ({ page }) => {
-            // Try to navigate to AI page
-            await page.goto('/ai');
-            
-            // Either AI page loads, or we get redirected
-            // Just verify app doesn't crash
-            await page.waitForLoadState('networkidle');
-            
-            // Page should render something (either AI or redirect to dashboard)
-            const body = await page.locator('body').textContent();
-            expect(body).toBeTruthy();
-        });
-    });
 });

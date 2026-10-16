@@ -27,13 +27,13 @@ export const isCashTransaction = (type: TransactionType): boolean =>
     isDepositTransaction(type) || isWithdrawTransaction(type);
 
 // Asset types
-export type AssetType = 'stock' | 'etf' | 'crypto' | 'commodity';
+export type AssetType = 'stock' | 'etf' | 'commodity';
 
 // Currency codes
 export type CurrencyCode = 'PLN' | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CHF' | 'CNY';
 
 // Portfolio types
-export type PortfolioType = 'standard' | 'ike' | 'ikze' | 'crypto' | 'custom';
+export type PortfolioType = 'standard' | 'ike' | 'ikze' | 'custom';
 
 /**
  * Portfolio account table schema
@@ -42,7 +42,7 @@ export interface PortfolioAccount {
     id?: number; // Auto-incremented
     name: string; // e.g. "Główny", "IKE mBank", "IKZE BOS"
     type: PortfolioType; // Account type
-    currency: CurrencyCode; // Base currency
+    currency: 'PLN'; // All accounts are PLN-denominated
     taxRate: number; // e.g. 19 for standard (19% Belka tax), 0 for IKE/IKZE
     annualLimit?: number; // Annual contribution limit (e.g. for IKE/IKZE)
     color?: string; // Accent color hex or Tailwind name

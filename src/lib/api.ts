@@ -15,8 +15,6 @@ import type { CurrencyCode } from '../types/database';
 
 // Legacy constants - kept for backward compatibility
 export const CACHE_DURATION_MS = 15 * 60 * 1000;
-export const PROXY_URL = 'https://corsproxy.io/?';
-export const BACKUP_PROXY_URL = 'https://api.allorigins.win/raw?url=';
 export const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
 /**

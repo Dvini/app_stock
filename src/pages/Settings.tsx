@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Save, Upload, Trash2, Cpu, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { Save, Upload, Trash2, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { exportData, exportTransactionsCSV, importData, clearData } from '../lib/dataManagement';
-import { useAI } from '../context/AIContext';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 
 interface SectionProps {
@@ -41,7 +40,6 @@ const SettingRow: React.FC<SettingRowProps> = ({ icon: Icon, label, description,
 );
 
 export const Settings = () => {
-    const { currentModel, changeModel } = useAI();
     const { portfolios } = usePortfolioAccount();
     const [exportScope, setExportScope] = useState<number | 'ALL'>('ALL');
     const [importStatus, setImportStatus] = useState('');
@@ -72,72 +70,12 @@ export const Settings = () => {
         }
     };
 
-    const availableModels = [
-        'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-        'Qwen2.5-3B-Instruct-q4f16_1-MLC',
-        'Qwen2.5-7B-Instruct-q4f16_1-MLC',
-        'Qwen3-0.6B-q4f16_1-MLC',
-        'Qwen3-1.7B-q4f16_1-MLC',
-        'Qwen3-4B-q4f16_1-MLC',
-        'Qwen3-8B-q4f16_1-MLC',
-        'gemma-3-1b-it-q4f32_1-MLC',
-        'gemma-3-4b-it-q4f16_1-MLC',
-        'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-        'Llama-3.2-3B-Instruct-q4f16_1-MLC',
-        'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
-        'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC',
-        'gemma-2-2b-it-q4f16_1-MLC',
-        'Phi-3.5-mini-instruct-q4f16_1-MLC'
-    ];
-
-    const getModelLabel = (id: string): string => {
-        if (id.includes('Qwen2.5-1.5B')) return 'Qwen 2.5 (1.5B) - Lightweight';
-        if (id.includes('Qwen2.5-3B')) return 'Qwen 2.5 (3B)';
-        if (id.includes('Qwen2.5-7B')) return 'Qwen 2.5 (7B) - High Performance';
-        if (id.includes('Qwen3-0.6B')) return 'Qwen 3 (0.6B) - High Speed';
-        if (id.includes('Qwen3-1.7B')) return 'Qwen 3 (1.7B) - Default (Balanced)';
-        if (id.includes('Qwen3-4B')) return 'Qwen 3 (4B) - Strong Instruct';
-        if (id.includes('Qwen3-8B')) return 'Qwen 3 (8B) - Maximum Power';
-        if (id.includes('gemma-3-1b')) return 'Gemma 3 (1B) - Mobile';
-        if (id.includes('gemma-3-4b')) return 'Gemma 3 (4B) - Balanced';
-        if (id.includes('Llama-3.2-1B')) return 'Llama 3.2 (1B) - Mobile';
-        if (id.includes('Llama-3.2-3B')) return 'Llama 3.2 (3B)';
-        if (id.includes('Mistral-7B')) return 'Mistral 7B v0.3 - Strong Reasoning';
-        if (id.includes('Hermes-2-Pro')) return 'Hermes 2 Pro (8B)';
-        if (id.includes('gemma-2-2b')) return 'Gemma 2 (2B) - Fast';
-        if (id.includes('Phi-3.5-mini')) return 'Phi 3.5 Mini (3.8B)';
-        return id.split('-').slice(0, 3).join(' ');
-    };
-
     return (
         <div
             data-testid="settings-page"
             className="space-y-8 animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20"
         >
             <h1 className="text-3xl font-extrabold tracking-tight">Ustawienia</h1>
-
-            {/* AI Settings */}
-            {(import.meta.env.VITE_DISABLE_AI as string) !== 'true' && (
-                <Section title="Sztuczna Inteligencja">
-                    <SettingRow
-                        icon={Cpu}
-                        label="Model AI"
-                        description="Wybierz model językowy. Parametr 'B' (Miliardy) oznacza rozmiar modelu - większy jest zazwyczaj mądrzejszy, ale wolniejszy."
-                    >
-                        <select
-                            value={currentModel}
-                            onChange={e => changeModel(e.target.value)}
-                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-200 outline-none focus:border-blue-600 max-w-[250px] md:max-w-xs"
-                        >
-                            {availableModels.map(m => (
-                                <option key={m} value={m}>
-                                    {getModelLabel(m)}
-                                </option>
-                            ))}
-                        </select>
-                    </SettingRow>
-                </Section>
-            )}
 
             <Section title="Zarządzanie Danymi">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -228,7 +166,7 @@ export const Settings = () => {
             {/* App Info */}
             <div className="text-center text-slate-600 text-xs">
                 <p>StockTracker v1.0.0 • Local-First • Privacy Focused</p>
-                <p className="mt-1">Built with React, Dexie, WebLLM & Tailwind</p>
+                <p className="mt-1">Built with React, Dexie & Tailwind</p>
             </div>
         </div>
     );

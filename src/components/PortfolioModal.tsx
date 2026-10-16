@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Briefcase, Trash2, Check, ShieldCheck } from 'lucide-react';
 import { usePortfolioAccount } from '../context/PortfolioContext';
-import type { PortfolioAccount, PortfolioType, CurrencyCode } from '../types/database';
+import type { PortfolioAccount, PortfolioType } from '../types/database';
 
 interface PortfolioModalProps {
     isOpen: boolean;
@@ -47,20 +47,12 @@ const PORTFOLIO_TYPES: Array<{
         defaultLimit: 10407
     },
     {
-        type: 'crypto',
-        label: 'Portfel Krypto',
-        description: 'Rachunek aktywów kryptowalutowych',
-        defaultTax: 19
-    },
-    {
         type: 'custom',
         label: 'Portfel Własny',
         description: 'Dowolne parametry i stawka podatku',
         defaultTax: 19
     }
 ];
-
-const CURRENCIES: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
 
 export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose, portfolioToEdit }) => {
     const { createPortfolio, updatePortfolio, deletePortfolio, portfolios } = usePortfolioAccount();
@@ -70,7 +62,6 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
     const [name, setName] = useState('');
     const [type, setType] = useState<PortfolioType>('standard');
     const [taxRate, setTaxRate] = useState<number>(19);
-    const [currency, setCurrency] = useState<CurrencyCode>('PLN');
     const [annualLimit, setAnnualLimit] = useState<string>('');
     const [color, setColor] = useState<string>('#3b82f6');
     const [error, setError] = useState<string | null>(null);
@@ -81,14 +72,12 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
             setName(portfolioToEdit.name);
             setType(portfolioToEdit.type);
             setTaxRate(portfolioToEdit.taxRate ?? 19);
-            setCurrency(portfolioToEdit.currency || 'PLN');
             setAnnualLimit(portfolioToEdit.annualLimit ? portfolioToEdit.annualLimit.toString() : '');
             setColor(portfolioToEdit.color || '#3b82f6');
         } else {
             setName('');
             setType('standard');
             setTaxRate(19);
-            setCurrency('PLN');
             setAnnualLimit('');
             setColor('#3b82f6');
         }
@@ -104,7 +93,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
             setTaxRate(config.defaultTax);
             if (config.defaultLimit && !annualLimit) {
                 setAnnualLimit(config.defaultLimit.toString());
-            } else if (!config.defaultLimit && (newType === 'standard' || newType === 'crypto')) {
+            } else if (!config.defaultLimit && newType === 'standard') {
                 setAnnualLimit('');
             }
         }
@@ -128,7 +117,6 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
                     name: name.trim(),
                     type,
                     taxRate,
-                    currency,
                     annualLimit: limitNum,
                     color
                 });
@@ -137,7 +125,6 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
                     name: name.trim(),
                     type,
                     taxRate,
-                    currency,
                     annualLimit: limitNum,
                     color
                 });
@@ -211,7 +198,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
                             type="text"
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="np. IKE mBank, Rachunek Główny, Krypto"
+                            placeholder="np. IKE mBank, Rachunek Główny"
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors text-white font-medium placeholder:text-slate-600"
                             autoFocus
                         />
@@ -252,25 +239,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Waluta bazowa */}
-                        <div>
-                            <label className="text-xs text-slate-400 uppercase font-bold ml-1 mb-1 block">
-                                Waluta bazowa
-                            </label>
-                            <select
-                                value={currency}
-                                onChange={e => setCurrency(e.target.value as CurrencyCode)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors text-white font-bold"
-                            >
-                                {CURRENCIES.map(curr => (
-                                    <option key={curr} value={curr}>
-                                        {curr}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
+                    <div>
                         {/* Stawka podatku Belki */}
                         <div>
                             <label className="text-xs text-slate-400 uppercase font-bold ml-1 mb-1 block flex items-center gap-1">
@@ -294,7 +263,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ isOpen, onClose,
                         <div>
                             <div className="flex justify-between items-center ml-1 mb-1">
                                 <label className="text-xs text-slate-400 uppercase font-bold block">
-                                    Roczny limit wpłat ({currency})
+                                    Roczny limit wpłat (PLN)
                                 </label>
                                 <span className="text-[10px] text-slate-500">Opcjonalnie</span>
                             </div>

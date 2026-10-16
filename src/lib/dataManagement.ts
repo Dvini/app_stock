@@ -1,14 +1,5 @@
-import { db } from '../db/db';
-import type {
-    Asset,
-    Transaction,
-    WatchlistItem,
-    Cash,
-    Dividend,
-    PortfolioAccount,
-    PortfolioType,
-    CurrencyCode
-} from '../types/database';
+import { db, normalizePortfolioType } from '../db/db';
+import type { Asset, Transaction, WatchlistItem, Cash, Dividend, PortfolioAccount } from '../types/database';
 
 interface CacheItem {
     key: string;
@@ -395,8 +386,8 @@ const importV3 = async (imported: ExportDataV3): Promise<void> => {
         // Import single portfolio as a new portfolio into existing database
         const newPortId = await db.portfolios.add({
             name: `${portfolioInfo.name} (Import)`,
-            type: (portfolioInfo.type as PortfolioType) || 'standard',
-            currency: (portfolioInfo.currency as CurrencyCode) || 'PLN',
+            type: normalizePortfolioType(portfolioInfo.type),
+            currency: 'PLN',
             taxRate: portfolioInfo.taxRate ?? 19,
             createdAt: new Date().toISOString()
         });
@@ -435,7 +426,15 @@ const importV3 = async (imported: ExportDataV3): Promise<void> => {
                 await db.cash.clear();
                 await db.dividends.clear();
 
-                if (data.portfolios?.length) await db.portfolios.bulkAdd(data.portfolios);
+                if (data.portfolios?.length) {
+                    await db.portfolios.bulkAdd(
+                        data.portfolios.map(p => ({
+                            ...p,
+                            type: normalizePortfolioType(p.type),
+                            currency: 'PLN' as const
+                        }))
+                    );
+                }
                 if (data.assets?.length) await db.assets.bulkAdd(data.assets);
                 if (data.transactions?.length) await db.transactions.bulkAdd(data.transactions);
                 if (data.watchlist?.length) await db.watchlist.bulkAdd(data.watchlist);

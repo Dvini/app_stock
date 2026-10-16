@@ -1,5 +1,21 @@
 import Dexie, { Table } from 'dexie';
-import type { Asset, Transaction, Cash, WatchlistItem, Dividend, PortfolioAccount } from '../types/database';
+import type {
+    Asset,
+    Transaction,
+    Cash,
+    WatchlistItem,
+    Dividend,
+    PortfolioAccount,
+    PortfolioType
+} from '../types/database';
+
+const PORTFOLIO_TYPES: readonly PortfolioType[] = ['standard', 'ike', 'ikze', 'custom'];
+
+/**
+ * Map legacy/unknown portfolio types (e.g. removed 'crypto') to 'standard'
+ */
+export const normalizePortfolioType = (type: string | undefined): PortfolioType =>
+    PORTFOLIO_TYPES.includes(type as PortfolioType) ? (type as PortfolioType) : 'standard';
 
 /**
  * Typed Dexie database class
@@ -127,6 +143,19 @@ export class StockTrackerDatabase extends Dexie {
                     .toCollection()
                     .modify(w => {
                         if (!w.portfolioId) w.portfolioId = defaultPortfolioId;
+                    });
+            });
+
+        // Version 8: PLN-only accounts, 'crypto' portfolio type removed
+        this.version(8)
+            .stores({})
+            .upgrade(async tx => {
+                await tx
+                    .table('portfolios')
+                    .toCollection()
+                    .modify(p => {
+                        p.type = normalizePortfolioType(p.type);
+                        p.currency = 'PLN';
                     });
             });
     }

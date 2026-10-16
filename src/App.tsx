@@ -4,8 +4,6 @@ import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initDB } from './db/db';
-import { AIProvider } from './context/AIContext';
-import { CurrencyProvider } from './context/CurrencyContext';
 import { cacheService } from './lib/CacheService';
 import { PortfolioProvider, usePortfolioAccount } from './context/PortfolioContext';
 
@@ -18,7 +16,6 @@ const Portfolio = lazy(() => import('./pages/Portfolio').then(m => ({ default: m
 const Transactions = lazy(() => import('./pages/Transactions').then(m => ({ default: m.Transactions })));
 const Dividends = lazy(() => import('./pages/Dividends').then(m => ({ default: m.Dividends })));
 const Simulator = lazy(() => import('./pages/Simulator').then(m => ({ default: m.Simulator })));
-const AI = lazy(() => import('./pages/AI').then(m => ({ default: m.AI })));
 const Taxes = lazy(() => import('./pages/Taxes').then(m => ({ default: m.Taxes })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
@@ -62,11 +59,7 @@ function App() {
                         path="/"
                         element={
                             <PortfolioProvider>
-                                <CurrencyProvider>
-                                    <AIProvider>
-                                        <Layout />
-                                    </AIProvider>
-                                </CurrencyProvider>
+                                <Layout />
                             </PortfolioProvider>
                         }
                     >
@@ -100,14 +93,6 @@ function App() {
                             element={
                                 <Suspense fallback={LoadingFallback}>
                                     <Simulator />
-                                </Suspense>
-                            }
-                        />
-                        <Route
-                            path="ai"
-                            element={
-                                <Suspense fallback={LoadingFallback}>
-                                    <AI />
                                 </Suspense>
                             }
                         />

@@ -5,7 +5,6 @@ import {
     PieChart,
     History,
     DollarSign,
-    Bot,
     Settings,
     Calculator,
     TrendingUp,
@@ -62,9 +61,6 @@ export const Sidebar = () => {
                 <SidebarItem to="/dividends" icon={DollarSign} label="Dywidendy" />
                 <SidebarItem to="/simulator" icon={Calculator} label="Symulator" />
                 <SidebarItem to="/taxes" icon={ReceiptText} label="Podatki (PIT-38)" />
-                {(import.meta.env.VITE_DISABLE_AI as string) !== 'true' && (
-                    <SidebarItem to="/ai" icon={Bot} label="AI Advisor" />
-                )}
                 <SidebarItem to="/settings" icon={Settings} label="Ustawienia" />
             </nav>
         </aside>
