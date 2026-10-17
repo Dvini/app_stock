@@ -14,6 +14,13 @@ interface WebGPUChartProps {
     color?: number[];
     currency?: string;
     range?: string;
+    /** Reference value the change is measured from; drawn as a dashed line */
+    baseline?: number;
+    /**
+     * Value that splits the line into green (at or above) and red (below), e.g. the purchase price.
+     * Without it the split is at zero, for P/L series; series that stay positive use `color`.
+     */
+    splitAt?: number;
 }
 
 interface TooltipState {
@@ -39,6 +46,12 @@ const getBounds = (points: number[]) => {
     const pad = span > 0 ? span * 0.08 : Math.max(Math.abs(max) * 0.01, 1);
     return { min: min - pad, max: max + pad };
 };
+
+/** Values the axis must cover: the series plus any reference lines drawn over it */
+const boundsPoints = (points: number[], ...refs: Array<number | undefined>) => [
+    ...points,
+    ...refs.filter((v): v is number => v !== undefined)
+];
 
 /** Round axis values (1, 2, 2.5 or 5 × 10^n apart) inside the bounds; zero gets a line when in range */
 const niceTicks = (min: number, max: number, target = 5) => {
@@ -73,7 +86,9 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
     data = [],
     color = [0.16, 0.8, 0.45, 1.0],
     currency = 'PLN',
-    range = '1mo'
+    range = '1mo',
+    baseline,
+    splitAt
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -93,14 +108,19 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
     const isNegative = (color?.[0] ?? 0) > 0.5 && (color?.[1] ?? 0) < 0.5;
     const themeColor = isNegative ? NEGATIVE : POSITIVE;
 
-    // Color of the line at a point, matching how the line is drawn below
-    const pointColor = (i: number) => {
+    // How the series sits against the split value: crossing it, entirely below, or entirely at/above
+    const pivot = splitAt ?? 0;
+    const split = useMemo(() => {
         const minVal = Math.min(...points);
         const maxVal = Math.max(...points);
-        if (minVal < 0 && maxVal > 0) return (points[i] ?? 0) >= 0 ? POSITIVE : NEGATIVE;
-        if (maxVal <= 0 && minVal < 0) return NEGATIVE;
-        return themeColor;
-    };
+        return { crosses: minVal < pivot && maxVal > pivot, allBelow: maxVal <= pivot && minVal < pivot };
+    }, [points, pivot]);
+    // One color for a series that does not cross: red below the split; above it green against a
+    // purchase price, otherwise the caller's trend color
+    const singleColor = split.allBelow ? NEGATIVE : splitAt !== undefined ? POSITIVE : themeColor;
+
+    // Color of the line at a point, matching how the line is drawn below
+    const pointColor = (i: number) => (split.crosses ? ((points[i] ?? 0) >= pivot ? POSITIVE : NEGATIVE) : singleColor);
 
     const getX = (i: number, chartW: number) =>
         points.length > 1 ? PADDING.left + (i / (points.length - 1)) * chartW : PADDING.left + chartW / 2;
@@ -129,7 +149,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
 
             ctx.clearRect(0, 0, w, h);
 
-            const { min, max } = getBounds(points);
+            const { min, max } = getBounds(boundsPoints(points, baseline, splitAt));
             const span = max - min;
             const getY = (val: number) => PADDING.top + chartH - ((val - min) / span) * chartH;
             const xAt = (i: number) => getX(i, chartW);
@@ -180,29 +200,24 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                 });
             }
 
-            const minVal = Math.min(...points);
-            const maxVal = Math.max(...points);
-            const crossesZero = minVal < 0 && maxVal > 0;
+            const { crosses, allBelow } = split;
 
-            // Series that stay on one side of zero use one color: the trend color from the caller for
-            // positive series (prices, portfolio value), red for an all-negative result
             const lineColor = (gradient: CanvasGradient) => {
-                if (!crossesZero) {
-                    const c = maxVal <= 0 && minVal < 0 ? NEGATIVE : themeColor;
-                    gradient.addColorStop(0, c);
-                    gradient.addColorStop(1, c);
+                if (!crosses) {
+                    gradient.addColorStop(0, singleColor);
+                    gradient.addColorStop(1, singleColor);
                     return gradient;
                 }
-                // P/L crossing zero: color each stretch by its sign, switching where the line crosses zero
-                const getColor = (val: number) => (val >= 0 ? POSITIVE : NEGATIVE);
+                // Crossing the split value: color each stretch by its side, switching where the line crosses
+                const getColor = (val: number) => (val >= pivot ? POSITIVE : NEGATIVE);
                 gradient.addColorStop(0, getColor(points[0]!));
                 for (let i = 0; i < points.length - 1; i++) {
                     const p1 = points[i]!;
                     const p2 = points[i + 1]!;
                     const pos1 = i / (points.length - 1);
                     const pos2 = (i + 1) / (points.length - 1);
-                    if ((p1 >= 0 && p2 < 0) || (p1 < 0 && p2 >= 0)) {
-                        const ratio = Math.abs(p1) / (Math.abs(p1) + Math.abs(p2));
+                    if ((p1 >= pivot && p2 < pivot) || (p1 < pivot && p2 >= pivot)) {
+                        const ratio = Math.abs(p1 - pivot) / (Math.abs(p1 - pivot) + Math.abs(p2 - pivot));
                         const crossPos = pos1 + (pos2 - pos1) * ratio;
                         gradient.addColorStop(Math.max(0, crossPos - 0.002), getColor(p1));
                         gradient.addColorStop(Math.min(1, crossPos + 0.002), getColor(p2));
@@ -215,13 +230,28 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             const strokeGradient = lineColor(ctx.createLinearGradient(PADDING.left, 0, w - PADDING.right, 0));
             const fillGradient = lineColor(ctx.createLinearGradient(PADDING.left, 0, w - PADDING.right, 0));
 
-            if (crossesZero) {
+            // Zero line for a P/L series; a custom split value is shown by the caller through `baseline`
+            if (crosses && splitAt === undefined) {
                 ctx.save();
                 ctx.strokeStyle = ZERO_LINE;
                 ctx.setLineDash([4, 4]);
                 ctx.beginPath();
                 ctx.moveTo(PADDING.left, getY(0));
                 ctx.lineTo(w - PADDING.right, getY(0));
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Reference line the change is measured from (labeled by the caller): the line ends above it
+            // in green, below it in red
+            if (baseline !== undefined) {
+                const y = getY(baseline);
+                ctx.save();
+                ctx.strokeStyle = ZERO_LINE;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(PADDING.left, y);
+                ctx.lineTo(w - PADDING.right, y);
                 ctx.stroke();
                 ctx.restore();
             }
@@ -234,24 +264,23 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                 return;
             }
 
-            // Area between the line and its baseline: zero for a result that has losses (so green fills
-            // profit and red fills loss), otherwise the bottom edge. Single-color areas fade towards the baseline.
-            const allNegative = maxVal <= 0 && minVal < 0;
-            const baseline = crossesZero ? getY(0) : allNegative ? PADDING.top : bottom;
+            // Area between the line and the split value (purchase price, or zero for a P/L series with losses),
+            // so green fills gain and red fills loss; otherwise down to the bottom edge. Single-color areas
+            // fade towards that edge.
+            const areaBase = splitAt !== undefined || crosses ? getY(pivot) : allBelow ? PADDING.top : bottom;
             ctx.save();
             ctx.beginPath();
-            ctx.moveTo(xAt(0), baseline);
+            ctx.moveTo(xAt(0), areaBase);
             points.forEach((val, i) => ctx.lineTo(xAt(i), getY(val)));
-            ctx.lineTo(xAt(points.length - 1), baseline);
+            ctx.lineTo(xAt(points.length - 1), areaBase);
             ctx.closePath();
-            if (crossesZero) {
+            if (crosses) {
                 ctx.globalAlpha = 0.18;
                 ctx.fillStyle = fillGradient;
             } else {
-                const c = allNegative ? NEGATIVE : themeColor;
-                const fade = ctx.createLinearGradient(0, allNegative ? bottom : PADDING.top, 0, baseline);
-                fade.addColorStop(0, `${c}55`);
-                fade.addColorStop(1, `${c}00`);
+                const fade = ctx.createLinearGradient(0, allBelow ? bottom : PADDING.top, 0, areaBase);
+                fade.addColorStop(0, `${singleColor}55`);
+                fade.addColorStop(1, `${singleColor}00`);
                 ctx.fillStyle = fade;
             }
             ctx.fill();
@@ -273,7 +302,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
         observer.observe(container);
 
         return () => observer.disconnect();
-    }, [points, times, range, themeColor]);
+    }, [points, times, range, baseline, splitAt, split, singleColor, pivot]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!containerRef.current || points.length === 0) return;
@@ -293,7 +322,7 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
 
         const price = points[index]!;
         const time = times[index];
-        const { min, max } = getBounds(points);
+        const { min, max } = getBounds(boundsPoints(points, baseline, splitAt));
 
         setTooltip({
             x: getX(index, chartW),

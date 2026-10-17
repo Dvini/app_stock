@@ -24,6 +24,7 @@ interface HistoryDataPoint {
 interface HistoryData {
     data: HistoryDataPoint[];
     currency: CurrencyCode;
+    previousClose?: number;
 }
 
 interface RateData {
@@ -324,6 +325,12 @@ class ApiService {
 
             const currency = result.meta.currency || 'PLN';
             const historyData: HistoryData = { data: cleanData, currency: currency as CurrencyCode };
+            // Yahoo's chartPreviousClose is the prior session's close only for the 1-day range; for longer
+            // ranges it is off by a day on some exchanges (e.g. WSE), so it is not exposed there
+            const previousClose = result.meta.chartPreviousClose;
+            if (range === '1d' && typeof previousClose === 'number' && previousClose > 0) {
+                historyData.previousClose = previousClose;
+            }
 
             // 3. Cache the result (only for reasonable ranges to avoid localStorage overflow)
             if (shouldCache) {

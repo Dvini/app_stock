@@ -43,6 +43,8 @@ export const Dashboard = () => {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [chartCurrency, setChartCurrency] = useState('PLN');
+    // Prior session's close; the 1D change is measured from it, not from today's first trade
+    const [chartPrevClose, setChartPrevClose] = useState<number | null>(null);
     const [chartRange, setChartRange] = useState<ChartRange>('1mo');
     const [isLoadingChart, setIsLoadingChart] = useState(false);
 
@@ -79,12 +81,15 @@ export const Dashboard = () => {
             if (result && result.data) {
                 setChartData(result.data.map(d => ({ time: d.timestamp, price: d.price })));
                 setChartCurrency(result.currency);
+                setChartPrevClose(chartRange === '1d' ? (result.previousClose ?? null) : null);
             } else if (Array.isArray(result)) {
                 setChartData(result);
                 const knownAsset = assetsRef.current.find(a => a.ticker === selectedTicker);
                 setChartCurrency(knownAsset?.currency || 'PLN');
+                setChartPrevClose(null);
             } else {
                 setChartData([]);
+                setChartPrevClose(null);
             }
             setIsLoadingChart(false);
         };
@@ -125,29 +130,38 @@ export const Dashboard = () => {
         }
     };
 
-    const ranges: Array<{ label: string; val: ChartRange }> = [
-        { label: '1D', val: '1d' },
-        { label: '1T', val: '5d' },
-        { label: '1M', val: '1mo' },
-        { label: '1R', val: '1y' },
-        { label: '5L', val: '5y' },
-        { label: 'MAX', val: 'max' }
+    const ranges: Array<{ label: string; val: ChartRange; period: string }> = [
+        { label: '1D', val: '1d', period: 'od wczorajszego zamknięcia' },
+        { label: '1T', val: '5d', period: 'w ostatnim tygodniu' },
+        { label: '1M', val: '1mo', period: 'w ostatnim miesiącu' },
+        { label: '1R', val: '1y', period: 'w ostatnim roku' },
+        { label: '5L', val: '5y', period: 'w ostatnich 5 latach' },
+        { label: 'MAX', val: 'max', period: 'od początku notowań' }
     ];
 
     const currentAssetInfo = selectedTicker
         ? getAssetPrice(selectedTicker)
         : { price: '---', currency: 'PLN', pl: null, isOwned: false };
 
+    // Change over the selected range: for 1D from the prior session's close (as exchanges report the daily
+    // change), otherwise from the first quote in the range. The badge, the line color and the dashed
+    // reference line on the chart all use this same baseline.
     const getChartStats = () => {
         if (!chartData || chartData.length === 0) return null;
-        const start = chartData[0]?.price || 0;
+        const start = chartPrevClose ?? chartData[0]?.price ?? 0;
         const end = chartData[chartData.length - 1]?.price || 0;
         const change = end - start;
-        const percent = (change / start) * 100;
-        return { change, percent, end };
+        const percent = start ? (change / start) * 100 : 0;
+        return { change, percent, end, start };
     };
 
     const chartStats = getChartStats();
+
+    // For a held position the line is green above the average purchase price and red below it. Only when the
+    // chart is quoted in the position's currency, so the two prices are comparable.
+    const ownedAsset = assets.find(a => a.ticker === selectedTicker);
+    const purchasePrice =
+        ownedAsset && ownedAsset.avgPrice > 0 && ownedAsset.currency === chartCurrency ? ownedAsset.avgPrice : null;
 
     const todayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -376,7 +390,7 @@ export const Dashboard = () => {
                                         )}
                                     </h2>
                                     <div className="flex items-center gap-4 mt-2">
-                                        <span className="text-2xl font-medium text-slate-200">
+                                        <span className="text-2xl font-medium text-slate-200 whitespace-nowrap">
                                             {currentAssetInfo.price !== '---'
                                                 ? formatNumber(currentAssetInfo.price as number)
                                                 : '---'}{' '}
@@ -387,7 +401,7 @@ export const Dashboard = () => {
                                         {chartStats && (
                                             <span
                                                 className={cn(
-                                                    'px-2 py-1 rounded text-sm font-bold',
+                                                    'px-2 py-1 rounded text-sm font-bold whitespace-nowrap',
                                                     plSign(chartStats.change) > 0
                                                         ? 'bg-emerald-500/10 text-emerald-400'
                                                         : plSign(chartStats.change) < 0
@@ -395,12 +409,42 @@ export const Dashboard = () => {
                                                           : 'bg-white/[0.05] text-slate-300'
                                                 )}
                                             >
-                                                {chartStats.change > 0 && '+'}
+                                                {plSign(chartStats.change) > 0 && '+'}
                                                 {formatNumber(chartStats.change)} {chartCurrency} (
                                                 {formatNumber(chartStats.percent)}%)
                                             </span>
                                         )}
                                     </div>
+                                    {chartStats && (
+                                        <div className="mt-2 space-y-1 text-xs text-slate-500 whitespace-nowrap">
+                                            <p data-testid="chart-change-period">
+                                                Zmiana {ranges.find(r => r.val === chartRange)?.period} (
+                                                {formatNumber(chartStats.start)} {chartCurrency})
+                                            </p>
+                                            {/* Legend for the dashed line: the chart is green above it, red below */}
+                                            <p
+                                                data-testid="chart-split-legend"
+                                                className="flex items-center gap-1.5"
+                                                title="Nad przerywaną linią wykres jest zielony, pod nią czerwony"
+                                            >
+                                                <span className="inline-block w-4 border-t border-dashed border-slate-400" />
+                                                {purchasePrice !== null ? (
+                                                    <span data-testid="chart-purchase-price">
+                                                        Twoja śr. cena kupna {formatNumber(purchasePrice)}{' '}
+                                                        {chartCurrency}
+                                                    </span>
+                                                ) : (
+                                                    <span>
+                                                        {chartPrevClose !== null
+                                                            ? 'Wczorajsze zamknięcie'
+                                                            : 'Początek okresu'}
+                                                    </span>
+                                                )}
+                                                <span className="text-emerald-400">▲ nad</span>
+                                                <span className="text-rose-400">▼ pod</span>
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div
@@ -440,12 +484,10 @@ export const Dashboard = () => {
                                         data={chartData}
                                         currency={chartCurrency}
                                         range={chartRange}
-                                        color={
-                                            // Line follows the move over the selected range, like the badge above
-                                            chartStats && chartStats.change < 0
-                                                ? [0.9, 0.3, 0.3, 1.0]
-                                                : [0.2, 0.8, 0.4, 1.0]
-                                        }
+                                        // Green above the dashed line, red below: the purchase price for a
+                                        // held position, otherwise the price at the start of the range
+                                        baseline={purchasePrice ?? chartStats?.start}
+                                        splitAt={purchasePrice ?? chartStats?.start}
                                     />
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center text-slate-500 flex-col gap-2">

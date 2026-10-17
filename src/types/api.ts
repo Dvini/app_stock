@@ -78,6 +78,8 @@ export interface HistoricalDataPoint {
 export interface HistoricalData {
     data: HistoricalDataPoint[];
     currency: CurrencyCode;
+    /** Close of the session before the range; reliable only for the 1-day range */
+    previousClose?: number;
 }
 
 /**
