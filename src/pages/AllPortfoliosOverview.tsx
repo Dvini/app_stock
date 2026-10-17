@@ -19,6 +19,7 @@ import { PieChart } from '../components/PieChart';
 import { PortfolioModal } from '../components/PortfolioModal';
 import { MissingRatesNotice } from '../components/UIComponents';
 import { formatNumber } from '../utils/formatters';
+import { plSign, plTextClass } from '../lib/utils';
 import type { PortfolioAccount, CurrencyCode } from '../types/database';
 import { isDepositTransaction } from '../types/database';
 
@@ -211,17 +212,13 @@ export const AllPortfoliosOverview: React.FC = () => {
                         {formatNumber(grandTotals.totalWealthPLN)}{' '}
                         <span className="text-sm font-normal text-slate-400">PLN</span>
                     </div>
-                    <div
-                        className={`text-xs mt-2 flex items-center font-bold ${
-                            grandTotals.totalPL_PLN >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                        }`}
-                    >
+                    <div className={`text-xs mt-2 flex items-center font-bold ${plTextClass(grandTotals.totalPL_PLN)}`}>
                         {grandTotals.totalPL_PLN >= 0 ? (
                             <TrendingUp size={14} className="mr-1" />
                         ) : (
                             <TrendingDown size={14} className="mr-1" />
                         )}
-                        {grandTotals.totalPL_PLN >= 0 ? '+' : ''}
+                        {plSign(grandTotals.totalPL_PLN) > 0 ? '+' : ''}
                         {formatNumber(grandTotals.totalPL_PLN)} PLN wynik łączny
                     </div>
                 </div>
@@ -345,11 +342,9 @@ export const AllPortfoliosOverview: React.FC = () => {
 
                                             <div className="flex items-center justify-between mt-2 text-xs">
                                                 <span
-                                                    className={`font-bold flex items-center ${
-                                                        m.plValPLN >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                                                    }`}
+                                                    className={`font-bold flex items-center ${plTextClass(m.plValPLN)}`}
                                                 >
-                                                    {m.plValPLN >= 0 ? '+' : ''}
+                                                    {plSign(m.plValPLN) > 0 ? '+' : ''}
                                                     {formatNumber(m.plValPLN)} PLN ({formatNumber(m.plPercent)}%)
                                                 </span>
                                                 <span className="text-slate-400 font-mono">

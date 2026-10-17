@@ -6,6 +6,7 @@ import { fetchExchangeRates, fetchCurrentPrice, apiService } from '../lib/api';
 import { Calculator, ArrowRight, TrendingUp, TrendingDown, ShieldCheck, Layers } from 'lucide-react';
 import { FreeRideCalculator } from '../components/FreeRideCalculator';
 import { formatNumber } from '../utils/formatters';
+import { plTextClass } from '../lib/utils';
 import type { CurrencyCode } from '../types/database';
 import { logger } from '../utils/logger';
 
@@ -474,7 +475,7 @@ export const Simulator = () => {
                                                 Wpływ na Gotówkę
                                             </div>
                                             <div
-                                                className={`text-xl font-mono font-bold ${result.cashChange > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                                                className={`text-xl font-mono font-bold ${plTextClass(result.cashChange)}`}
                                             >
                                                 {result.cashChange > 0 ? '+' : ''}
                                                 {formatNumber(result.cashChange)}

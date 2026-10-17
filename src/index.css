@@ -1,7 +1,171 @@
 @import 'tailwindcss';
 
+/*
+ * Theme: soft dark glass. Components are styled with slate (surfaces/text) and blue (accent)
+ * utilities everywhere, so the look is set here by redefining those scales: the darker slate
+ * steps are translucent, which turns every card, input and chip into glass over the gradient
+ * background rendered by Layout.
+ */
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    --color-canvas: #07081a;
+
+    /* Text steps stay solid */
+    --color-slate-50: #f7f8fd;
+    --color-slate-100: #eef0fa;
+    --color-slate-200: #dcdff0;
+    --color-slate-300: #c0c4de;
+    --color-slate-400: #9aa0c2;
+    --color-slate-500: #737a9e;
+    --color-slate-600: #575d7e;
+    /* Surface steps are glass */
+    --color-slate-700: rgb(255 255 255 / 0.13);
+    --color-slate-800: rgb(255 255 255 / 0.075);
+    --color-slate-900: rgb(24 26 56 / 0.5);
+    --color-slate-950: rgb(6 7 22 / 0.45);
+
+    /* Violet-blue accent */
+    --color-blue-50: #f1efff;
+    --color-blue-100: #e4e0ff;
+    --color-blue-200: #cdc5ff;
+    --color-blue-300: #ae9fff;
+    --color-blue-400: #9580ff;
+    --color-blue-500: #7c63fb;
+    --color-blue-600: #6a4cf0;
+    --color-blue-700: #5a3cd4;
+    --color-blue-800: #4932aa;
+    --color-blue-900: #3b2c85;
+    --color-blue-950: #231a50;
+
+    --radius-xl: 0.875rem;
+    --radius-2xl: 1.25rem;
+    --radius-3xl: 1.75rem;
+
+    --animate-enter: enter var(--tw-duration, 220ms) cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes enter {
+    from {
+        opacity: var(--tw-enter-opacity, 1);
+        transform: translate3d(0, var(--tw-enter-translate-y, 0), 0) scale(var(--tw-enter-scale, 1));
+    }
+}
+
+/* Entrance helpers used across pages and dropdowns */
+@utility animate-in {
+    animation: var(--animate-enter);
+}
+@utility fade-in {
+    --tw-enter-opacity: 0;
+    --tw-enter-translate-y: 8px;
+}
+@utility zoom-in {
+    --tw-enter-scale: 0.99;
+}
+@utility zoom-in-95 {
+    --tw-enter-scale: 0.95;
+    --tw-enter-translate-y: 0;
+}
+
+@utility custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+
+@utility glass {
+    background-color: rgb(24 26 56 / 0.45);
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0) 55%);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    backdrop-filter: blur(24px) saturate(150%);
+}
+
+@utility text-gradient {
+    background-image: linear-gradient(120deg, #ffffff 0%, #d9d2ff 45%, #9be7ff 100%);
+    background-clip: text;
+    color: transparent;
+}
+
 @layer base {
+    html {
+        color-scheme: dark;
+        scrollbar-width: thin;
+        scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+    }
+
     body {
-        @apply bg-slate-950 text-slate-100;
+        background-color: var(--color-canvas);
+        @apply text-slate-100 antialiased;
+        font-feature-settings: 'cv11', 'ss01';
+        font-variant-numeric: tabular-nums;
+    }
+
+    h1,
+    h2,
+    h3 {
+        letter-spacing: -0.025em;
+    }
+
+    ::selection {
+        background: rgb(124 99 251 / 0.4);
+    }
+
+    option {
+        background-color: #14163a;
+        color: var(--color-slate-100);
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    [role='button']:focus-visible {
+        outline: 2px solid var(--color-blue-400);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    /* Panels get frosted glass with a soft top sheen; explicit gradient utilities still win */
+    .bg-slate-900,
+    .bg-slate-900\/40,
+    .bg-slate-900\/50,
+    .bg-slate-900\/60,
+    .bg-slate-900\/80,
+    .bg-slate-900\/90 {
+        backdrop-filter: blur(24px) saturate(150%);
+    }
+    :is(.rounded-2xl, .rounded-3xl):is(
+        .bg-slate-900,
+        .bg-slate-900\/50,
+        .bg-slate-900\/60,
+        .bg-slate-900\/80,
+        .bg-slate-900\/90
+    ) {
+        background-image: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0) 55%);
+    }
+
+    /* Primary actions use a gradient */
+    .bg-blue-600 {
+        background-image: linear-gradient(135deg, #8b5cf6 0%, #6a4cf0 50%, #3b82f6 100%);
+    }
+    .bg-blue-600:hover {
+        filter: brightness(1.1);
+    }
+}
+
+/* Floating layers sit over content, so they must stay readable: near-opaque glass */
+.absolute:is(.bg-slate-800, .bg-slate-900\/95) {
+    background-color: rgb(20 22 48 / 0.94);
+    backdrop-filter: blur(20px);
+}
+.sticky:is(.bg-slate-900, .bg-slate-950) {
+    background-color: rgb(14 15 38 / 0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
     }
 }

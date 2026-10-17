@@ -204,8 +204,9 @@ test.describe('Smoke Tests 🔥', () => {
             await page.getByTestId('amount-input').fill('1');
             await page.getByTestId('price-input').fill('150');
             
-            // Wait a moment for potential exchange rate to load
-            await page.waitForTimeout(500);
+            // Ticker typed without picking a suggestion: the quote currency is detected automatically
+            await expect(page.getByTestId('currency-selector')).toHaveValue('USD', { timeout: 10000 });
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
             
             // Submit
             await page.getByTestId('submit-transaction-button').click();
@@ -224,6 +225,50 @@ test.describe('Smoke Tests 🔥', () => {
             await expect(portfolioContent).toContainText('AAPL');
         });
 
+        test('a buy is saved in the currency the ticker is quoted in', async ({ page }) => {
+            await page.goto('/');
+
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-wpłata').click();
+            await page.getByTestId('price-input').fill('100000');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible();
+
+            // Saved right after typing (before detection finished): blocked and switched to USD
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-kupno').click();
+            await page.getByTestId('amount-input').fill('3');
+            await page.getByTestId('price-input').fill('400');
+            await page.getByTestId('ticker-input').fill('MSFT');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByText('MSFT jest notowany w USD')).toBeVisible({ timeout: 10000 });
+            await expect(page.getByTestId('add-transaction-modal')).toBeVisible();
+            await expect(page.getByTestId('currency-selector')).toHaveValue('USD');
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
+
+            // A currency picked by hand that does not match the quote is corrected on save
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-kupno').click();
+            await page.getByTestId('ticker-input').fill('CDR.WA');
+            await page.getByTestId('amount-input').fill('1');
+            await page.getByTestId('price-input').fill('250');
+            await expect(page.getByTestId('quote-currency-hint')).toHaveText('Notowany w PLN', { timeout: 10000 });
+            await page.getByTestId('currency-selector').selectOption('EUR');
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByText('CDR.WA jest notowany w PLN')).toBeVisible({ timeout: 10000 });
+            await expect(page.getByTestId('currency-selector')).toHaveValue('PLN');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
+
+            await page.getByTestId('nav-transakcje').click();
+            const table = page.getByTestId('transactions-table');
+            await expect(table.getByTestId(/^transaction-row-/).filter({ hasText: 'MSFT' })).toContainText('USD');
+            await expect(table.getByTestId(/^transaction-row-/).filter({ hasText: 'CDR.WA' })).not.toContainText('EUR');
+        });
+
         test('can sell stock', async ({ page }) => {
             await page.goto('/');
             
@@ -240,7 +285,9 @@ test.describe('Smoke Tests 🔥', () => {
             await page.getByTestId('ticker-input').fill('MSFT');
             await page.getByTestId('amount-input').fill('5');
             await page.getByTestId('price-input').fill('300');
-            await page.waitForTimeout(500);
+            // Ticker typed without picking a suggestion: the quote currency is detected automatically
+            await expect(page.getByTestId('currency-selector')).toHaveValue('USD', { timeout: 10000 });
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
             await page.getByTestId('submit-transaction-button').click();
             await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
             
@@ -254,6 +301,7 @@ test.describe('Smoke Tests 🔥', () => {
             await page.getByTestId('asset-selector').selectOption('MSFT');
             await page.getByTestId('amount-input').fill('2');
             await page.getByTestId('price-input').fill('320');
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
             await page.getByTestId('submit-transaction-button').click();
             
             // Modal should close
@@ -545,7 +593,9 @@ test.describe('Smoke Tests 🔥', () => {
             await page.getByTestId('ticker-input').fill('AAPL');
             await page.getByTestId('amount-input').fill('10');
             await page.getByTestId('price-input').fill('150');
-            await page.waitForTimeout(500);
+            // Ticker typed without picking a suggestion: the quote currency is detected automatically
+            await expect(page.getByTestId('currency-selector')).toHaveValue('USD', { timeout: 10000 });
+            await expect(page.getByTestId('exchange-rate-input')).not.toHaveValue('', { timeout: 10000 });
             await page.getByTestId('submit-transaction-button').click();
             await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
             

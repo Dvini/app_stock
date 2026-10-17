@@ -137,9 +137,11 @@ function App() {
                 closeButton
                 toastOptions={{
                     style: {
-                        background: 'rgb(15 23 42)', // slate-950
-                        border: '1px solid rgb(51 65 85)', // slate-700
-                        color: 'rgb(241 245 249)' // slate-100
+                        background: 'rgb(17 20 27 / 0.95)', // slate-900
+                        border: '1px solid rgb(255 255 255 / 0.08)',
+                        color: 'rgb(236 238 243)', // slate-100
+                        backdropFilter: 'blur(12px)',
+                        borderRadius: '14px'
                     },
                     className: 'font-sans'
                 }}

@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { MissingRatesNotice } from '../components/UIComponents';
-import { cn } from '../lib/utils';
+import { cn, plTextClass } from '../lib/utils';
 import { PlusCircle, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { usePortfolioAccount } from '../context/PortfolioContext';
 import { AddTransactionModal } from '../components/AddTransactionModal';
-import { PieChart } from '../components/PieChart';
+import { PieChart, PIE_COLORS, PIE_OTHER_COLOR } from '../components/PieChart';
 import { WebGPUChart } from '../components/WebGPUChart';
 import { calculatePortfolioHistory } from '../lib/portfolioHistory';
 import { formatNumber, formatQuantity } from '../utils/formatters';
@@ -50,16 +50,34 @@ export const Portfolio = () => {
     const [selectedTicker, setSelectedTicker] = useState('PORTFOLIO');
     const [sessionDate, setSessionDate] = useState<string | undefined>(undefined);
 
-    const pieData = assets
-        .map(a => ({
-            label: a.ticker,
-            value: a.valueBase,
-            pl: a.pl
-        }))
-        .sort((a, b) => b.value - a.value);
+    // Largest holdings first; past eight slices the rest is folded into "Inne" so colors never repeat
+    const pieData = useMemo(() => {
+        const sorted = assets
+            .map(a => ({ label: a.ticker, value: a.valueBase, pl: a.pl as string | undefined }))
+            .sort((a, b) => b.value - a.value);
+        if (sorted.length <= PIE_COLORS.length) return sorted.map((d, i) => ({ ...d, color: PIE_COLORS[i]! }));
+        const head = sorted.slice(0, PIE_COLORS.length - 1).map((d, i) => ({ ...d, color: PIE_COLORS[i]! }));
+        const rest = sorted.slice(PIE_COLORS.length - 1);
+        const other = {
+            label: `Inne (${rest.length})`,
+            value: rest.reduce((sum, d) => sum + d.value, 0),
+            pl: undefined,
+            color: PIE_OTHER_COLOR
+        };
+        return [...head, other];
+    }, [assets]);
+
+    // A fully sold ticker disappears from the selector; fall back to the whole portfolio
+    useEffect(() => {
+        if (selectedTicker !== 'PORTFOLIO' && assets.length > 0 && !assets.some(a => a.ticker === selectedTicker)) {
+            setSelectedTicker('PORTFOLIO');
+        }
+    }, [assets, selectedTicker]);
 
     useEffect(() => {
         if (viewMode !== 'history') return;
+        // A slower, older request (e.g. previous ticker or range) must not overwrite the current one
+        let cancelled = false;
 
         const loadHistory = async () => {
             setHistoryLoading(true);
@@ -77,6 +95,7 @@ export const Portfolio = () => {
                     newSessionDate = result.sessionDate;
                 }
 
+                if (cancelled) return;
                 setSessionDate(newSessionDate);
 
                 const plData: HistoryDataPoint[] = data.map(d => ({
@@ -89,12 +108,17 @@ export const Portfolio = () => {
             } catch (e) {
                 logger.error('History calc failed', e);
             }
-            setHistoryLoading(false);
+            if (!cancelled) setHistoryLoading(false);
         };
 
         if (transactions.length > 0) {
             loadHistory();
+        } else {
+            setHistoryData([]);
         }
+        return () => {
+            cancelled = true;
+        };
     }, [transactions, dividends, viewMode, historyRange, selectedTicker]);
 
     return (
@@ -166,7 +190,7 @@ export const Portfolio = () => {
                     <div
                         className={cn(
                             'text-2xl font-bold mt-1 flex items-center gap-2',
-                            portfolioSummary.totalPL.includes('-') ? 'text-rose-400' : 'text-emerald-400'
+                            plTextClass(portfolioSummary.totalPL)
                         )}
                     >
                         {portfolioSummary.totalPL}
@@ -293,20 +317,13 @@ export const Portfolio = () => {
                         {viewMode === 'pie' ? (
                             <div className="w-full h-full flex items-center justify-center">
                                 <div className="w-full h-full max-w-[400px]">
-                                    <PieChart data={pieData} />
+                                    <PieChart data={pieData} colors={pieData.map(d => d.color)} />
                                 </div>
                                 <div className="ml-8 hidden md:block space-y-2 max-h-full overflow-y-auto custom-scrollbar pr-2">
-                                    {pieData.map((d, i) => (
+                                    {pieData.map(d => (
                                         <div key={d.label} className="flex items-center gap-2 text-sm">
-                                            <div
-                                                className="w-3 h-3 rounded-full"
-                                                style={{
-                                                    background: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][
-                                                        i % 5
-                                                    ]
-                                                }}
-                                            />
-                                            <span className="font-bold text-slate-300 w-16">{d.label}</span>
+                                            <div className="w-3 h-3 rounded-full" style={{ background: d.color }} />
+                                            <span className="font-bold text-slate-300 min-w-16">{d.label}</span>
                                             <span className="text-slate-500">
                                                 {((d.value / pieData.reduce((a, b) => a + b.value, 0)) * 100).toFixed(
                                                     1
@@ -413,12 +430,7 @@ export const Portfolio = () => {
                                             {formatNumber(asset.avgPrice)}{' '}
                                             <span className="text-xs">{asset.currency}</span>
                                         </td>
-                                        <td
-                                            className={cn(
-                                                'px-6 py-4 text-right font-medium',
-                                                asset.pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'
-                                            )}
-                                        >
+                                        <td className={cn('px-6 py-4 text-right font-medium', plTextClass(asset.pl))}>
                                             {asset.pl}
                                             <div className="text-[10px] text-slate-500 font-normal">
                                                 {formatNumber(asset.plValue * asset.rate)}{' '}

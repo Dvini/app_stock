@@ -44,11 +44,11 @@ export const PortfolioSwitcher: React.FC = () => {
     };
 
     return (
-        <div ref={dropdownRef} className="relative mb-6 px-2">
+        <div ref={dropdownRef} className="relative mb-6">
             {/* Main switcher button */}
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-slate-600 rounded-2xl p-3 cursor-pointer transition-all flex items-center justify-between group shadow-sm"
+                className="w-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/[0.12] rounded-2xl p-2.5 cursor-pointer transition-all flex items-center justify-between group"
             >
                 <div className="flex items-center gap-3 min-w-0">
                     <div
@@ -101,7 +101,7 @@ export const PortfolioSwitcher: React.FC = () => {
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute left-2 right-2 mt-2 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+                <div className="absolute left-0 right-0 mt-2 bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
                     <div className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                         Twoje Konta Inwestycyjne
                     </div>

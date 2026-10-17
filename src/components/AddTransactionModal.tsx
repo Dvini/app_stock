@@ -56,6 +56,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const [commissionCurrency, setCommissionCurrency] = useState<CurrencyCode>(editTx?.commissionCurrency ?? 'PLN');
     const [liveSuggestions, setLiveSuggestions] = useState<Ticker[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    // Currency the typed ticker is quoted in; a buy must be recorded in that currency
+    const [quote, setQuote] = useState<{ ticker: string; currency: CurrencyCode } | null>(null);
+    // A currency picked by hand is not replaced by detection until the ticker changes
+    const currencyEditedByUser = useRef(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -153,6 +157,28 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         return () => clearTimeout(timer);
     }, [ticker, type]);
 
+    // Detect the quote currency of a typed ticker, so a ticker typed without picking a suggestion
+    // (e.g. "AAPL") is not saved as PLN
+    useEffect(() => {
+        if (type !== 'Kupno' || !ticker) {
+            setQuote(null);
+            return;
+        }
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            const detected = await resolveQuoteCurrency(ticker);
+            if (cancelled) return;
+            setQuote(detected ? { ticker, currency: detected } : null);
+            // Editing keeps the stored currency until the ticker is changed
+            const tickerChanged = !editTx || ticker !== (editTx.ticker ?? '').toUpperCase();
+            if (detected && tickerChanged && !currencyEditedByUser.current) setCurrency(detected);
+        }, 500);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [ticker, type]);
+
     const numAmount = parseFloat(amount) || 0;
     const numPrice = parseFloat(price) || 0;
     const numRate = currency === 'PLN' ? 1 : parseFloat(exchangeRate) || 0;
@@ -194,6 +220,22 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         }
 
         if (isDeposit && !price) return;
+
+        if (type === 'Kupno') {
+            const symbol = ticker.toUpperCase();
+            const quoteCurrency = quote?.ticker === symbol ? quote.currency : await resolveQuoteCurrency(symbol);
+            if (quoteCurrency && quoteCurrency !== currency) {
+                // Switch to the right currency; its exchange rate is fetched before the next save
+                currencyEditedByUser.current = false;
+                setCurrency(quoteCurrency);
+                setQuote({ ticker: symbol, currency: quoteCurrency });
+                toast.warning(`${symbol} jest notowany w ${quoteCurrency}`, {
+                    description: `Zmieniono walutę z ${currency} na ${quoteCurrency}. Sprawdź cenę i kurs, potem zapisz ponownie.`,
+                    duration: 8000
+                });
+                return;
+            }
+        }
 
         if (currency !== 'PLN' && !(numRate > 0)) {
             toast.error('Podaj kurs waluty', {
@@ -292,6 +334,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     };
 
     const commonCurrencies: CurrencyCode[] = ['PLN', 'USD', 'EUR', 'GBP', 'CHF'];
+
+    /** Quote currency from live data; null when unknown or not one the app supports (e.g. GBp) */
+    async function resolveQuoteCurrency(symbol: string): Promise<CurrencyCode | null> {
+        try {
+            const data = await fetchCurrentPrice(symbol);
+            const detected = data?.currency;
+            return detected && commonCurrencies.includes(detected) ? detected : null;
+        } catch (e) {
+            logger.warn('Quote currency lookup failed', symbol, e);
+            return null;
+        }
+    }
 
     const handleTickerSelect = async (t: Ticker) => {
         setTicker(t.symbol);
@@ -454,6 +508,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                                         onChange={e => {
                                             setTicker(e.target.value.toUpperCase());
                                             setShowSuggestions(true);
+                                            currencyEditedByUser.current = false;
                                         }}
                                         onFocus={() => setShowSuggestions(true)}
                                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -554,7 +609,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                                 <select
                                     data-testid="currency-selector"
                                     value={currency}
-                                    onChange={e => setCurrency(e.target.value as CurrencyCode)}
+                                    onChange={e => {
+                                        currencyEditedByUser.current = true;
+                                        setCurrency(e.target.value as CurrencyCode);
+                                    }}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-600 transition-colors font-bold text-center appearance-none"
                                 >
                                     {commonCurrencies.map(c => (
@@ -563,6 +621,16 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                                         </option>
                                     ))}
                                 </select>
+                                {type === 'Kupno' && quote?.ticker === ticker && (
+                                    <p
+                                        data-testid="quote-currency-hint"
+                                        className={`text-[11px] mt-1 text-center ${
+                                            quote.currency === currency ? 'text-slate-500' : 'text-amber-400'
+                                        }`}
+                                    >
+                                        Notowany w {quote.currency}
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

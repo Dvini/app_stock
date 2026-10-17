@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PlusCircle, Star, Search, BarChart3, Clock, Trash2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { TrendingUp, TrendingDown, Minus, Plus, Star, Search, BarChart3, Clock, Trash2, Wallet } from 'lucide-react';
+import { cn, plSign, plTextClass } from '../lib/utils';
 import { MissingRatesNotice } from '../components/UIComponents';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { AddTransactionModal } from '../components/AddTransactionModal';
@@ -59,6 +59,8 @@ export const Dashboard = () => {
 
     useEffect(() => {
         if (!selectedTicker) return;
+        // Switching ticker or range quickly must not let an older response overwrite the newer one
+        let cancelled = false;
 
         const loadChart = async () => {
             setIsLoadingChart(true);
@@ -72,6 +74,7 @@ export const Dashboard = () => {
             if (chartRange === 'max') interval = '1mo';
 
             const result = await fetchHistory(selectedTicker, chartRange, interval);
+            if (cancelled) return;
 
             if (result && result.data) {
                 setChartData(result.data.map(d => ({ time: d.timestamp, price: d.price })));
@@ -87,6 +90,9 @@ export const Dashboard = () => {
         };
 
         loadChart();
+        return () => {
+            cancelled = true;
+        };
     }, [selectedTicker, chartRange]);
 
     const getAssetPrice = (ticker: string) => {
@@ -143,25 +149,60 @@ export const Dashboard = () => {
 
     const chartStats = getChartStats();
 
+    const todayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+
     return (
         <div
             data-testid="dashboard-page"
-            className="space-y-6 h-[calc(100vh-6rem)] flex flex-col animate-in fade-in zoom-in duration-500"
+            className="flex-1 min-h-[680px] flex flex-col gap-5 animate-in fade-in duration-500"
         >
+            <header className="flex flex-wrap items-end justify-between gap-4 shrink-0">
+                <div>
+                    <p className="text-sm text-slate-400 first-letter:uppercase">{todayLabel}</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-gradient">Przegląd portfela</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        data-testid="add-watchlist-button"
+                        onClick={() => setShowWatchlistModal(true)}
+                        className="glass rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition flex items-center gap-2"
+                    >
+                        <Star size={16} className="text-amber-300" />
+                        Obserwuj
+                    </button>
+                    <button
+                        type="button"
+                        data-testid="add-transaction-button"
+                        onClick={() => setShowTxModal(true)}
+                        className="bg-blue-600 rounded-2xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition flex items-center gap-2"
+                    >
+                        <Plus size={16} strokeWidth={2.5} />
+                        Nowa transakcja
+                    </button>
+                </div>
+            </header>
+
             <MissingRatesNotice currencies={portfolioSummary.missingRateCurrencies} />
 
-            <div
-                data-testid="dashboard-summary-cards"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0"
-            >
+            <div data-testid="dashboard-summary-cards" className="grid grid-cols-1 lg:grid-cols-3 gap-5 shrink-0">
                 <div
                     data-testid="portfolio-value-card"
-                    className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 relative group cursor-help"
+                    className="glass relative group lg:col-span-2 rounded-3xl p-6 cursor-help"
                 >
-                    <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Wartość Portfela</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <h2 className="text-2xl font-bold">{portfolioSummary.totalValue}</h2>
-                        <span className="text-sm text-slate-500">{portfolioSummary.baseCurrency || 'PLN'}</span>
+                    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+                        <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-violet-500/25 blur-3xl" />
+                        <div className="absolute -bottom-28 right-40 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+                    </div>
+                    <div className="relative flex items-center gap-2 text-sm font-medium text-slate-300">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_2px] shadow-emerald-400/60" />
+                        Wartość portfela
+                    </div>
+                    <div className="relative flex items-baseline gap-3 mt-3">
+                        <h2 className="text-5xl font-bold tracking-tight text-white">{portfolioSummary.totalValue}</h2>
+                        <span className="text-lg font-medium text-slate-400">
+                            {portfolioSummary.baseCurrency || 'PLN'}
+                        </span>
                     </div>
                     {portfolioSummary.breakdown && portfolioSummary.breakdown.length > 0 && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -194,80 +235,77 @@ export const Dashboard = () => {
                             </div>
                         </div>
                     )}
-                    <div className="mt-1.5 space-y-1">
-                        <div
+                    <div className="relative mt-5 flex flex-wrap items-center gap-2">
+                        <span
                             className={cn(
-                                'text-xs flex items-center font-medium',
-                                portfolioSummary.totalPL.includes('-') ? 'text-rose-400' : 'text-emerald-400'
+                                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset',
+                                plSign(portfolioSummary.totalPL) < 0
+                                    ? 'bg-rose-500/15 text-rose-300 ring-rose-400/20'
+                                    : plSign(portfolioSummary.totalPL) > 0
+                                      ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-400/20'
+                                      : 'bg-white/[0.05] text-slate-300 ring-white/10'
                             )}
                         >
-                            {portfolioSummary.totalPL.includes('-') ? (
-                                <TrendingDown size={12} className="mr-1 shrink-0" />
+                            {plSign(portfolioSummary.totalPL) < 0 ? (
+                                <TrendingDown size={14} className="shrink-0" />
+                            ) : plSign(portfolioSummary.totalPL) > 0 ? (
+                                <TrendingUp size={14} className="shrink-0" />
                             ) : (
-                                <TrendingUp size={12} className="mr-1 shrink-0" />
+                                <Minus size={14} className="shrink-0" />
                             )}
-                            <span>
-                                Brutto: {portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})
-                            </span>
-                        </div>
+                            Brutto: {portfolioSummary.totalPL} ({portfolioSummary.totalPLPercent})
+                        </span>
 
                         {portfolioSummary.isTaxExempt ? (
-                            <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-400/15">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                 0% Belki (100% zysku netto)
-                            </div>
+                            </span>
                         ) : portfolioSummary.totalTaxReserveValue > 0 ? (
-                            <div className="text-[11px] text-slate-400 font-medium">
-                                Netto: <span className="text-slate-200 font-bold">{portfolioSummary.totalNetPL}</span>
-                                <span className="text-slate-500 text-[10px] ml-1">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-400 ring-1 ring-inset ring-white/10">
+                                Netto: <span className="text-slate-100 font-bold">{portfolioSummary.totalNetPL}</span>
+                                <span className="text-slate-500 ml-1">
                                     (-{portfolioSummary.totalTaxReserve} Belka 19%)
                                 </span>
-                            </div>
+                            </span>
                         ) : null}
                     </div>
                 </div>
 
-                <div data-testid="cash-card" className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800">
-                    <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Gotówka</p>
-                    <h2 className="text-2xl font-bold mt-1">
+                <div data-testid="cash-card" className="glass relative rounded-3xl p-6 overflow-hidden flex flex-col">
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute -bottom-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl"
+                    />
+                    <div className="relative flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white shadow-lg shadow-cyan-500/30">
+                            <Wallet size={18} />
+                        </span>
+                        <span className="text-sm font-medium text-slate-300">Gotówka</span>
+                    </div>
+                    <h2 className="relative mt-auto pt-6 text-4xl font-bold tracking-tight text-white">
                         {portfolioSummary.cash}{' '}
-                        <span className="text-sm font-normal text-slate-500">
+                        <span className="text-base font-medium text-slate-400">
                             {portfolioSummary.baseCurrency || 'PLN'}
                         </span>
                     </h2>
-                </div>
-
-                <div
-                    data-testid="add-transaction-button"
-                    onClick={() => setShowTxModal(true)}
-                    className="bg-blue-600/10 hover:bg-blue-600/20 p-5 rounded-2xl border border-blue-600/30 cursor-pointer transition-all group flex flex-col justify-center items-center"
-                >
-                    <PlusCircle className="text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-blue-200 font-bold text-sm">Nowa Transakcja</span>
-                </div>
-
-                <div
-                    data-testid="add-watchlist-button"
-                    onClick={() => setShowWatchlistModal(true)}
-                    className="bg-slate-800/30 hover:bg-slate-800/60 p-5 rounded-2xl border border-slate-700 border-dashed cursor-pointer transition-all group flex flex-col justify-center items-center"
-                >
-                    <Star className="text-slate-400 mb-2 group-hover:text-yellow-400 transition-colors" />
-                    <span className="text-slate-400 font-bold text-sm group-hover:text-slate-200">
-                        Dodaj do Obserwowanych
-                    </span>
+                    <p className="relative mt-1 text-xs text-slate-500">Wolne środki na rachunku</p>
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0 flex gap-6">
+            <div className="flex-1 min-h-0 flex gap-5">
                 <div
                     data-testid="assets-sidebar"
-                    className="w-1/3 min-w-[300px] bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col overflow-hidden"
+                    className="w-1/3 min-w-[300px] glass rounded-3xl flex flex-col overflow-hidden"
                 >
-                    <div className="p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
-                        <h3 className="font-bold text-slate-200 flex items-center gap-2">
-                            <Search size={16} className="text-slate-500" />
+                    <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-100 flex items-center gap-2">
+                            <Search size={16} className="text-slate-400" />
                             Instrumenty
                         </h3>
+                        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-slate-400">
+                            {assets.length + watchlist.filter(w => !assets.some(a => a.ticker === w.ticker)).length}
+                        </span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                         {assets.length > 0 && (
@@ -325,13 +363,13 @@ export const Dashboard = () => {
 
                 <div
                     data-testid="chart-container"
-                    className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative"
+                    className="flex-1 glass rounded-3xl flex flex-col overflow-hidden relative"
                 >
                     {selectedTicker ? (
                         <>
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-start bg-gradient-to-r from-slate-900 to-slate-900/50">
+                            <div className="p-6 border-b border-white/[0.06] flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-4xl font-black tracking-tight flex items-center gap-3">
+                                    <h2 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
                                         {selectedTicker}
                                         {!currentAssetInfo.isOwned && (
                                             <Star size={24} className="text-yellow-500 fill-yellow-500/20" />
@@ -350,9 +388,11 @@ export const Dashboard = () => {
                                             <span
                                                 className={cn(
                                                     'px-2 py-1 rounded text-sm font-bold',
-                                                    chartStats.change >= 0
+                                                    plSign(chartStats.change) > 0
                                                         ? 'bg-emerald-500/10 text-emerald-400'
-                                                        : 'bg-rose-500/10 text-rose-400'
+                                                        : plSign(chartStats.change) < 0
+                                                          ? 'bg-rose-500/10 text-rose-400'
+                                                          : 'bg-white/[0.05] text-slate-300'
                                                 )}
                                             >
                                                 {chartStats.change > 0 && '+'}
@@ -365,7 +405,7 @@ export const Dashboard = () => {
 
                                 <div
                                     data-testid="chart-range-selector"
-                                    className="flex bg-slate-800/50 p-1 rounded-xl gap-1"
+                                    className="flex bg-black/20 p-1 rounded-2xl gap-1 ring-1 ring-inset ring-white/[0.06]"
                                 >
                                     {ranges.map(r => (
                                         <button
@@ -373,10 +413,10 @@ export const Dashboard = () => {
                                             data-testid={`chart-range-${r.val}`}
                                             onClick={() => setChartRange(r.val)}
                                             className={cn(
-                                                'px-4 py-2 rounded-lg text-sm font-bold transition-all',
+                                                'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
                                                 chartRange === r.val
-                                                    ? 'bg-blue-600 text-white shadow-lg'
-                                                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                                    ? 'bg-blue-600 text-white shadow-lg shadow-violet-600/30'
+                                                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
                                             )}
                                         >
                                             {r.label}
@@ -385,7 +425,7 @@ export const Dashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="flex-1 relative w-full h-full bg-slate-950/30">
+                            <div className="flex-1 relative w-full h-full">
                                 {isLoadingChart ? (
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <div className="flex flex-col items-center gap-3 animate-pulse">
@@ -401,7 +441,8 @@ export const Dashboard = () => {
                                         currency={chartCurrency}
                                         range={chartRange}
                                         color={
-                                            currentAssetInfo.pl && currentAssetInfo.pl.startsWith('-')
+                                            // Line follows the move over the selected range, like the badge above
+                                            chartStats && chartStats.change < 0
                                                 ? [0.9, 0.3, 0.3, 1.0]
                                                 : [0.2, 0.8, 0.4, 1.0]
                                         }
@@ -437,17 +478,17 @@ const AssetItem = React.memo<AssetItemProps>(
             className={cn(
                 'relative p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center group border',
                 selected
-                    ? 'bg-blue-500/10 border-blue-500/50 shadow-lg shadow-blue-900/10'
-                    : 'bg-transparent border-transparent hover:bg-slate-800 hover:border-slate-700'
+                    ? 'bg-gradient-to-r from-violet-500/20 to-blue-500/5 border-white/10'
+                    : 'bg-transparent border-transparent hover:bg-white/[0.04]'
             )}
         >
             <div className="flex items-center gap-3">
                 <div
                     className={cn(
-                        'w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm',
+                        'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm',
                         selected
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                            : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'
+                            ? 'bg-blue-600 text-white shadow-md shadow-violet-600/30'
+                            : 'bg-white/[0.06] text-slate-300 group-hover:bg-white/10 group-hover:text-white'
                     )}
                 >
                     {ticker[0]}
@@ -477,16 +518,7 @@ const AssetItem = React.memo<AssetItemProps>(
                         {price !== null && price !== '...' ? formatNumber(price as number) : '---'}{' '}
                         <span className="text-[10px] opacity-70">{currency}</span>
                     </p>
-                    {pl && (
-                        <p
-                            className={cn(
-                                'text-xs font-bold',
-                                pl.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'
-                            )}
-                        >
-                            {pl}
-                        </p>
-                    )}
+                    {pl && <p className={cn('text-xs font-bold', plTextClass(pl))}>{pl}</p>}
                 </div>
                 {isWatchlist && onRemove && (
                     <button

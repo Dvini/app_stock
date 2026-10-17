@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { formatNumber } from '../utils/formatters';
 
 interface ChartPoint {
@@ -24,6 +24,51 @@ interface TooltipState {
     index: number;
 }
 
+const PADDING = { top: 20, right: 20, bottom: 30, left: 64 };
+const POSITIVE = '#10b981';
+const NEGATIVE = '#f43f5e';
+const GRID = 'rgba(255, 255, 255, 0.07)';
+const AXIS_TEXT = '#9aa0c2';
+const ZERO_LINE = 'rgba(255, 255, 255, 0.25)';
+
+/** Value bounds with headroom so the line never touches the top or bottom edge */
+const getBounds = (points: number[]) => {
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const span = max - min;
+    const pad = span > 0 ? span * 0.08 : Math.max(Math.abs(max) * 0.01, 1);
+    return { min: min - pad, max: max + pad };
+};
+
+/** Round axis values (1, 2, 2.5 or 5 × 10^n apart) inside the bounds; zero gets a line when in range */
+const niceTicks = (min: number, max: number, target = 5) => {
+    const raw = (max - min) / target;
+    const magnitude = 10 ** Math.floor(Math.log10(raw));
+    const norm = raw / magnitude;
+    const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * magnitude;
+    const ticks: number[] = [];
+    for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) {
+        ticks.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    }
+    return ticks;
+};
+
+const isIntraday = (range: string) => range === '1d' || range === '5d';
+
+const formatAxisLabel = (date: Date, range: string) => {
+    if (range === '1d') return date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    if (range === '5d') return date.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric' });
+    return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatTooltipDate = (date: Date, range: string) =>
+    date.toLocaleString(
+        'pl-PL',
+        isIntraday(range)
+            ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+            : { day: 'numeric', month: 'short', year: 'numeric' }
+    );
+
 export const WebGPUChart: React.FC<WebGPUChartProps> = ({
     data = [],
     color = [0.16, 0.8, 0.45, 1.0],
@@ -34,14 +79,31 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
-    // Data parsing
-    const hasObjects = data.length > 0 && typeof data?.[0] === 'object' && data?.[0] !== null;
-    const points: number[] = hasObjects ? data.map(d => d?.price || 0) : (data as number[]);
-    const times: number[] = hasObjects ? data.map(d => d?.timestamp || d?.time || 0) : [];
+    // Data parsing (memoized so hover re-renders do not redraw the canvas)
+    const { points, times } = useMemo(() => {
+        const hasObjects = data.length > 0 && typeof data[0] === 'object' && data[0] !== null;
+        if (!hasObjects) return { points: data as unknown as number[], times: [] as number[] };
+        return {
+            points: data.map(d => d?.price ?? d?.close ?? 0),
+            times: data.map(d => d?.timestamp || d?.time || 0)
+        };
+    }, [data]);
 
     // Colors
     const isNegative = (color?.[0] ?? 0) > 0.5 && (color?.[1] ?? 0) < 0.5;
-    const themeColor = isNegative ? '#f43f5e' : '#10b981';
+    const themeColor = isNegative ? NEGATIVE : POSITIVE;
+
+    // Color of the line at a point, matching how the line is drawn below
+    const pointColor = (i: number) => {
+        const minVal = Math.min(...points);
+        const maxVal = Math.max(...points);
+        if (minVal < 0 && maxVal > 0) return (points[i] ?? 0) >= 0 ? POSITIVE : NEGATIVE;
+        if (maxVal <= 0 && minVal < 0) return NEGATIVE;
+        return themeColor;
+    };
+
+    const getX = (i: number, chartW: number) =>
+        points.length > 1 ? PADDING.left + (i / (points.length - 1)) * chartW : PADDING.left + chartW / 2;
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -54,200 +116,190 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
         const render = () => {
             const dpr = window.devicePixelRatio || 1;
             const rect = container.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
             canvas.width = Math.floor(rect.width * dpr);
             canvas.height = Math.floor(rect.height * dpr);
-            canvas.style.width = `${rect.width}px`;
-            canvas.style.height = `${rect.height}px`;
-            ctx.scale(dpr, dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             const w = rect.width;
             const h = rect.height;
-
-            const padding = { top: 20, right: 20, bottom: 30, left: 60 };
-            const chartW = w - padding.left - padding.right;
-            const chartH = h - padding.top - padding.bottom;
+            const chartW = w - PADDING.left - PADDING.right;
+            const chartH = h - PADDING.top - PADDING.bottom;
+            const bottom = PADDING.top + chartH;
 
             ctx.clearRect(0, 0, w, h);
 
-            const minVal = Math.min(...points);
-            const maxVal = Math.max(...points);
-            const rangeVal = maxVal - minVal || 1;
+            const { min, max } = getBounds(points);
+            const span = max - min;
+            const getY = (val: number) => PADDING.top + chartH - ((val - min) / span) * chartH;
+            const xAt = (i: number) => getX(i, chartW);
 
+            // Horizontal grid + value labels
             ctx.lineWidth = 1;
-            ctx.strokeStyle = '#334155';
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '10px Roboto, sans-serif';
-
-            const ySteps = 5;
-            for (let i = 0; i <= ySteps; i++) {
-                const yRatio = i / ySteps;
-                const y = padding.top + chartH * yRatio;
-                const val = maxVal - rangeVal * yRatio;
-
+            ctx.font = '10px Inter, system-ui, sans-serif';
+            niceTicks(min, max).forEach(tick => {
+                const y = getY(tick);
+                ctx.strokeStyle = GRID;
                 ctx.beginPath();
-                ctx.moveTo(padding.left, y);
-                ctx.lineTo(w - padding.right, y);
+                ctx.moveTo(PADDING.left, y);
+                ctx.lineTo(w - PADDING.right, y);
                 ctx.stroke();
 
+                ctx.fillStyle = AXIS_TEXT;
                 ctx.textAlign = 'right';
-                ctx.fillText(formatNumber(val), padding.left - 10, y + 3);
-            }
+                ctx.fillText(formatNumber(tick), PADDING.left - 10, y + 3);
+            });
 
+            // Time labels: edges are aligned inwards so they are not clipped
             if (times.length > 0) {
-                const xSteps = 4;
-                const step = Math.floor(times.length / xSteps);
-                ctx.textAlign = 'center';
-                for (let i = 0; i <= xSteps; i++) {
-                    const idx = Math.min(i * step, times.length - 1);
-                    const x = padding.left + (idx / (times.length - 1)) * chartW;
-                    const date = new Date((times[idx] || 0) * 1000);
-
-                    let labelStr;
-                    if (range === '1d') {
-                        labelStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    } else {
-                        labelStr = date.toLocaleDateString();
-                    }
-
-                    ctx.fillText(labelStr, x, h - 10);
-                }
+                const xSteps = Math.min(4, times.length - 1);
+                const indices =
+                    xSteps === 0
+                        ? [0]
+                        : [
+                              ...new Set(
+                                  Array.from({ length: xSteps + 1 }, (_, i) =>
+                                      Math.round((i * (times.length - 1)) / xSteps)
+                                  )
+                              )
+                          ];
+                ctx.fillStyle = AXIS_TEXT;
+                indices.forEach((idx, n) => {
+                    ctx.textAlign =
+                        indices.length === 1
+                            ? 'center'
+                            : n === 0
+                              ? 'left'
+                              : n === indices.length - 1
+                                ? 'right'
+                                : 'center';
+                    const x = xAt(idx);
+                    const label = formatAxisLabel(new Date((times[idx] || 0) * 1000), range);
+                    const anchor = ctx.textAlign === 'left' ? x - 4 : ctx.textAlign === 'right' ? x + 4 : x;
+                    ctx.fillText(label, anchor, h - 10);
+                });
             }
 
-            const getX = (i: number) => padding.left + (i / (points.length - 1)) * chartW;
-            const getY = (val: number) => padding.top + chartH - ((val - minVal) / rangeVal) * chartH;
+            const minVal = Math.min(...points);
+            const maxVal = Math.max(...points);
+            const crossesZero = minVal < 0 && maxVal > 0;
 
-            const gradientLeft = padding.left;
-            const gradientRight = w - padding.right;
-
-            const getColor = (val: number) => (val >= 0 ? '#10b981' : '#f43f5e');
-
-            const strokeGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
-            const fillGradient = ctx.createLinearGradient(gradientLeft, 0, gradientRight, 0);
-
-            const isAllPositive = minVal >= 0;
-            const isAllNegative = maxVal < 0;
-
-            if (isAllPositive) {
-                strokeGradient.addColorStop(0, '#10b981');
-                strokeGradient.addColorStop(1, '#10b981');
-                fillGradient.addColorStop(0, '#10b981');
-                fillGradient.addColorStop(1, '#10b981');
-            } else if (isAllNegative) {
-                strokeGradient.addColorStop(0, '#f43f5e');
-                strokeGradient.addColorStop(1, '#f43f5e');
-                fillGradient.addColorStop(0, '#f43f5e');
-                fillGradient.addColorStop(1, '#f43f5e');
-            } else {
-                // Mixed positive and negative - create gradient with color stops at each point
-                strokeGradient.addColorStop(0, getColor(points[0]!));
-                fillGradient.addColorStop(0, getColor(points[0]!));
-
+            // Series that stay on one side of zero use one color: the trend color from the caller for
+            // positive series (prices, portfolio value), red for an all-negative result
+            const lineColor = (gradient: CanvasGradient) => {
+                if (!crossesZero) {
+                    const c = maxVal <= 0 && minVal < 0 ? NEGATIVE : themeColor;
+                    gradient.addColorStop(0, c);
+                    gradient.addColorStop(1, c);
+                    return gradient;
+                }
+                // P/L crossing zero: color each stretch by its sign, switching where the line crosses zero
+                const getColor = (val: number) => (val >= 0 ? POSITIVE : NEGATIVE);
+                gradient.addColorStop(0, getColor(points[0]!));
                 for (let i = 0; i < points.length - 1; i++) {
                     const p1 = points[i]!;
                     const p2 = points[i + 1]!;
-
-                    // Calculate position of this point in the gradient (0 to 1)
                     const pos1 = i / (points.length - 1);
                     const pos2 = (i + 1) / (points.length - 1);
-
-                    // If crossing zero between these two points
                     if ((p1 >= 0 && p2 < 0) || (p1 < 0 && p2 >= 0)) {
-                        // Calculate exact crossing point
                         const ratio = Math.abs(p1) / (Math.abs(p1) + Math.abs(p2));
                         const crossPos = pos1 + (pos2 - pos1) * ratio;
-
-                        // Add slight smoothness (2%) for better visual transition
-                        const smoothness = 0.02;
-                        const crossStart = Math.max(0, crossPos - smoothness);
-                        const crossEnd = Math.min(1, crossPos + smoothness);
-
-                        // Add color stops at crossing point with smoothness
-                        strokeGradient.addColorStop(crossStart, getColor(p1));
-                        strokeGradient.addColorStop(crossEnd, getColor(p2));
-
-                        fillGradient.addColorStop(crossStart, getColor(p1));
-                        fillGradient.addColorStop(crossEnd, getColor(p2));
+                        gradient.addColorStop(Math.max(0, crossPos - 0.002), getColor(p1));
+                        gradient.addColorStop(Math.min(1, crossPos + 0.002), getColor(p2));
                     }
-
-                    // Add color stop at the next point position
-                    strokeGradient.addColorStop(pos2, getColor(p2));
-                    fillGradient.addColorStop(pos2, getColor(p2));
+                    gradient.addColorStop(pos2, getColor(p2));
                 }
+                return gradient;
+            };
+
+            const strokeGradient = lineColor(ctx.createLinearGradient(PADDING.left, 0, w - PADDING.right, 0));
+            const fillGradient = lineColor(ctx.createLinearGradient(PADDING.left, 0, w - PADDING.right, 0));
+
+            if (crossesZero) {
+                ctx.save();
+                ctx.strokeStyle = ZERO_LINE;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(PADDING.left, getY(0));
+                ctx.lineTo(w - PADDING.right, getY(0));
+                ctx.stroke();
+                ctx.restore();
             }
 
+            if (points.length === 1) {
+                ctx.fillStyle = strokeGradient;
+                ctx.beginPath();
+                ctx.arc(xAt(0), getY(points[0]!), 4, 0, Math.PI * 2);
+                ctx.fill();
+                return;
+            }
+
+            // Area between the line and its baseline: zero for a result that has losses (so green fills
+            // profit and red fills loss), otherwise the bottom edge. Single-color areas fade towards the baseline.
+            const allNegative = maxVal <= 0 && minVal < 0;
+            const baseline = crossesZero ? getY(0) : allNegative ? PADDING.top : bottom;
             ctx.save();
-            ctx.globalAlpha = 0.2;
             ctx.beginPath();
-            ctx.moveTo(getX(0), h - padding.bottom);
-            points.forEach((val, i) => ctx.lineTo(getX(i), getY(val)));
-            ctx.lineTo(getX(points.length - 1), h - padding.bottom);
+            ctx.moveTo(xAt(0), baseline);
+            points.forEach((val, i) => ctx.lineTo(xAt(i), getY(val)));
+            ctx.lineTo(xAt(points.length - 1), baseline);
             ctx.closePath();
-            ctx.fillStyle = fillGradient;
+            if (crossesZero) {
+                ctx.globalAlpha = 0.18;
+                ctx.fillStyle = fillGradient;
+            } else {
+                const c = allNegative ? NEGATIVE : themeColor;
+                const fade = ctx.createLinearGradient(0, allNegative ? bottom : PADDING.top, 0, baseline);
+                fade.addColorStop(0, `${c}55`);
+                fade.addColorStop(1, `${c}00`);
+                ctx.fillStyle = fade;
+            }
             ctx.fill();
             ctx.restore();
 
             ctx.beginPath();
             points.forEach((val, i) => {
-                if (i === 0) ctx.moveTo(getX(i), getY(val));
-                else ctx.lineTo(getX(i), getY(val));
+                if (i === 0) ctx.moveTo(xAt(i), getY(val));
+                else ctx.lineTo(xAt(i), getY(val));
             });
             ctx.strokeStyle = strokeGradient;
             ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
             ctx.stroke();
         };
 
         render();
         const observer = new ResizeObserver(render);
         observer.observe(container);
-        window.addEventListener('resize', render);
 
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', render);
-        };
-    }, [data, color, points, times, range]);
+        return () => observer.disconnect();
+    }, [points, times, range, themeColor]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!containerRef.current || points.length === 0) return;
         const rect = containerRef.current.getBoundingClientRect();
         const xLocal = e.clientX - rect.left;
 
-        const w = rect.width;
-        const h = rect.height;
-        const padding = { top: 20, right: 20, bottom: 30, left: 60 };
-        const chartW = w - padding.left - padding.right;
-        const chartH = h - padding.top - padding.bottom;
+        const chartW = rect.width - PADDING.left - PADDING.right;
+        const chartH = rect.height - PADDING.top - PADDING.bottom;
 
-        if (xLocal < padding.left || xLocal > w - padding.right) {
+        if (xLocal < PADDING.left || xLocal > rect.width - PADDING.right) {
             setTooltip(null);
             return;
         }
 
-        const ratio = (xLocal - padding.left) / chartW;
+        const ratio = (xLocal - PADDING.left) / chartW;
         const index = Math.min(Math.max(Math.round(ratio * (points.length - 1)), 0), points.length - 1);
 
         const price = points[index]!;
         const time = times[index];
-
-        const xPos = padding.left + (index / (points.length - 1)) * chartW;
-
-        const minVal = Math.min(...points);
-        const maxVal = Math.max(...points);
-        const rangeVal = maxVal - minVal || 1;
-        const yPos = padding.top + chartH - ((price - minVal) / rangeVal) * chartH;
+        const { min, max } = getBounds(points);
 
         setTooltip({
-            x: xPos,
-            y: yPos,
+            x: getX(index, chartW),
+            y: PADDING.top + chartH - ((price - min) / (max - min)) * chartH,
             price: formatNumber(price),
-            date: time
-                ? new Date(time * 1000).toLocaleString('pl-PL', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                  })
-                : '',
+            date: time ? formatTooltipDate(new Date(time * 1000), range) : '',
             index
         });
     };
@@ -259,22 +311,23 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setTooltip(null)}
         >
-            <canvas ref={canvasRef} className="block w-full h-full" />
+            {/* Absolute so the canvas size never feeds back into the container size */}
+            <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
             {tooltip && (
                 <>
                     <div
-                        className="absolute top-5 bottom-8 border-l border-slate-500/50 border-dashed pointer-events-none"
+                        className="absolute top-5 bottom-[30px] border-l border-slate-500/50 border-dashed pointer-events-none"
                         style={{ left: tooltip.x }}
                     />
                     <div
-                        className="absolute left-[60px] right-5 border-t border-slate-500/50 border-dashed pointer-events-none"
+                        className="absolute left-[64px] right-5 border-t border-slate-500/50 border-dashed pointer-events-none"
                         style={{ top: tooltip.y }}
                     />
 
                     <div
                         className="absolute w-3 h-3 bg-white rounded-full border-2 shadow-lg transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                        style={{ left: tooltip.x, top: tooltip.y, borderColor: themeColor }}
+                        style={{ left: tooltip.x, top: tooltip.y, borderColor: pointColor(tooltip.index) }}
                     />
 
                     <div
@@ -282,7 +335,13 @@ export const WebGPUChart: React.FC<WebGPUChartProps> = ({
                         style={{
                             left: tooltip.x,
                             top: tooltip.y - 10,
-                            transform: 'translate(-50%, -100%)'
+                            transform: `translate(${
+                                tooltip.x < 120
+                                    ? '0%'
+                                    : tooltip.x > (containerRef.current?.clientWidth ?? 0) - 120
+                                      ? '-100%'
+                                      : '-50%'
+                            }, ${tooltip.y < 70 ? '30px' : '-100%'})`
                         }}
                     >
                         <div className="font-bold text-sm">
