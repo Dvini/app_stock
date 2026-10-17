@@ -566,6 +566,63 @@ test.describe('Smoke Tests 🔥', () => {
             await expect(page.locator('text=Docelowa Cena Sprzedaży')).toBeVisible();
             await expect(page.locator('text=Darmowe Akcje w Portfelu')).toBeVisible();
         });
+
+        test('simulated sell shows FIFO profit per lot', async ({ page }) => {
+            await page.goto('/');
+
+            await page.getByTestId('add-transaction-button').click();
+            await page.getByTestId('transaction-type-wpłata').click();
+            await page.getByTestId('transaction-date-input').fill('2025-01-02');
+            await page.getByTestId('price-input').fill('10000');
+            await page.getByTestId('submit-transaction-button').click();
+            await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible();
+
+            for (const [date, price] of [['2025-01-02', '100'], ['2025-06-02', '200']] as const) {
+                await page.getByTestId('add-transaction-button').click();
+                await page.getByTestId('transaction-type-kupno').click();
+                await page.getByTestId('transaction-date-input').fill(date);
+                await page.getByTestId('ticker-input').fill('CDR.WA');
+                await page.getByTestId('amount-input').fill('10');
+                await page.getByTestId('price-input').fill(price);
+                await expect(page.getByTestId('quote-currency-hint')).toHaveText('Notowany w PLN', { timeout: 10000 });
+                await page.getByTestId('submit-transaction-button').click();
+                await expect(page.getByTestId('add-transaction-modal')).not.toBeVisible({ timeout: 10000 });
+            }
+
+            await page.goto('/simulator');
+            await page.locator('button:has-text("SPRZEDAŻ")').click();
+            await page.getByTestId('sim-sell-asset-select').selectOption({ label: 'CDR.WA (Posiadasz: 20)' });
+            // Typed right away: the live quote arriving later must not overwrite it
+            await page.getByTestId('sim-price-input').fill('150');
+
+            await page.getByTestId('sim-sell-all').click();
+            await expect(page.getByTestId('sim-amount-input')).toHaveValue('20');
+
+            // More than held is rejected (recalculated live, no button)
+            await page.getByTestId('sim-amount-input').fill('21');
+            await expect(page.getByTestId('sim-calc-error')).toHaveText('Masz tylko 20 szt. CDR.WA');
+            await expect(page.getByTestId('sim-sell-result')).not.toBeVisible();
+
+            // 10 × (150 − 100) + 5 × (150 − 200) = +250, tax 19% = 47.50
+            await page.getByTestId('sim-amount-input').fill('15');
+            const result = page.getByTestId('sim-sell-result');
+            await expect(result).toContainText('+250,00');
+            await expect(result).toContainText('+500,00');
+            await expect(result).toContainText('-250,00');
+            await expect(result).toContainText('47,50');
+
+            // Break-even: 2000 PLN cost over 15 shares; the +10% scenario sells at 165 → +475
+            await expect(page.getByTestId('sim-break-even')).toContainText('133,33');
+            const scenarios = page.getByTestId('sim-scenarios');
+            await expect(scenarios.locator('tr', { hasText: '+10%' })).toContainText('165,00');
+            await expect(scenarios.locator('tr', { hasText: '+10%' })).toContainText('+475,00');
+
+            // Changing an input updates the result without any button
+            await page.waitForLoadState('networkidle');
+            await expect(page.getByTestId('sim-price-input')).toHaveValue('150');
+            await page.getByTestId('sim-commission-input').fill('10');
+            await expect(result).toContainText('+240,00');
+        });
     });
 
     // ========================================
