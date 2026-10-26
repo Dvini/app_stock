@@ -160,14 +160,41 @@ export const calculatePortfolioHistory = async (
         stepMinutes = 5; // 5 minutes for 1D
     else if (range === '5d') stepMinutes = 15; // 15 minutes for 5D
 
-    // Generate timeline with appropriate step, ending at actual Yahoo Finance data end date
-    if (stepMinutes < 1440) {
-        // Intraday intervals (minutes)
+    // Timeline from the actual quote times (one point per trading day for daily ranges), like the
+    // Dashboard chart: a calendar grid turns nights, weekends and holidays into flat stretches.
+    // Nothing is charted before the first trade - for a single ticker that is a flat zero P/L line.
+    const firstTx = sortedTx.find(t => isBuyTransaction(t.type) || isSellTransaction(t.type)) ?? sortedTx[0];
+    const firstTxDay = datePart(firstTx?.date ?? '');
+    // Timestamp 0 marks the current-price fallback, not a quote
+    const allQuoteTimes = [...new Set(Object.values(histories).flatMap(h => h.data.map(p => p.timestamp)))].filter(
+        t => t > 0
+    );
+    const hasQuotes = allQuoteTimes.length > 0;
+    // No quote since the first trade (e.g. bought at the weekend): an empty series, not a zero line
+    const quoteTimes = allQuoteTimes
+        .filter(t => toLocalISODate(new Date(t * 1000)) >= firstTxDay)
+        .sort((a, b) => a - b);
+
+    if (hasQuotes && stepMinutes < 1440) {
+        // Intraday: the API range already covers the sessions to show
+        quoteTimes.forEach(t => timeline.push(new Date(t * 1000)));
+    } else if (hasQuotes) {
+        const fromDay = toLocalISODate(startDate);
+        const toDay = toLocalISODate(endDate);
+        const tradingDays = [...new Set(quoteTimes.map(t => toLocalISODate(new Date(t * 1000))))];
+        tradingDays
+            .filter(d => d >= fromDay && d <= toDay)
+            .forEach(d => {
+                const [y, m, dd] = d.split('-').map(Number);
+                timeline.push(new Date(y!, m! - 1, dd!));
+            });
+    } else if (stepMinutes < 1440) {
+        // No quote history (current-price fallback only): generated grid, intraday steps
         for (let d = new Date(startDate); d <= endDate; d = new Date(d.getTime() + stepMinutes * 60 * 1000)) {
             timeline.push(new Date(d));
         }
     } else {
-        // Daily intervals - use actual market close times from data
+        // No quote history: generated grid, one point per calendar day
         // Use while loop to avoid date mutation issues in for loop condition
         // Normalize to day-level comparison (ignore hours/minutes) to handle timezone issues
         let currentDate = new Date(startDate);

@@ -340,6 +340,14 @@ export const Portfolio = () => {
                                     <div className="w-full h-full flex items-center justify-center text-slate-500 animate-pulse">
                                         Rekonstrukcja historii...
                                     </div>
+                                ) : historyData.length === 0 ? (
+                                    // E.g. a position bought at the weekend: no session since the purchase yet
+                                    <div
+                                        data-testid="history-empty"
+                                        className="w-full h-full flex items-center justify-center text-center text-slate-500 px-4"
+                                    >
+                                        Brak notowań od pierwszej transakcji – wykres pojawi się po najbliższej sesji.
+                                    </div>
                                 ) : (
                                     <WebGPUChart
                                         data={historyData}
